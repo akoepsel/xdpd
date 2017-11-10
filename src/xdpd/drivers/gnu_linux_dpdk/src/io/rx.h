@@ -45,7 +45,7 @@ namespace gnu_linux_dpdk {
 * Processes RX in a specific port. The function will process up to MAX_BURST_SIZE
 */
 inline void
-process_port_rx(unsigned int core_id, switch_port_t* port, struct rte_mbuf** pkts_burst, datapacket_t* pkt, datapacket_dpdk_t* pkt_state){
+process_port_rx(unsigned int core_id, switch_port_t* port, uint8_t portid, uint8_t queueid, struct rte_mbuf** pkts_burst, datapacket_t* pkt, datapacket_dpdk_t* pkt_state){
 
 	unsigned int i, burst_len = 0;
 	of_switch_t* sw = port->attached_sw;
@@ -89,15 +89,16 @@ process_port_rx(unsigned int core_id, switch_port_t* port, struct rte_mbuf** pkt
 #endif
 	{
 		//Physical port - pkts received through an ethernet port
-		unsigned int port_id = ((dpdk_port_state_t*)port->platform_port_state)->port_id;
-		burst_len = rte_eth_rx_burst(port_id, 0, pkts_burst, IO_IFACE_MAX_PKT_BURST);
+		//XDPD_DEBUG(DRIVER_NAME "[io] Read burst from %s portid=%d queueid=%d\n", port->name, portid, queueid);
+		burst_len = rte_eth_rx_burst(portid, queueid, pkts_burst, IO_IFACE_MAX_PKT_BURST);
 	}
 
-	//XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io] Read burst from %s (%u pkts)\n", port->name, burst_len);
 
-	//Prefetch
-	if( burst_len )
+	// Prefetch
+	if (burst_len) {
 		rte_prefetch0(rte_pktmbuf_mtod(pkts_burst[0], void *));
+		XDPD_DEBUG(DRIVER_NAME"[io] Read burst from %s (%u pkts) portid=%d queueid=%d\n", port->name, burst_len, portid, queueid);
+	}
 
 	//Process them
 	for(i=0;i<burst_len;++i){
@@ -133,7 +134,7 @@ process_port_rx(unsigned int core_id, switch_port_t* port, struct rte_mbuf** pkt
 			tmp_port = port;
 		}
 		else if(port->type == PORT_TYPE_NF_EXTERNAL) {
-			tmp_port=port;
+			tmp_port = port;
 		}else
 #endif
 		{
@@ -153,6 +154,13 @@ process_port_rx(unsigned int core_id, switch_port_t* port, struct rte_mbuf** pkt
 		if( (i+1) < burst_len )
 			rte_prefetch0(rte_pktmbuf_mtod(pkts_burst[i+1], void *));
 
+		XDPD_DEBUG("calling of_process_packet_pipeline i=%d core_id=%d (%p)\n", i, core_id, pkt);
+
+#if 0
+		unsigned char *tmp = rte_pktmbuf_mtod(pkts_burst[i], unsigned char *);
+		fprintf(stderr, "%d(%d):#%d %x:%x:%x:%x:%x:%x->%x:%x:%x:%x:%x:%x\n", portid, core_id, i, tmp[6], tmp[7],
+			tmp[8], tmp[9], tmp[10], tmp[11], tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);
+#endif
 		//Send to process
 		of_process_packet_pipeline(core_id, sw, pkt);
 	}

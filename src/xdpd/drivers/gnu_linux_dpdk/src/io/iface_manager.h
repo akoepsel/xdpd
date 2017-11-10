@@ -7,6 +7,8 @@
 
 #include <rofl_datapath.h>
 #include "../config.h"
+#include "../config_rss.h"
+extern "C" {
 #include <rte_config.h> 
 #include <rte_common.h> 
 #include <rte_eal.h> 
@@ -18,7 +20,7 @@
 #include <rte_ring.h>
 #include <rte_launch.h>
 #include <rte_kni.h>
-
+}
 #include <rofl/datapath/pipeline/physical_switch.h>
 #include <rofl/datapath/pipeline/common/datapacket.h>
 #include <rofl/datapath/pipeline/openflow/of_switch.h>
@@ -33,6 +35,12 @@
 
 //Maximum number of ports (preallocation of port_mapping)
 #define PORT_MANAGER_MAX_PORTS PROCESSING_MAX_PORTS 
+
+extern uint8_t nb_phy_ports;
+
+/* ethernet addresses of ports */
+extern uint64_t dest_eth_addr[RTE_MAX_ETHPORTS];
+extern struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
 /**
  *  Port mappings (port_id -> struct switch_port)
@@ -71,7 +79,7 @@ rofl_result_t iface_manager_destroy(void);
 /**
 * Setup tx and rx queues 
 */
-rofl_result_t iface_manager_set_queues(switch_port_t* port, unsigned int core_id, unsigned int port_id);
+rofl_result_t iface_manager_set_queues(switch_port_t* port);
 
 /**
 * Enable port 
