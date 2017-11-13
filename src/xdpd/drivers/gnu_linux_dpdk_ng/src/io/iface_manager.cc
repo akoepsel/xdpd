@@ -60,7 +60,7 @@ static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 //a set of available NUMA sockets (socket_id)
 static std::set<int> sockets;
 //a map of available logical cores per NUMA socket (number of lcores)
-static std::map<unsigned int, unsigned int> cores;
+static std::map<unsigned int, std::set<unsigned int> > cores;
 
 // XXX(toanju) these values need a proper configuration
 int port_vf_id[RTE_MAX_ETHPORTS] = {-1, 0, 1, -1, 0, 1, -1, 0, 1};
@@ -415,6 +415,7 @@ static unsigned is_txq_enabled(const uint8_t lsi_id, const uint8_t port_id, cons
 	return 0;
 }
 
+#if 0
 static int check_lcore_params(void)
 {
 	uint8_t queue, lcore;
@@ -442,7 +443,8 @@ static int check_lcore_params(void)
 	}
 	return 0;
 }
-
+#endif
+#if 0
 static int
 init_lcore_rx_queues(void)
 {
@@ -467,7 +469,8 @@ init_lcore_rx_queues(void)
         }
         return 0;
 }
-
+#endif
+#if 0
 static int check_port_config(const unsigned nb_ports)
 {
 	unsigned portid;
@@ -482,6 +485,7 @@ static int check_port_config(const unsigned nb_ports)
 	}
 	return 0;
 }
+#endif
 static int init_mem(unsigned nb_mbuf)
 {
 	int socketid;
@@ -1016,17 +1020,16 @@ START_RETRY:
 }
 
 /**
-* Discovers and initializes DPDK logical cores.
+* Discovers logical cores.
 */
 rofl_result_t iface_manager_discover_logical_cores(void){
 
 	//Initialize logical core structure: all lcores disabled
-	for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-		for (int j = 0; j < RTE_MAX_LCORE; j++) {
-			lcores[i][j].is_master = 0;
-			lcores[i][j].is_enabled = 0;
-			lcores[i][j].next_lcore_id = -1;
-		}
+	for (int j = 0; j < RTE_MAX_LCORE; j++) {
+		lcores[j].socket_id = -1;
+		lcores[j].is_master = 0;
+		lcores[j].is_enabled = 0;
+		lcores[j].next_lcore_id = -1;
 	}
 	sockets.clear();
 	cores.clear();
@@ -1036,36 +1039,119 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 
 	//Detect all lcores and their state
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
-		unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
-		if ((socket_id < RTE_MAX_NUMA_NODES) && (lcore_id < RTE_MAX_LCORE)) {
-			lcores[socket_id][lcore_id].is_enabled = rte_lcore_is_enabled(lcore_id);
-
-			//Get next lcore
-			unsigned int next_lcore_id = RTE_MAX_LCORE;
-			if ((next_lcore_id = rte_get_next_lcore(lcore_id, /*skip-master=*/1, /*wrap=*/1)) < RTE_MAX_LCORE) {
-				lcores[socket_id][lcore_id].next_lcore_id = next_lcore_id;
-			}
-
-			//master lcore?
-			if (lcore_id == master_lcore_id) {
-				lcores[socket_id][lcore_id].is_master = 1;
-			}
-
-			//Store socket_id in sockets
-			sockets.insert(socket_id);
-
-			//Increase number of worker lcores for this socket
-			if (lcore_id != master_lcore_id) {
-				cores[socket_id]++;
-			}
-
-			XDPD_INFO("adding lcore: %u %s on socket: %u, next lcore is: %u, #working lcores on this socket; %u\n",
-					lcore_id,
-					(lcores[socket_id][lcore_id].is_master ? "as master" : ""),
-					socket_id,
-					lcores[socket_id][lcore_id].next_lcore_id,
-					cores[socket_id]);
+		if (lcore_id >= RTE_MAX_LCORE) {
+			continue;
 		}
+		unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
+
+		lcores[lcore_id].socket_id = socket_id;
+		lcores[lcore_id].is_enabled = rte_lcore_is_enabled(lcore_id);
+
+		//Get next lcore
+		unsigned int next_lcore_id = RTE_MAX_LCORE;
+		if ((next_lcore_id = rte_get_next_lcore(lcore_id, /*skip-master=*/1, /*wrap=*/1)) < RTE_MAX_LCORE) {
+			lcores[lcore_id].next_lcore_id = next_lcore_id;
+		}
+
+		//master lcore?
+		if (lcore_id == master_lcore_id) {
+			lcores[lcore_id].is_master = 1;
+		}
+
+		//Store socket_id in sockets
+		sockets.insert(socket_id);
+
+		//Increase number of worker lcores for this socket
+		if (lcore_id != master_lcore_id) {
+			cores[socket_id].insert(lcore_id);
+		}
+
+		XDPD_INFO("adding lcore: %u %s on socket: %u, next lcore is: %u, #working lcores on this socket: %u\n",
+				lcore_id,
+				(lcores[lcore_id].is_master ? " as master" : ""),
+				socket_id,
+				lcores[lcore_id].next_lcore_id,
+				cores[socket_id].size());
+	}
+
+	return ROFL_SUCCESS;
+}
+
+/**
+* Discovers physical ports.
+*/
+rofl_result_t iface_manager_discover_physical_ports(void){
+
+	struct rte_eth_dev_info dev_info;
+	char s_fw_version[256];
+	char s_pci_addr[64];
+
+	//Initialize physical port structure: all phyports disabled
+	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+		phyports[port_id].socket_id = -1;
+		phyports[port_id].is_enabled = 0;
+		phyports[port_id].nb_rx_queues = 0;
+		phyports[port_id].nb_tx_queues = 0;
+	}
+
+	//Iterate over all available physical ports
+	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+		rte_eth_dev_info_get(port_id, &dev_info);
+
+		if (port_id >= RTE_MAX_ETHPORTS) {
+			continue;
+		}
+		int socket_id = rte_eth_dev_socket_id(port_id);
+
+		phyports[port_id].socket_id = socket_id;
+		phyports[port_id].is_enabled = 1;
+
+		rte_eth_dev_info_get(port_id, &dev_info);
+		rte_eth_dev_fw_version_get(port_id, s_fw_version, sizeof(s_fw_version));
+
+		//number of configured RX queues on device should not exceed number of worker lcores on socket
+		unsigned int nb_rx_queues = cores[socket_id].size() < dev_info.max_rx_queues ? cores[socket_id].size() : dev_info.max_rx_queues;
+
+		phyports[port_id].nb_rx_queues = nb_rx_queues;
+		phyports[port_id].nb_tx_queues = nb_rx_queues; //for now: symmetrical number of rx/tx queues
+
+		if (dev_info.pci_dev) {
+			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		}
+
+		XDPD_INFO("adding physical port: %u on socket: %u with nb_rx_queues: %u, available #worker lcores: %u, driver: %s, firmware: %s, PCI address: %s ",
+				port_id, socket_id, nb_rx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
+
+		//map physical port rx queues to worker lcores on socket
+		for (unsigned int queue_id = 0; queue_id < nb_rx_queues; queue_id++) {
+			for (unsigned int lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
+				if (lcores[lcore_id].socket_id != socket_id) {
+					continue;
+				}
+				if (lcores[lcore_id].is_master) {
+					continue;
+				}
+				if (not lcores[lcore_id].is_enabled) {
+					continue;
+				}
+				uint16_t nb_rx_queue = processing_core_tasks[lcore_id].n_rx_queue;
+				if (nb_rx_queue >= MAX_RX_QUEUE_PER_LCORE) {
+						XDPD_ERR("error: too many queues (%u) for lcore: %u\n",
+								(unsigned)nb_rx_queue + 1, (unsigned)lcore_id);
+						return ROFL_FAILURE;
+				} else {
+						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].port_id = port_id;
+						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = queue_id;
+						processing_core_tasks[lcore_id].n_rx_queue++;
+						XDPD_INFO("assigning physical port: %u, queue: %u to lcore: %u", port_id, queue_id, lcore_id);
+				}
+				break;
+			}
+		}
+	}
+
+	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+
 	}
 
 	return ROFL_SUCCESS;
@@ -1084,24 +1170,31 @@ rofl_result_t iface_manager_discover_system_ports(void){
 		return ROFL_FAILURE;
 	}
 
+	if (iface_manager_discover_physical_ports() < 0) {
+		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_physical_ports failed\n");
+		return ROFL_FAILURE;
+	}
+
+#if 0
 	if (check_lcore_params() < 0) {
 		XDPD_ERR(DRIVER_NAME"[iface_manager] check_lcore_params failed\n");
 		return ROFL_FAILURE;
 	}
-
+#endif
+#if 0
 	if (init_lcore_rx_queues() < 0) {
 		XDPD_ERR(DRIVER_NAME"[iface_manager] init_lcore_rx_queues failed\n");
 		return ROFL_FAILURE;
 	}
-
+#endif
 	nb_phy_ports = rte_eth_dev_count();
 	XDPD_INFO(DRIVER_NAME"[iface_manager] Found %u DPDK-capable interfaces\n", nb_phy_ports);
-	
+#if 0
 	if (check_port_config(nb_phy_ports) < 0) {
 		XDPD_ERR(DRIVER_NAME "[iface_manager] check_port_config failed\n");
 		return ROFL_FAILURE;
 	}
-
+#endif
 	for (i = 0; i < nb_phy_ports; ++i) {
 		// only VF ports for now
 		if (port_vf_id[i] == -1) {

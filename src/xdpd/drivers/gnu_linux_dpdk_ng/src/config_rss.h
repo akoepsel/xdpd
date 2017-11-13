@@ -21,6 +21,7 @@
 
 //Auxiliary struct to hold lcore to socket mappings
 struct lcore {
+	int socket_id;
 	int is_master;  //0:work horse, 1:master
 	int is_enabled; //0:disabled, 1:enabled
 	int next_lcore_id; //lcore_id of next lcore on actual socket or -1, excluding the master lcore
@@ -29,7 +30,20 @@ struct lcore {
 /**
 * lcores
 */
-extern struct lcore lcores[RTE_MAX_NUMA_NODES][RTE_MAX_LCORE];
+extern struct lcore lcores[RTE_MAX_LCORE];
+
+//Auxiliary struct to hold physical port to socket mappings
+struct phyport {
+	int socket_id;
+	int is_enabled; //0:disabled, 1:enabled
+	int nb_rx_queues; //number of rxqueues to be used
+	int nb_tx_queues; //number of txqueues to be used, (nb_rx_queues == nb_tx_queues)
+};
+
+/**
+* phyports
+*/
+extern struct phyport phyports[RTE_MAX_ETHPORTS];
 
 #define LCORE_PARAMS_MAX 1024
 

@@ -1,7 +1,10 @@
 #include "config_rss.h"
 
 //The set of available logical cores (lcore) per NUMA node (=socket)
-struct lcore lcores[RTE_MAX_NUMA_NODES][RTE_MAX_LCORE];
+struct lcore lcores[RTE_MAX_LCORE];
+
+//The set of available physical ports (phyport) per NUMA node (=socket)
+struct phyport phyports[RTE_MAX_ETHPORTS];
 
 //Set default values TODO remove
 // default values wrt. 2 LSI with 2 physical ports and 2 kni ports

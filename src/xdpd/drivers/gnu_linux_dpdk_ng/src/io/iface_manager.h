@@ -62,9 +62,14 @@ extern struct rte_ring* port_tx_lcore_queue[PORT_MANAGER_MAX_PORTS][IO_IFACE_NUM
 ROFL_BEGIN_DECLS
 
 /**
-* Discovers and initializes DPDK logical cores.
+* Discovers DPDK logical cores.
 */
 rofl_result_t iface_manager_discover_logical_cores(void);
+
+/**
+* Discovers DPDK physical ports.
+*/
+rofl_result_t iface_manager_discover_physical_ports(void);
 
 /**
 * Discovers and initializes (including rofl-pipeline state) DPDK-enabled ports.
