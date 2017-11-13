@@ -1040,8 +1040,6 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 		if ((socket_id < RTE_MAX_NUMA_NODES) && (lcore_id < RTE_MAX_LCORE)) {
 			lcores[socket_id][lcore_id].is_enabled = rte_lcore_is_enabled(lcore_id);
 
-			XDPD_INFO("adding lcore: %u on socket: %u\n", lcore_id, socket_id);
-
 			//Get next lcore
 			unsigned int next_lcore_id = RTE_MAX_LCORE;
 			if ((next_lcore_id = rte_get_next_lcore(lcore_id, /*skip-master=*/1, /*wrap=*/1)) < RTE_MAX_LCORE) {
@@ -1052,7 +1050,6 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 			//master lcore?
 			if (lcore_id == master_lcore_id) {
 				lcores[socket_id][lcore_id].is_master = 1;
-				XDPD_INFO("lcore: %u on socket: %u is master lcore\n", lcore_id, socket_id);
 			}
 
 			//Store socket_id in sockets
@@ -1062,6 +1059,13 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 			if (lcore_id != master_lcore_id) {
 				cores[socket_id]++;
 			}
+
+			XDPD_INFO("adding lcore: %u %s on socket: %u, next lcore is: %u, #lcores on this socket; %u\n",
+					lcore_id,
+					(lcores[socket_id][lcore_id].is_master ? "as master" : ""),
+					socket_id,
+					lcores[socket_id][lcore_id].next_lcore_id,
+					cores[socket_id]);
 		}
 	}
 
