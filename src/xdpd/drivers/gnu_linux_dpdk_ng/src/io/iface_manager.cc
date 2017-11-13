@@ -1085,7 +1085,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	struct rte_eth_dev_info dev_info;
 	char s_fw_version[256];
 	char s_pci_addr[64];
-	unsigned int lcore_id = 0;
+	unsigned int next_lcore_id[RTE_MAX_NUMA_NODES]; //The next lcore_id to be assigned to a queue on NUMA node i
+
+	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
+		next_lcore_id[socket_id] = 0;
+	}
 
 	//Initialize physical port structure: all phyports disabled
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
@@ -1127,7 +1131,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		//map physical port rx queues to worker lcores on socket
 		for (unsigned int queue_id = 0; queue_id < nb_rx_queues; queue_id++) {
 			for (;;) {
-				lcore_id = (lcore_id < (RTE_MAX_LCORE-1)) ? lcore_id + 1 : 0;
+				next_lcore_id[socket_id] = (next_lcore_id[socket_id] < (RTE_MAX_LCORE-1)) ? next_lcore_id[socket_id] + 1 : 0;
+				unsigned int lcore_id = next_lcore_id[socket_id];
 
 				if (lcores[lcore_id].socket_id != socket_id) {
 					continue;
