@@ -23,31 +23,41 @@
 #include "iface_manager.h"
 #include "../processing/processing.h"
 
+//#define TX_SHORTCUT 1
+
 namespace xdpd {
-namespace gnu_linux_dpdk {
+namespace gnu_linux_dpdk_ng {
 
 //
 // Packet TX
 //
 
-inline void
-transmit_port_queue_tx_burst(unsigned int port_id, unsigned int queue_id, struct rte_mbuf** burst){
+inline void transmit_port_queue_tx_burst(core_tasks_t *task, uint8_t port_id)
+{
+	uint16_t ret;
+	struct rte_mbuf **m_table;
+	unsigned len;
+	uint16_t queue_id;
+	switch_port_t* port;
 
-	unsigned int ret, len;
-	switch_port_t* port = phy_port_mapping[port_id];
+	queue_id = task->tx_queue_id[port_id];
+	m_table = (struct rte_mbuf **)task->tx_mbufs[port_id].burst;
+	len = task->tx_mbufs[port_id].len;
+	port = phy_port_mapping[port_id];
 
-	//Dequeue a burst from the TX ring
-	len = rte_ring_mc_dequeue_burst(port_tx_lcore_queue[port_id][queue_id], (void **)burst, IO_IFACE_MAX_PKT_BURST, NULL);
-
-	if(len == 0)
-		return;
-
-	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io][%s(%u)] Trying to transmit burst on port queue_id %u of length %u\n", phy_port_mapping[port_id]->name,  port_id, queue_id, len);
+	RTE_LOG(INFO, XDPD, DRIVER_NAME "[io][%s(%u)] Trying to transmit burst on port queue_id %u of length %u\n",
+		port->name, port_id, queue_id, len);
 
 	//Send burst
-	ret = rte_eth_tx_burst(port_id, queue_id, burst, len);
+	//rte_spinlock_lock(&spinlock_conf[port_id]);
+	ret = rte_eth_tx_burst(port_id, queue_id, m_table, len);
+	//rte_spinlock_unlock(&spinlock_conf[port_id]);
 
-	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io][%s(%u)] +++ Transmitted %u pkts, on queue_id %u\n", phy_port_mapping[port_id]->name, port_id, ret, queue_id);
+	if (ret)
+		RTE_LOG(
+		    INFO, XDPD,
+		    "[io][%s(%u)] +++ Transmitted %u pkts, on queue_id %u\n",
+		    phy_port_mapping[port_id]->name, port_id, ret, queue_id);
 
 	if (unlikely(ret < len)) {
 		//Increment errors
@@ -56,11 +66,12 @@ transmit_port_queue_tx_burst(unsigned int port_id, unsigned int queue_id, struct
 
 		do {
 			//Now release the mbuf
-			rte_pktmbuf_free(burst[ret]);
+			rte_pktmbuf_free(m_table[ret]);
 		} while (++ret < len);
 	}
 }
 
+#if 0
 inline void
 flush_port_queue_tx_burst(switch_port_t* port, unsigned int port_id, struct mbuf_burst* queue, unsigned int queue_id){
 	unsigned ret;
@@ -72,7 +83,7 @@ flush_port_queue_tx_burst(switch_port_t* port, unsigned int port_id, struct mbuf
 	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io][%s(%u)] Trying to flush burst(enqueue in lcore ring) on port queue_id %u of length: %u\n", port->name,  port_id, queue_id, queue->len);
 
 	//Enqueue to the lcore (if it'd we us, we could probably call to transmit directly)
-	ret = rte_ring_mp_enqueue_burst(port_tx_lcore_queue[port_id][queue_id], (void **)queue->burst, queue->len, NULL);
+	ret = rte_ring_mp_enqueue_burst(port_tx_lcore_queue[port_id][queue_id], (void **)queue->burst, queue->len);
 
 	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io][%s(%u)] --- Flushed %u pkts, on queue id %u\n", port->name, port_id, ret, queue_id);
 
@@ -86,6 +97,51 @@ flush_port_queue_tx_burst(switch_port_t* port, unsigned int port_id, struct mbuf
 	//Reset queue size
 	queue->len = 0;
 }
+#endif
+
+#ifdef TX_SHORTCUT
+static inline int send_burst(core_tasks_t *qconf, uint16_t n, uint8_t port)
+{
+	struct rte_mbuf **m_table;
+	int ret;
+	uint16_t queueid;
+
+	queueid = qconf->tx_queue_id[port];
+	m_table = (struct rte_mbuf **)qconf->tx_mbufs[port].burst;
+
+	ret = rte_eth_tx_burst(port, queueid, m_table, n);
+
+	if (unlikely(ret < n)) {
+		do {
+			rte_pktmbuf_free(m_table[ret]);
+		} while (++ret < n);
+	}
+
+	return 0;
+}
+
+inline void send_single_packet(struct rte_mbuf *m, uint8_t port)
+{
+	uint32_t lcore_id;
+	uint16_t len;
+	core_tasks_t *qconf;
+
+	lcore_id = rte_lcore_id();
+
+	qconf = &processing_core_tasks[lcore_id];
+	len = qconf->tx_mbufs[port].len;
+	qconf->tx_mbufs[port].burst[len] = m;
+	len++;
+
+	/* enough pkts to be sent */
+	if (unlikely(len == IO_IFACE_MAX_PKT_BURST)) {
+		send_burst(qconf, IO_IFACE_MAX_PKT_BURST, port);
+		len = 0;
+	}
+
+	qconf->tx_mbufs[port].len = len;
+}
+#endif
 
 inline void
 tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
@@ -96,30 +152,17 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 	//Get mbuf pointer
 	mbuf = ((datapacket_dpdk_t*)pkt->platform_state)->mbuf;
+	assert(mbuf);
 	port_id = ((dpdk_port_state_t*)port->platform_port_state)->port_id;
 
-#ifdef DEBUG
-	if(unlikely(!mbuf)){
-		assert(0);
-		return;
-	}
-#endif
 	rte_lcore = rte_lcore_id();
 	if (rte_lcore == 0xffffffff) rte_lcore=0;
-	
+
 	//Recover core task
 	core_tasks_t* tasks = &processing_core_tasks[rte_lcore];
 
 	//Recover burst container (cache)
-	pkt_burst = &tasks->phy_ports[port_id].tx_queues_burst[queue_id];
-
-#if DEBUG
-	if(unlikely(!pkt_burst)){
-		rte_pktmbuf_free(mbuf);
-		assert(0);
-		return;
-	}
-#endif
+	pkt_burst = &tasks->tx_mbufs[port_id];
 
 	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io] Adding packet %p to queue %p (id: %u)\n", pkt, pkt_burst, rte_lcore);
 
@@ -131,8 +174,8 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 	//If burst is full => trigger send
 	if ( unlikely(!tasks->active) || unlikely(len == IO_IFACE_MAX_PKT_BURST)) { //If buffer is full or mgmt core
 		pkt_burst->len = len;
-		flush_port_queue_tx_burst(port, port_id, pkt_burst, queue_id);
-		return;
+		transmit_port_queue_tx_burst(tasks, port_id);
+		len = 0;
 	}
 
 	pkt_burst->len = len;
@@ -162,7 +205,7 @@ flush_shmem_nf_port(switch_port_t* port, rte_ring* queue, struct mbuf_burst* bur
 
 	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io][shmem][%s] Trying to flush burst(enqueue in lcore ring) of length: %u\n", port->name,  burst->len);
 
-	//Enqueue to the hsmem ring
+	//Enqueue to the shmem ring
 	ret = rte_ring_mp_enqueue_burst(queue, (void **)burst->burst, burst->len, NULL);
 
 	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io][shmem][%s] --- Flushed %u pkts\n", port->name, ret);
@@ -223,15 +266,9 @@ tx_pkt_shmem_nf_port(switch_port_t* port, datapacket_t* pkt)
         core_tasks_t* tasks = &processing_core_tasks[rte_lcore];
         
 	//Recover burst container (cache)
-	pkt_burst = &tasks->nf_ports[port_state->nf_id].tx_queues_burst[0];
+	pkt_burst = &tasks->tx_mbufs[port_state->state.port_id];
 
-#if DEBUG
-	if(unlikely(!pkt_burst)){
-		rte_pktmbuf_free(mbuf);
-		assert(0);
-		return;
-	}
-#endif
+	assert(pkt_burst);
 
 	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io][shmem] Adding packet %p to queue %p (id: %u)\n", pkt, pkt_burst, rte_lcore);
 
@@ -254,27 +291,39 @@ tx_pkt_shmem_nf_port(switch_port_t* port, datapacket_t* pkt)
 * KNI
 */
 inline void
-transmit_kni_nf_port_burst(switch_port_t* port, unsigned int port_id, struct rte_mbuf** burst)
+transmit_kni_nf_port_burst(core_tasks_t *task, uint8_t port_id)
 {
-	unsigned int ret, len;
+	uint16_t ret;
+	struct rte_mbuf **m_table;
+	unsigned len;
+	switch_port_t* port;
+	dpdk_kni_port_state *port_state;
 
-	//Dequeue a burst from the TX ring
-	len = rte_ring_mc_dequeue_burst(port_tx_nf_lcore_queue[port_id], (void **)burst, IO_IFACE_MAX_PKT_BURST, NULL);
+	m_table = (struct rte_mbuf **)task->tx_mbufs[port_id].burst;
+	len = task->tx_mbufs[port_id].len;
+	port = nf_port_mapping[port_id - nb_phy_ports];
 
-	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io][kni] Trying to transmit burst on KNI port %s of length %u\n",nf_port_mapping[port_id]->name, len);
+	assert(port);
+
+	RTE_LOG(INFO, XDPD, DRIVER_NAME "[io][kni] Trying to transmit burst on KNI port %s of length %u\n", port->name,
+		len);
 
 	//Send burst
-	dpdk_kni_port_state *port_state = (dpdk_kni_port_state_t*)port->platform_port_state;
-	ret = rte_kni_tx_burst(port_state->kni, burst, len);
+	port_state = (dpdk_kni_port_state_t*)port->platform_port_state;
+
+	rte_spinlock_lock(&spinlock_conf[port_id]);
+	ret = rte_kni_tx_burst(port_state->kni, m_table, len);
+	rte_spinlock_unlock(&spinlock_conf[port_id]);
 
 	//XXX port_statistics[port].tx += ret;
-	if(ret > 0)
-	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io][kni] Transmited %u pkts, on port %s\n", ret, nf_port_mapping[port_id]->name);
+	if (ret > 0)
+		RTE_LOG(INFO, XDPD, DRIVER_NAME "[io][kni] Transmited %u pkts, on port %s\n", ret,
+			port->name);
 
 	if (unlikely(ret < len)) {
 		//XXX port_statistics[port].dropped += (n - ret);
 		do {
-			rte_pktmbuf_free(burst[ret]);
+			rte_pktmbuf_free(m_table[ret]);
 		} while (++ret < len);
 	}
 }
@@ -320,14 +369,9 @@ tx_pkt_kni_nf_port(switch_port_t* port, datapacket_t* pkt)
 
 	//Get mbuf pointer
 	mbuf = ((datapacket_dpdk_t*)pkt->platform_state)->mbuf;
-	port_id = ((dpdk_kni_port_state_t*)port->platform_port_state)->nf_id;
+	port_id = ((dpdk_port_state_t*)port->platform_port_state)->port_id;
 
-#ifdef DEBUG
-	if(unlikely(!mbuf)){
-		assert(0);
-		return;
-	}
-#endif
+	assert(mbuf);
 
 	rte_lcore = rte_lcore_id();
         if (rte_lcore == 0xffffffff) rte_lcore=0;
@@ -336,15 +380,8 @@ tx_pkt_kni_nf_port(switch_port_t* port, datapacket_t* pkt)
         core_tasks_t* tasks = &processing_core_tasks[rte_lcore];
 
 	//Recover burst container (cache)
-	pkt_burst = &tasks->nf_ports[port_id].tx_queues_burst[0];
-
-#if DEBUG
-	if(unlikely(!pkt_burst)){
-		rte_pktmbuf_free(mbuf);
-		assert(0);
-		return;
-	}
-#endif
+	pkt_burst = &tasks->tx_mbufs[port_id];
+	assert(pkt_burst);
 
 	XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io][kni] Adding packet %p to queue %p (id: %u)\n", pkt, pkt_burst, rte_lcore);
 
@@ -358,8 +395,8 @@ tx_pkt_kni_nf_port(switch_port_t* port, datapacket_t* pkt)
 	{
 		//If buffer is full or mgmt core
 		pkt_burst->len = len;
-		flush_kni_nf_port_burst(port, port_id, pkt_burst);
-		return;
+		transmit_kni_nf_port_burst(tasks, port_id);
+		len = 0;
 	}
 
 	pkt_burst->len = len;
@@ -369,6 +406,30 @@ tx_pkt_kni_nf_port(switch_port_t* port, datapacket_t* pkt)
 
 #endif //GNU_LINUX_DPDK_ENABLE_NF
 
+inline void process_port_tx(core_tasks_t *task, uint8_t port_id)
+{
+	switch_port_t* port;
+
+	port = port_list[port_id];
+	assert(port_id == ((dpdk_port_state_t*)port->platform_port_state)->port_id);
+
+	switch(port->type){
+	case PORT_TYPE_PHYSICAL:
+		transmit_port_queue_tx_burst(task, port_id);
+		break;
+#ifdef GNU_LINUX_DPDK_ENABLE_NF
+	case PORT_TYPE_NF_EXTERNAL:
+		transmit_kni_nf_port_burst(task, port_id);
+		break;
+	case PORT_TYPE_NF_SHMEM:
+		assert(0 && "missing implementation");
+		break;
+#endif
+	default:
+		assert(0 && "invalid branch");
+		break;
+	}
+}
 
 //
 // vlink specific functions
@@ -379,7 +440,7 @@ tx_pkt_kni_nf_port(switch_port_t* port, datapacket_t* pkt)
 */
 void tx_pkt_vlink(switch_port_t* vlink, datapacket_t* pkt);
 
-}// namespace xdpd::gnu_linux_dpdk
+}// namespace xdpd::gnu_linux_dpdk_ng
 }// namespace xdpd
 
 #endif //_TX_H_

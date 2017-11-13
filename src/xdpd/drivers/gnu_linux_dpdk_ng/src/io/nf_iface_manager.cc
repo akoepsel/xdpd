@@ -20,7 +20,6 @@
 
 //fwd decl
 extern pthread_rwlock_t iface_manager_rwlock;
-extern struct rte_mempool* direct_pools[MAX_CPU_SOCKETS];
 
 switch_port_t* nf_port_mapping[PORT_MANAGER_MAX_PORTS] = {0};
 struct rte_ring* port_tx_nf_lcore_queue[PORT_MANAGER_MAX_PORTS] = {NULL};
@@ -139,7 +138,7 @@ static switch_port_t* configure_nf_port_shmem(const char *nf_name, const char *n
 #endif
 	ps->nf_id = nf_id;
 
-	ps->scheduled = false;
+	ps->state.scheduled = false;
 	port->platform_port_state = (platform_port_state_t*)ps;
 
 	//Set the port in the nf_port_mapping
@@ -214,7 +213,7 @@ static switch_port_t* configure_nf_port_kni(const char *nf_name, const char *nf_
 	ps->nf_id = nf_id;
 
 	ps->just_created = true;
-	ps->scheduled = false;
+	ps->state.scheduled = false;
 	port->platform_port_state = (platform_port_state_t*)ps;
 
 	//Set the port in the nf_port_mapping
