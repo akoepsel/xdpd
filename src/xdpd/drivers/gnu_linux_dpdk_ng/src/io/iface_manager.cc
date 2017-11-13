@@ -1119,7 +1119,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
 		}
 
-		XDPD_INFO("adding physical port: %u on socket: %u with nb_rx_queues: %u, available #worker lcores: %u, driver: %s, firmware: %s, PCI address: %s ",
+		XDPD_INFO("adding physical port: %u on socket: %u with nb_rx_queues: %u, available #worker lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
 				port_id, socket_id, nb_rx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
 
 		//map physical port rx queues to worker lcores on socket
@@ -1143,7 +1143,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].port_id = port_id;
 						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = queue_id;
 						processing_core_tasks[lcore_id].n_rx_queue++;
-						XDPD_INFO("assigning physical port: %u, queue: %u to lcore: %u", port_id, queue_id, lcore_id);
+						XDPD_INFO("assigning physical port: %u, queue: %u to lcore: %u\n", port_id, queue_id, lcore_id);
 				}
 				break;
 			}
