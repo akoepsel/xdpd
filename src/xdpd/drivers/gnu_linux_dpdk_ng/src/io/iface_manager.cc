@@ -1048,6 +1048,9 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 				lcores[socket_id][lcore_id].is_master = 1;
 				XDPD_INFO("lcore: %u on socket: %u is master lcore\n", lcore_id, socket_id);
 			}
+
+			//Store socket_id in sockets
+			sockets.insert(socket_id);
 		}
 	}
 
