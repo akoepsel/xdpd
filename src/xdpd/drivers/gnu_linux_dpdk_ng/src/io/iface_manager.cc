@@ -1125,8 +1125,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
 		}
 
-		XDPD_INFO("adding physical port: %u on socket: %u with nb_rx_queues: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
-				port_id, socket_id, nb_rx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
+		XDPD_INFO("adding physical port: %u on socket: %u with max_rx_queues: %u, nb_rx_queues: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
+				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
 
 		//map physical port rx queues to worker lcores on socket
 		for (unsigned int queue_id = 0; queue_id < nb_rx_queues; queue_id++) {
