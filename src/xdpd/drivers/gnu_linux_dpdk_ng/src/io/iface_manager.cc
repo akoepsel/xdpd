@@ -1127,7 +1127,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		//map physical port rx queues to worker lcores on socket
 		for (unsigned int queue_id = 0; queue_id < nb_rx_queues; queue_id++) {
 			do {
-				lcore_id++;
+				lcore_id = (lcore_id < RTE_MAX_LCORE) ? lcore_id + 1 : 0;
 
 				if (lcores[lcore_id].socket_id != socket_id) {
 					continue;
