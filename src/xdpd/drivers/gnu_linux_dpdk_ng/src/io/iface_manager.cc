@@ -1162,6 +1162,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.lpbk_mode = 0; //loopback disabled
 		eth_conf.rxmode.mq_mode = ETH_MQ_RX_RSS; //enable Receive Side Scaling (RSS) only
 		eth_conf.rxmode.offloads = dev_info.rx_offload_capa;
+		eth_conf.rxmode.max_rx_pkt_len = ETHER_MAX_LEN;
 		eth_conf.rxmode.header_split = 0;
 		eth_conf.rxmode.hw_ip_checksum = 1;
 		eth_conf.rxmode.hw_vlan_extend = 0;
