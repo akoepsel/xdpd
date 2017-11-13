@@ -1085,6 +1085,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	struct rte_eth_dev_info dev_info;
 	char s_fw_version[256];
 	char s_pci_addr[64];
+	unsigned int lcore_id = 0;
 
 	//Initialize physical port structure: all phyports disabled
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
@@ -1107,6 +1108,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].is_enabled = 1;
 
 		rte_eth_dev_info_get(port_id, &dev_info);
+		strncpy(s_fw_version, "none", sizeof(s_fw_version)-1);
 		rte_eth_dev_fw_version_get(port_id, s_fw_version, sizeof(s_fw_version));
 
 		//number of configured RX queues on device should not exceed number of worker lcores on socket
@@ -1124,7 +1126,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		//map physical port rx queues to worker lcores on socket
 		for (unsigned int queue_id = 0; queue_id < nb_rx_queues; queue_id++) {
-			for (unsigned int lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
+			for (; lcore_id < RTE_MAX_LCORE; lcore_id++) {
 				if (lcores[lcore_id].socket_id != socket_id) {
 					continue;
 				}
