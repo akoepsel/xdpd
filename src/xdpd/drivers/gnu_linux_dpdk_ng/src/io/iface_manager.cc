@@ -27,6 +27,7 @@ extern "C" {
 
 #include <fcntl.h>
 #include <set>
+#include <map>
 
 #define NB_MBUF                                                                                                        \
 	RTE_MAX((nb_ports * nb_rx_queue * RTE_RX_DESC_DEFAULT + nb_ports * nb_lcores * IO_IFACE_MAX_PKT_BURST +        \
@@ -56,7 +57,10 @@ static int numa_on = 1; /**< NUMA is enabled by default. */
 static uint16_t nb_txd = RTE_TX_DESC_DEFAULT;
 static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 
+//a set of available NUMA sockets (socket_id)
 static std::set<int> sockets;
+//a map of available logical cores per NUMA socket (number of lcores)
+static std::map<unsigned int, unsigned int> cores;
 
 // XXX(toanju) these values need a proper configuration
 int port_vf_id[RTE_MAX_ETHPORTS] = {-1, 0, 1, -1, 0, 1, -1, 0, 1};
@@ -1024,6 +1028,8 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 			lcores[i][j].next_lcore_id = -1;
 		}
 	}
+	sockets.clear();
+	cores.clear();
 
 	//Get master lcore
 	unsigned int master_lcore_id = rte_get_master_lcore();
@@ -1051,6 +1057,11 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 
 			//Store socket_id in sockets
 			sockets.insert(socket_id);
+
+			//Increase number of worker lcores for this socket
+			if (lcore_id != master_lcore_id) {
+				cores[socket_id]++;
+			}
 		}
 	}
 

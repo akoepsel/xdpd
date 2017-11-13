@@ -82,10 +82,14 @@ std::string system_scope::get_driver_extra_params(YAML::Node& node){
 
 	std::string extra;
 
-	if (node["system"]) {
-		YAML::Node system = node["system"];
-		if (system["driver-extra-params"]){
-			return system["driver-extra-params"].as<std::string>();
+	if (node["root"]) {
+		if (node["config"]) {
+			if (node["system"]) {
+				YAML::Node system = node["system"];
+				if (system["driver-extra-params"]){
+					return system["driver-extra-params"].as<std::string>();
+				}
+			}
 		}
 	}
 
