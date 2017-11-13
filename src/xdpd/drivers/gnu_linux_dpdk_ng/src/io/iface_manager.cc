@@ -1126,7 +1126,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		//map physical port rx queues to worker lcores on socket
 		for (unsigned int queue_id = 0; queue_id < nb_rx_queues; queue_id++) {
-			for (; lcore_id < RTE_MAX_LCORE; ++lcore_id) {
+			do {
+				lcore_id++;
+
 				if (lcores[lcore_id].socket_id != socket_id) {
 					continue;
 				}
@@ -1146,9 +1148,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = queue_id;
 						processing_core_tasks[lcore_id].n_rx_queue++;
 						XDPD_INFO("assigning physical port: %u, queue: %u to lcore: %u\n", port_id, queue_id, lcore_id);
+						break;
 				}
-				break;
-			}
+			} while (lcore_id < RTE_MAX_LCORE);
 		}
 	}
 
