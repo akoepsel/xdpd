@@ -1100,7 +1100,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		rte_eth_dev_info_get(port_id, &dev_info);
 
 		if (port_id >= RTE_MAX_ETHPORTS) {
-			continue;
+			return ROFL_FAILURE;
 		}
 		int socket_id = rte_eth_dev_socket_id(port_id);
 
@@ -1121,12 +1121,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
 		}
 
-		XDPD_INFO("adding physical port: %u on socket: %u with nb_rx_queues: %u, available #worker lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
+		XDPD_INFO("adding physical port: %u on socket: %u with nb_rx_queues: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
 				port_id, socket_id, nb_rx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
 
 		//map physical port rx queues to worker lcores on socket
 		for (unsigned int queue_id = 0; queue_id < nb_rx_queues; queue_id++) {
-			do {
+			for (;;) {
 				lcore_id = (lcore_id < (RTE_MAX_LCORE-1)) ? lcore_id + 1 : 0;
 
 				if (lcores[lcore_id].socket_id != socket_id) {
@@ -1150,12 +1150,38 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 						XDPD_INFO("assigning physical port: %u, queue: %u to lcore: %u\n", port_id, queue_id, lcore_id);
 						break;
 				}
-			} while (lcore_id < RTE_MAX_LCORE);
+			}
 		}
-	}
 
-	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+		//Configure the port
+		struct rte_eth_conf eth_conf;
+		memset(&eth_conf, 0, sizeof(eth_conf));
 
+		//receive side
+		eth_conf.link_speeds = ETH_LINK_SPEED_AUTONEG; //auto negotiation enabled
+		eth_conf.lpbk_mode = 0; //loopback disabled
+		eth_conf.rxmode.mq_mode = ETH_MQ_RX_RSS; //enable Receive Side Scaling (RSS) only
+		eth_conf.rxmode.offloads = dev_info.rx_offload_capa;
+		eth_conf.rxmode.header_split = 0;
+		eth_conf.rxmode.hw_ip_checksum = 1;
+		eth_conf.rxmode.hw_vlan_extend = 0;
+		eth_conf.rxmode.hw_vlan_filter = 1;
+		eth_conf.rxmode.hw_vlan_strip = 1;
+		eth_conf.rxmode.hw_strip_crc = 1;
+		eth_conf.rxmode.jumbo_frame = 0;
+		eth_conf.rxmode.enable_scatter = 0;
+		eth_conf.rxmode.enable_lro = 0;
+		eth_conf.rx_adv_conf.rss_conf.rss_key = NULL;
+		eth_conf.rx_adv_conf.rss_conf.rss_key_len = 0;
+
+		//transmit side
+		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
+		eth_conf.txmode.offloads = dev_info.tx_offload_capa;
+
+		if (rte_eth_dev_configure(port_id, nb_rx_queues, /*no typo!*/nb_rx_queues, &eth_conf) < 0) {
+			XDPD_ERR("Failed to configure port: %u, aborting\n", port_id);
+			return ROFL_FAILURE;
+		}
 	}
 
 	return ROFL_SUCCESS;
