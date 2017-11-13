@@ -1044,7 +1044,6 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 			unsigned int next_lcore_id = RTE_MAX_LCORE;
 			if ((next_lcore_id = rte_get_next_lcore(lcore_id, /*skip-master=*/1, /*wrap=*/1)) < RTE_MAX_LCORE) {
 				lcores[socket_id][lcore_id].next_lcore_id = next_lcore_id;
-				XDPD_INFO("lcore: %u , next lcore is: %u\n", lcore_id, next_lcore_id);
 			}
 
 			//master lcore?
@@ -1060,7 +1059,7 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 				cores[socket_id]++;
 			}
 
-			XDPD_INFO("adding lcore: %u %s on socket: %u, next lcore is: %u, #lcores on this socket; %u\n",
+			XDPD_INFO("adding lcore: %u %s on socket: %u, next lcore is: %u, #working lcores on this socket; %u\n",
 					lcore_id,
 					(lcores[socket_id][lcore_id].is_master ? "as master" : ""),
 					socket_id,
