@@ -56,10 +56,10 @@ using namespace xdpd::gnu_linux;
 #define STR(a) #a
 #define XSTR(a) STR(a)
 
-#define GNU_LINUX_DPDK_CODE_NAME "gnu-linux-dpdk"
+#define GNU_LINUX_DPDK_CODE_NAME "gnu-linux-dpdk-ng"
 #define GNU_LINUX_DPDK_VERSION VERSION
 #define GNU_LINUX_DPDK_DESC \
-"GNU/Linux DPDK driver.\n\n"\
+"GNU/Linux DPDK-ng driver.\n\n"\
 "The GNU/Linux DPDK driver is a user-space software driver that uses Data Plane Development Kit(DPDK)[1] as the I/O Framework.\n\n"\
 "This driver supports Network Function port extensions. This functions enable xDPd to communicate to other entities via dedicated ports. The port type mapping from abstract xDPd ports to DPDK is the following:\n"\
 "   -NATIVE: not supported.\n"\

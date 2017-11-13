@@ -1,5 +1,8 @@
 #include "config_rss.h"
 
+//The set of available logical cores (lcore) per NUMA node (=socket)
+struct lcore lcores[RTE_MAX_NUMA_NODES][RTE_MAX_LCORE];
+
 //Set default values TODO remove
 // default values wrt. 2 LSI with 2 physical ports and 2 kni ports
 struct lcore_params lcore_params[LCORE_PARAMS_MAX] = {

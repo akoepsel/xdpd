@@ -1011,6 +1011,49 @@ START_RETRY:
 	return ROFL_SUCCESS;
 }
 
+/**
+* Discovers and initializes DPDK logical cores.
+*/
+rofl_result_t iface_manager_discover_logical_cores(void){
+
+	//Initialize logical core structure: all lcores disabled
+	for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
+		for (int j = 0; j < RTE_MAX_LCORE; j++) {
+			lcores[i][j].is_master = 0;
+			lcores[i][j].is_enabled = 0;
+			lcores[i][j].next_lcore_id = -1;
+		}
+	}
+
+	//Get master lcore
+	unsigned int master_lcore_id = rte_get_master_lcore();
+
+	//Detect all lcores and their state
+	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
+		unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
+		if ((socket_id < RTE_MAX_NUMA_NODES) && (lcore_id < RTE_MAX_LCORE)) {
+			lcores[socket_id][lcore_id].is_enabled = rte_lcore_is_enabled(lcore_id);
+
+			XDPD_INFO("adding lcore: %u on socket: %u\n", lcore_id, socket_id);
+
+			//Get next lcore
+			unsigned int next_lcore_id = RTE_MAX_LCORE;
+			if ((next_lcore_id = rte_get_next_lcore(lcore_id, /*skip-master=*/1, /*wrap=*/1)) < RTE_MAX_LCORE) {
+				lcores[socket_id][lcore_id].next_lcore_id = next_lcore_id;
+				XDPD_INFO("lcore: %u , next lcore is: %u\n", lcore_id, next_lcore_id);
+			}
+
+			//master lcore?
+			if (lcore_id == master_lcore_id) {
+				lcores[socket_id][lcore_id].is_master = 1;
+				XDPD_INFO("lcore: %u on socket: %u is master lcore\n", lcore_id, socket_id);
+			}
+		}
+	}
+
+	return ROFL_SUCCESS;
+}
+
 /*
 * Discovers and initializes (including rofl-pipeline state) DPDK-enabled ports.
 */
@@ -1018,6 +1061,11 @@ rofl_result_t iface_manager_discover_system_ports(void){
 
 	uint8_t i;
 	switch_port_t* port;
+
+	if (iface_manager_discover_logical_cores() < 0) {
+		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_logical_cores failed\n");
+		return ROFL_FAILURE;
+	}
 
 	if (check_lcore_params() < 0) {
 		XDPD_ERR(DRIVER_NAME"[iface_manager] check_lcore_params failed\n");
