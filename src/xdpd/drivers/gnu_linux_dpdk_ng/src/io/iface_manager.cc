@@ -1067,7 +1067,9 @@ YAML::Node iface_manager_port_conf(const std::string& pci_address){
 			}
 		}
 	}
-	return YAML::Node();
+	YAML::Node not_found;
+	not_found["enabled"] = false;
+	return not_found;
 }
 
 /**
