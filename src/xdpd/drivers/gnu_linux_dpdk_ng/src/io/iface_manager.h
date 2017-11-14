@@ -68,7 +68,11 @@ YAML::Node iface_manager_port_conf(const std::string& pci_address);
 *
 */
 template<typename T> T iface_manager_port_setting(const std::string& pci_address, const std::string& key){
-	return iface_manager_port_conf(pci_address)[key].as<T>();
+	try {
+		return iface_manager_port_conf(pci_address)[key].as<T>();
+	} catch (YAML::Exception& e) {
+		throw;
+	}
 }
 
 //C++ extern C
