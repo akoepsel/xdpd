@@ -535,12 +535,11 @@ static int init_mem(unsigned int socket_id, unsigned int nb_mbuf)
 	}
 	if (direct_pools[socket_id] == NULL) {
 		snprintf(s, sizeof(s), "mbuf_pool_%d", socket_id);
-		direct_pools[socket_id] = rte_pktmbuf_pool_create(s, nb_mbuf, MEMPOOL_CACHE_SIZE, 0,
-								 RTE_MBUF_DEFAULT_BUF_SIZE, socket_id);
-		if (direct_pools[socket_id] == NULL)
-			rte_exit(EXIT_FAILURE, "Cannot init mbuf pool on socket %d\n", socket_id);
-		else
-			XDPD_INFO("Allocated mbuf pool on socket %d\n", socket_id);
+		XDPD_INFO("allocating rte_mempool for %u mbufs on socket %u\n", nb_mbuf, socket_id);
+		if ((direct_pools[socket_id] = rte_pktmbuf_pool_create(s, nb_mbuf, MEMPOOL_CACHE_SIZE, 0,
+								 RTE_MBUF_DEFAULT_BUF_SIZE, socket_id)) == NULL) {
+			rte_exit(EXIT_FAILURE, "rte_mempool allocation failed on socket %u\n", socket_id);
+		}
 	}
 	return ROFL_SUCCESS;
 }
@@ -1155,8 +1154,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 	}
 
-	//Initialize rte_mempool (for this socket)
-	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
+	//Initialize rte_mempool for all active NUMA nodes
+	for (auto socket_id : sockets) {
 		init_mem(socket_id, nb_mbuf[socket_id]);
 	}
 
