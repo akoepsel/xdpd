@@ -1425,6 +1425,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, iface_manager_port_setting<std::string>(s_pci_addr, "ifname").c_str());
+		XDPD_INFO("adding xdpd port: %s for dpdk port: %u\n", port_name, port_id);
 
 		//Initialize pipeline port
 		port = switch_port_init(port_name, false, PORT_TYPE_PHYSICAL, PORT_STATE_NONE);
