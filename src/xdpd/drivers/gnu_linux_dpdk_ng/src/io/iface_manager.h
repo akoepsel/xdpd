@@ -71,6 +71,7 @@ template<typename T> T iface_manager_port_setting(const std::string& pci_address
 	try {
 		return iface_manager_port_conf(pci_address)[key].as<T>();
 	} catch (YAML::Exception& e) {
+		XDPD_ERR(DRIVER_NAME" port: %s, setting: %s not found, aborting\n", pci_address.c_str(), key.c_str());
 		throw;
 	}
 }
