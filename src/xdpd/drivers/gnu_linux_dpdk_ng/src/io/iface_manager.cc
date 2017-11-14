@@ -1156,6 +1156,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 		rte_eth_dev_info_get(port_id, &dev_info);
 		if (dev_info.pci_dev) {
+			memset(s_pci_addr, 0, sizeof(s_pci_addr));
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
 		}
 
@@ -1193,6 +1194,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 		rte_eth_dev_info_get(port_id, &dev_info);
 		if (dev_info.pci_dev) {
+			memset(s_pci_addr, 0, sizeof(s_pci_addr));
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
 		}
 
