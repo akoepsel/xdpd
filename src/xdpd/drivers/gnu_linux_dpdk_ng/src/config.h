@@ -16,7 +16,7 @@
 */
 
 //Driver name
-#define DRIVER_NAME "[xdpd][dpdk]"
+#define DRIVER_NAME "[xdpd][dpdk-ng]"
 
 //This parameter disallows the driver to schedule phyiscal ports on logical
 //cores belonging to a different CPU socket than the port(PCI).
@@ -125,7 +125,7 @@
 /*
  * Configurable number of RX/TX ring descriptors
  */
-#define RTE_RX_DESC_DEFAULT 128
+#define RTE_RX_DESC_DEFAULT 512
 #define RTE_TX_DESC_DEFAULT 512
 
 /*

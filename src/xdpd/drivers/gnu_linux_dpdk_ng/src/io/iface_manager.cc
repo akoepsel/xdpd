@@ -26,9 +26,13 @@ extern "C" {
 #endif
 }
 
+#include <yaml-cpp/yaml.h>
+extern YAML::Node y_config_dpdk_ng;
+
 #include <fcntl.h>
 #include <set>
 #include <map>
+#include <algorithm>
 
 #define DPDK_DRIVER_NAME_I40E_PF "net_i40e"
 #define DPDK_DRIVER_NAME_I40E_VF "net_i40e_vf"
@@ -1049,6 +1053,23 @@ START_RETRY:
 	return ROFL_SUCCESS;
 }
 
+
+/**
+* Returns YAML::Node for device identified by PCI address
+*/
+YAML::Node iface_manager_port_conf(const std::string& pci_address){
+	if (y_config_dpdk_ng["dpdk"]["interfaces"].IsMap()) {
+		for (auto it : y_config_dpdk_ng["dpdk"]["interfaces"]) {
+			if (it.second["pci_address"].as<std::string>() == pci_address) {
+				std::string ifname(it.first.as<std::string>());
+				y_config_dpdk_ng["dpdk"]["interfaces"][ifname]["ifname"] = ifname; //insert copy of key 'ifname' into YAML::Node
+				return y_config_dpdk_ng["dpdk"]["interfaces"][ifname];
+			}
+		}
+	}
+	return YAML::Node();
+}
+
 /**
 * Discovers logical cores.
 */
@@ -1134,10 +1155,19 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	//Calculate size of rte_mempool for rxqueue/txqueue configuration based on available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 		rte_eth_dev_info_get(port_id, &dev_info);
+		if (dev_info.pci_dev) {
+			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		}
 
 		if (port_id >= RTE_MAX_ETHPORTS) {
 			return ROFL_FAILURE;
 		}
+
+		// port disabled in configuration file?
+		if (not iface_manager_port_setting<bool>(s_pci_addr, "enabled")) {
+			continue;
+		}
+
 		int socket_id = rte_eth_dev_socket_id(port_id);
 		unsigned int nb_rx_queues = cores[socket_id].size() < dev_info.max_rx_queues ? cores[socket_id].size() : dev_info.max_rx_queues;
 
@@ -1162,10 +1192,19 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	//Iterate over all available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 		rte_eth_dev_info_get(port_id, &dev_info);
+		if (dev_info.pci_dev) {
+			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		}
 
 		if (port_id >= RTE_MAX_ETHPORTS) {
 			return ROFL_FAILURE;
 		}
+
+		// port disabled in configuration file?
+		if (not iface_manager_port_setting<bool>(s_pci_addr, "enabled")) {
+			continue;
+		}
+
 		int socket_id = rte_eth_dev_socket_id(port_id);
 
 		phyports[port_id].socket_id = socket_id;
@@ -1180,10 +1219,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		phyports[port_id].nb_rx_queues = nb_rx_queues;
 		phyports[port_id].nb_tx_queues = nb_rx_queues; //for now: symmetrical number of rx/tx queues
-
-		if (dev_info.pci_dev) {
-			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
-		}
 
 		XDPD_INFO("adding physical port: %u on socket: %u with max_rx_queues: %u, nb_rx_queues: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
 				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
@@ -1376,6 +1411,35 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				XDPD_ERR("Failed to configure port: %u rx-queue: %u, aborting\n", port_id, rx_queue_id);
 				return ROFL_FAILURE;
 			}
+		}
+	}
+
+	//Iterate over all available physical ports
+	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+		char port_name[SWITCH_PORT_MAX_LEN_NAME];
+		switch_port_t* port;
+
+		rte_eth_dev_info_get(port_id, &dev_info);
+		if (dev_info.pci_dev) {
+			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		}
+
+		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, iface_manager_port_setting<std::string>(s_pci_addr, "ifname").c_str());
+
+		//Initialize pipeline port
+		port = switch_port_init(port_name, false, PORT_TYPE_PHYSICAL, PORT_STATE_NONE);
+		if(!port){
+			XDPD_ERR("Failed to create xdpd port: %s for dpdk port: %u\n", port_name, port_id);
+			return ROFL_FAILURE;
+		}
+
+		//Generate port state
+		dpdk_port_state_t* ps = (dpdk_port_state_t*)rte_malloc(NULL,sizeof(dpdk_port_state_t),0);
+
+		if(!ps){
+			XDPD_ERR("Unable to allocate memory for xdpd switch_port_t: %s\n", port_name);
+			switch_port_destroy(port);
+			return ROFL_FAILURE;
 		}
 	}
 

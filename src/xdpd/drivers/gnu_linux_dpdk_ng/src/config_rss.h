@@ -35,7 +35,7 @@ extern struct lcore lcores[RTE_MAX_LCORE];
 //Auxiliary struct to hold physical port to socket mappings
 struct phyport {
 	int socket_id;
-	int is_enabled; //0:disabled, 1:enabled
+	int is_enabled; //0:disabled, 1:enabled, -1:administratively disabled
 	int nb_rx_queues; //number of rxqueues to be used
 	int nb_tx_queues; //number of txqueues to be used, (nb_rx_queues == nb_tx_queues)
 };

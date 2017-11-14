@@ -88,7 +88,4 @@ root:
     system:
       id: "0000000123"
       logging-level: "DEBUG"
-      driver-extra-params: 
-        key1: value1
-        key2: value2
-        config: ./xdpd-driver-intel-fpga.conf.yaml
+      driver-extra-params: "coremask=0xf;master-lcore=0;config=../src/xdpd/drivers/gnu_linux_dpdk_ng/xdpd.gnu_linux_dpdk_ng.conf.yaml"

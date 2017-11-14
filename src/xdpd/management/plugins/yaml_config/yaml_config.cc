@@ -28,6 +28,7 @@ YAML::Node& yaml_config::reload_yaml_file(){
 
 	try{
 		conf_file = system_manager::get_option_value(YAML_FILE_OPT_FULL_NAME).c_str();
+		XDPD_INFO(YAML_PLUGIN_ID "Loading configuration file %s\n", conf_file.c_str());
 		cfg = YAML::LoadFile(conf_file.c_str());
 		return cfg;
 

@@ -15,6 +15,9 @@
 #include <rofl/datapath/pipeline/physical_switch.h>
 #include <rofl/datapath/pipeline/openflow/openflow1x/of1x_switch.h>
 
+//yaml-cpp includes
+#include <yaml-cpp/yaml.h>
+
 //DPDK includes
 #include <rte_config.h>
 #include <rte_common.h>
@@ -48,6 +51,7 @@ extern int optind;
 using namespace xdpd::gnu_linux;
 
 //Extra params MACROS
+#define DRIVER_EXTRA_CONFIG "config"
 #define DRIVER_EXTRA_COREMASK "coremask"
 #define DRIVER_EXTRA_POOL_SIZE "pool_size"
 #define DRIVER_EXTRA_LCORE_PARAMS "lcore_params"
@@ -80,6 +84,10 @@ using namespace xdpd::gnu_linux;
 
 //Number of MBUFs per pool (per CPU socket)
 unsigned int mbuf_pool_size = DEFAULT_NB_MBUF;
+
+//configuration file
+static std::string s_config_dpdk_ng("./xdpd.gnu_linux_dpdk_ng.conf.yaml");
+YAML::Node y_config_dpdk_ng;
 
 //Fake argv for eal
 static const char* argv_fake[] = {"xdpd", "-c", NULL, "--master-lcore", NULL, "-n", XSTR(RTE_MEM_CHANNELS), NULL};
@@ -164,7 +172,19 @@ static rofl_result_t parse_extra_params(const std::string& params){
 		r.erase(std::remove_if( r.begin(), r.end(), ::isspace ),
 								r.end() );
 
-		if(r.compare(DRIVER_EXTRA_COREMASK) == 0){
+		if(r.compare(DRIVER_EXTRA_CONFIG) == 0){
+			std::getline(ss_, r, '=');
+			r.erase(std::remove_if( r.begin(), r.end(),
+						::isspace ), r.end() );
+
+			s_config_dpdk_ng = r;
+			XDPD_DEBUG(DRIVER_NAME" Loading gnu-linux-dpdk-ng configuration file %s\n", s_config_dpdk_ng.c_str());
+			try{
+				y_config_dpdk_ng = YAML::LoadFile(s_config_dpdk_ng.c_str());
+			}catch(YAML::BadFile& e){
+				XDPD_ERR(DRIVER_NAME" Configuration file %s not found, continuing with defaults\n", s_config_dpdk_ng.c_str());
+			}
+		}else if(r.compare(DRIVER_EXTRA_COREMASK) == 0){
 			std::getline(ss_, r, '=');
 			r.erase(std::remove_if( r.begin(), r.end(),
 						::isspace ), r.end() );
