@@ -151,7 +151,7 @@
  */
 #define DEFAULT_RTE_CORE_MASK 0x0000ffff
 
-#define DEFAULT_RTE_MASTER_LCORE 0x0
+#define DEFAULT_RTE_MASTER_LCORE 0
 
 //Other parameters
 #define RTE_MEM_CHANNELS 4

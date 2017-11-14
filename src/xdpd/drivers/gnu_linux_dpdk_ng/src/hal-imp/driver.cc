@@ -177,7 +177,7 @@ static rofl_result_t parse_extra_params(const std::string& params){
 						::isspace ), r.end() );
 
 			strncpy(master_lcore, r.c_str(), MAX_MASTER_LCORE_LEN);
-			XDPD_DEBUG(DRIVER_NAME" Overriding default master-lcore(%s) with %s\n", XSTR(DEFAULT_RTE_CORE_MASK), master_lcore);
+			XDPD_DEBUG(DRIVER_NAME" Overriding default master-lcore(%s) with %s\n", XSTR(DEFAULT_RTE_MASTER_LCORE), master_lcore);
 		}else if(r.compare(DRIVER_EXTRA_POOL_SIZE) == 0){
 			std::getline(ss_, r, '=');
 			r.erase(std::remove_if( r.begin(), r.end(),
@@ -223,7 +223,7 @@ hal_result_t hal_driver_init(hal_extension_ops_t* extensions, const char* extra_
 		return HAL_FAILURE;
 
 	//Show a nice trace
-	XDPD_INFO(DRIVER_NAME" Initializing EAL with coremask: %s, memchannels: %s\n", argv_fake[2], argv_fake[4]);
+	XDPD_INFO(DRIVER_NAME" Initializing EAL with coremask: %s, master-lcore: %s, memchannels: %s\n", argv_fake[2], argv_fake[4], argv_fake[6]);
 
 	// init EAL library
 	optind=1;
