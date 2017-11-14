@@ -16,6 +16,7 @@ extern "C" {
 #include <rte_errno.h> 
 #include <rte_eth_ctrl.h>
 #include <rte_bus_pci.h>
+#include <rte_ethdev.h>
 
 #ifdef RTE_LIBRTE_IXGBE_PMD
 #include <rte_pmd_ixgbe.h>
@@ -28,6 +29,10 @@ extern "C" {
 #include <fcntl.h>
 #include <set>
 #include <map>
+
+#define DPDK_DRIVER_NAME_I40E_PF "net_i40e"
+#define DPDK_DRIVER_NAME_I40E_VF "net_i40e_vf"
+#define DPDK_DRIVER_NAME_IXGBE "net_ixgbe"
 
 #define NB_MBUF                                                                                                        \
 	RTE_MAX((nb_ports * nb_rx_queue * RTE_RX_DESC_DEFAULT + nb_ports * nb_lcores * IO_IFACE_MAX_PKT_BURST +        \
@@ -59,7 +64,7 @@ static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 
 //a set of available NUMA sockets (socket_id)
 static std::set<int> sockets;
-//a map of available logical cores per NUMA socket (number of lcores)
+//a map of available logical cores per NUMA socket (set of lcore_id)
 static std::map<unsigned int, std::set<unsigned int> > cores;
 
 // XXX(toanju) these values need a proper configuration
@@ -486,6 +491,7 @@ static int check_port_config(const unsigned nb_ports)
 	return 0;
 }
 #endif
+#if 0
 static int init_mem(unsigned nb_mbuf)
 {
 	int socketid;
@@ -517,6 +523,26 @@ static int init_mem(unsigned nb_mbuf)
 		}
 	}
 	return 0;
+}
+#endif
+static int init_mem(unsigned int socket_id, unsigned int nb_mbuf)
+{
+	char s[64];
+	if (socket_id >= NB_SOCKETS) {
+		rte_exit(EXIT_FAILURE,
+					 "Socket %d is out of range %d\n",
+					 socket_id, NB_SOCKETS);
+	}
+	if (direct_pools[socket_id] == NULL) {
+		snprintf(s, sizeof(s), "mbuf_pool_%d", socket_id);
+		direct_pools[socket_id] = rte_pktmbuf_pool_create(s, nb_mbuf, MEMPOOL_CACHE_SIZE, 0,
+								 RTE_MBUF_DEFAULT_BUF_SIZE, socket_id);
+		if (direct_pools[socket_id] == NULL)
+			rte_exit(EXIT_FAILURE, "Cannot init mbuf pool on socket %d\n", socket_id);
+		else
+			XDPD_INFO("Allocated mbuf pool on socket %d\n", socket_id);
+	}
+	return ROFL_SUCCESS;
 }
 
 static void print_ethaddr(const char *name, const struct ether_addr *eth_addr)
@@ -741,9 +767,14 @@ static switch_port_t *configure_port(uint8_t port_id)
 	print_ethaddr(" Address:", &ports_eth_addr[port_id]);
 	XDPD_INFO(", ");
 
+#if 0
 	ret = init_mem(NB_MBUF);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "init_mem failed\n");
+#else
+	(void)nb_ports;
+	(void)nb_lcores;
+#endif
 
 #if 1
 	/* init one TX queue per couple (lcore,port) */
@@ -1086,9 +1117,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	char s_fw_version[256];
 	char s_pci_addr[64];
 	unsigned int next_lcore_id[RTE_MAX_NUMA_NODES]; //The next lcore_id to be assigned to a queue on NUMA node i
+	size_t nb_mbuf[RTE_MAX_NUMA_NODES]; //The required space per NUMA node
 
 	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
 		next_lcore_id[socket_id] = 0;
+		nb_mbuf[socket_id] = rte_eth_dev_count() * cores.size() * IO_IFACE_MAX_PKT_BURST + cores.size() * MEMPOOL_CACHE_SIZE;
 	}
 
 	//Initialize physical port structure: all phyports disabled
@@ -1097,6 +1130,34 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].is_enabled = 0;
 		phyports[port_id].nb_rx_queues = 0;
 		phyports[port_id].nb_tx_queues = 0;
+	}
+
+	//Calculate size of rte_mempool for rxqueue/txqueue configuration based on available physical ports
+	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+		rte_eth_dev_info_get(port_id, &dev_info);
+
+		if (port_id >= RTE_MAX_ETHPORTS) {
+			return ROFL_FAILURE;
+		}
+		int socket_id = rte_eth_dev_socket_id(port_id);
+		unsigned int nb_rx_queues = cores[socket_id].size() < dev_info.max_rx_queues ? cores[socket_id].size() : dev_info.max_rx_queues;
+
+		if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+			nb_mbuf[socket_id] += /*rx*/nb_rx_queues * I40E_MAX_RING_DESC + /*tx*/nb_rx_queues * I40E_MAX_RING_DESC;
+		} else
+		if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
+			nb_mbuf[socket_id] += /*rx*/nb_rx_queues * I40E_MAX_RING_DESC + /*tx*/nb_rx_queues * I40E_MAX_RING_DESC;
+		} else
+		if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE, sizeof(DPDK_DRIVER_NAME_IXGBE)) == 0){
+			nb_mbuf[socket_id] += /*rx*/nb_rx_queues * IXGBE_MAX_RING_DESC + /*tx*/nb_rx_queues * IXGBE_MAX_RING_DESC;
+		} else {
+			nb_mbuf[socket_id] += /*rx*/nb_rx_queues * RTE_RX_DESC_DEFAULT + /*tx*/nb_rx_queues * RTE_TX_DESC_DEFAULT;
+		}
+	}
+
+	//Initialize rte_mempool (for this socket)
+	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
+		init_mem(socket_id, nb_mbuf[socket_id]);
 	}
 
 	//Iterate over all available physical ports
@@ -1184,9 +1245,139 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
 		eth_conf.txmode.offloads = dev_info.tx_offload_capa;
 
+		//configure port
 		if (rte_eth_dev_configure(port_id, nb_rx_queues, /*no typo!*/nb_rx_queues, &eth_conf) < 0) {
 			XDPD_ERR("Failed to configure port: %u, aborting\n", port_id);
 			return ROFL_FAILURE;
+		}
+
+		// configure transmit queues
+		for (uint16_t tx_queue_id = 0; tx_queue_id < /*no typo!*/nb_rx_queues; tx_queue_id++) {
+			uint16_t nb_tx_desc = 0;
+			struct rte_eth_txconf eth_txconf;
+
+			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+
+				// values for i40e PF
+				nb_tx_desc = I40E_MAX_RING_DESC;
+				eth_txconf.tx_thresh.pthresh = I40E_DEFAULT_TX_PTHRESH;
+				eth_txconf.tx_thresh.hthresh = I40E_DEFAULT_TX_HTHRESH;
+				eth_txconf.tx_thresh.wthresh = I40E_DEFAULT_TX_WTHRESH;
+				eth_txconf.tx_free_thresh = I40E_DEFAULT_TX_FREE_THRESH; //use default, e.g., I40E_DEFAULT_TX_FREE_THRESH = 32
+				eth_txconf.tx_rs_thresh = I40E_DEFAULT_TX_RSBIT_THRESH; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
+				eth_txconf.tx_deferred_start = 0;
+				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
+				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
+
+			} else
+			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
+
+				// are these values also valid for i40e VF?
+				nb_tx_desc = I40E_MAX_RING_DESC;
+				eth_txconf.tx_thresh.pthresh = I40E_DEFAULT_TX_PTHRESH;
+				eth_txconf.tx_thresh.hthresh = I40E_DEFAULT_TX_HTHRESH;
+				eth_txconf.tx_thresh.wthresh = I40E_DEFAULT_TX_WTHRESH;
+				eth_txconf.tx_free_thresh = I40E_DEFAULT_TX_FREE_THRESH; //use default, e.g., I40E_DEFAULT_TX_FREE_THRESH = 32
+				eth_txconf.tx_rs_thresh = I40E_DEFAULT_TX_RSBIT_THRESH; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
+				eth_txconf.tx_deferred_start = 0;
+				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
+				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
+
+			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE, sizeof(DPDK_DRIVER_NAME_IXGBE)) == 0) {
+
+				nb_tx_desc = IXGBE_MAX_RING_DESC;
+				eth_txconf.tx_thresh.pthresh = IXGBE_DEFAULT_TX_PTHRESH;
+				eth_txconf.tx_thresh.hthresh = IXGBE_DEFAULT_TX_HTHRESH;
+				eth_txconf.tx_thresh.wthresh = IXGBE_DEFAULT_TX_WTHRESH;
+				eth_txconf.tx_free_thresh = IXGBE_DEFAULT_TX_FREE_THRESH; //use default, e.g., IXGBE_DEFAULT_TX_FREE_THRESH = 32
+				eth_txconf.tx_rs_thresh = IXGBE_DEFAULT_TX_RSBIT_THRESH; //use default, e.g., IXGBE_DEFAULT_TX_RSBIT_THRESH = 32
+				eth_txconf.tx_deferred_start = 0;
+				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
+				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
+
+			} else {
+
+				//defaults for unknown driver
+				nb_tx_desc = RTE_TX_DESC_DEFAULT;
+				eth_txconf.tx_thresh.pthresh = TX_PTHRESH;
+				eth_txconf.tx_thresh.hthresh = TX_HTHRESH;
+				eth_txconf.tx_thresh.wthresh = TX_WTHRESH;
+				eth_txconf.tx_free_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_FREE_THRESH = 32
+				eth_txconf.tx_rs_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
+				eth_txconf.tx_deferred_start = 0;
+				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
+				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
+
+			}
+
+			//configure txqueue
+			if (rte_eth_tx_queue_setup(port_id, tx_queue_id, nb_tx_desc, socket_id, &eth_txconf) < 0) {
+				XDPD_ERR("Failed to configure port: %u tx-queue: %u, aborting\n", port_id, tx_queue_id);
+				return ROFL_FAILURE;
+			}
+		}
+
+
+		// configure receive queues
+		for (uint16_t rx_queue_id = 0; rx_queue_id < nb_rx_queues; rx_queue_id++) {
+			uint16_t nb_rx_desc = 0;
+			struct rte_eth_rxconf eth_rxconf;
+
+			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+
+				// values for i40e PF
+				nb_rx_desc = I40E_MAX_RING_DESC;
+				eth_rxconf.rx_thresh.pthresh = I40E_DEFAULT_RX_PTHRESH;
+				eth_rxconf.rx_thresh.hthresh = I40E_DEFAULT_RX_HTHRESH;
+				eth_rxconf.rx_thresh.wthresh = I40E_DEFAULT_RX_WTHRESH;
+				eth_rxconf.rx_drop_en = 1; //drop packets when descriptor space is exhausted
+				eth_rxconf.rx_free_thresh = I40E_DEFAULT_RX_FREE_THRESH;
+				eth_rxconf.rx_deferred_start = 0;
+				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
+
+			} else
+			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
+
+				// are these values also valid for i40e VF?
+				nb_rx_desc = I40E_MAX_RING_DESC;
+				eth_rxconf.rx_thresh.pthresh = I40E_DEFAULT_RX_PTHRESH;
+				eth_rxconf.rx_thresh.hthresh = I40E_DEFAULT_RX_HTHRESH;
+				eth_rxconf.rx_thresh.wthresh = I40E_DEFAULT_RX_WTHRESH;
+				eth_rxconf.rx_drop_en = 1; //drop packets when descriptor space is exhausted
+				eth_rxconf.rx_free_thresh = I40E_DEFAULT_RX_FREE_THRESH;
+				eth_rxconf.rx_deferred_start = 0;
+				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
+
+			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE, sizeof(DPDK_DRIVER_NAME_IXGBE)) == 0) {
+
+				nb_rx_desc = I40E_MAX_RING_DESC;
+				eth_rxconf.rx_thresh.pthresh = IXGBE_DEFAULT_RX_PTHRESH;
+				eth_rxconf.rx_thresh.hthresh = IXGBE_DEFAULT_RX_HTHRESH;
+				eth_rxconf.rx_thresh.wthresh = IXGBE_DEFAULT_RX_WTHRESH;
+				eth_rxconf.rx_drop_en = 1; //drop packets when descriptor space is exhausted
+				eth_rxconf.rx_free_thresh = IXGBE_DEFAULT_RX_FREE_THRESH;
+				eth_rxconf.rx_deferred_start = 0;
+				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
+
+			} else {
+
+				//defaults for unknown driver
+				nb_rx_desc = RTE_RX_DESC_DEFAULT;
+				eth_rxconf.rx_thresh.pthresh = RX_PTHRESH;
+				eth_rxconf.rx_thresh.hthresh = RX_HTHRESH;
+				eth_rxconf.rx_thresh.wthresh = RX_WTHRESH;
+				eth_rxconf.rx_drop_en = 1; //drop packets when descriptor space is exhausted
+				eth_rxconf.rx_free_thresh = 0;
+				eth_rxconf.rx_deferred_start = 0;
+				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
+
+			}
+
+			//configure rxqueue
+			if (rte_eth_rx_queue_setup(port_id, rx_queue_id, nb_rx_desc, socket_id, &eth_rxconf, direct_pools[socket_id]) < 0) {
+				XDPD_ERR("Failed to configure port: %u rx-queue: %u, aborting\n", port_id, rx_queue_id);
+				return ROFL_FAILURE;
+			}
 		}
 	}
 

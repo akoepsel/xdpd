@@ -85,6 +85,44 @@
 #define TX_WTHRESH 0  /**< Default values of TX write-back threshold reg. */
 
 /*
+ *  Default values for RX/TX configuration
+ */
+
+//ixgbe
+#define IXGBE_MAX_RING_DESC           4096
+#define IXGBE_MIN_RING_DESC           32
+
+#define IXGBE_DEFAULT_RX_FREE_THRESH  32
+#define IXGBE_DEFAULT_RX_PTHRESH      8
+#define IXGBE_DEFAULT_RX_HTHRESH      8
+#define IXGBE_DEFAULT_RX_WTHRESH      0
+
+#define IXGBE_DEFAULT_TX_FREE_THRESH  32
+#define IXGBE_DEFAULT_TX_PTHRESH      32
+#define IXGBE_DEFAULT_TX_HTHRESH      0
+#define IXGBE_DEFAULT_TX_WTHRESH      0
+#define IXGBE_DEFAULT_TX_RSBIT_THRESH 32
+
+//i40e
+#define I40E_NUM_DESC_DEFAULT         512
+#define	I40E_ALIGN_RING_DESC	      32
+
+#define	I40E_MAX_RING_DESC	          4096
+#define	I40E_MIN_RING_DESC	          64
+
+#define I40E_DEFAULT_RX_FREE_THRESH   32
+#define I40E_DEFAULT_RX_PTHRESH       8
+#define I40E_DEFAULT_RX_HTHRESH       8
+#define I40E_DEFAULT_RX_WTHRESH       0
+
+#define I40E_DEFAULT_TX_FREE_THRESH   32
+#define I40E_DEFAULT_TX_PTHRESH       32
+#define I40E_DEFAULT_TX_HTHRESH       0
+#define I40E_DEFAULT_TX_WTHRESH       0
+#define I40E_DEFAULT_TX_RSBIT_THRESH  32
+
+
+/*
  * Configurable number of RX/TX ring descriptors
  */
 #define RTE_RX_DESC_DEFAULT 128
