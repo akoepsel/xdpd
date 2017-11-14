@@ -51,6 +51,7 @@ using namespace xdpd::gnu_linux;
 #define DRIVER_EXTRA_COREMASK "coremask"
 #define DRIVER_EXTRA_POOL_SIZE "pool_size"
 #define DRIVER_EXTRA_LCORE_PARAMS "lcore_params"
+#define DRIVER_EXTRA_MASTER_LCORE "master-lcore"
 
 //Some useful macros
 #define STR(a) #a
@@ -81,10 +82,12 @@ using namespace xdpd::gnu_linux;
 unsigned int mbuf_pool_size = DEFAULT_NB_MBUF;
 
 //Fake argv for eal
-static const char* argv_fake[] = {"xdpd", "-c", NULL, "-n", XSTR(RTE_MEM_CHANNELS), NULL};
+static const char* argv_fake[] = {"xdpd", "-c", NULL, "--master-lcore", NULL, "-n", XSTR(RTE_MEM_CHANNELS), NULL};
 
 #define MAX_COREMASK_LEN 64
 static char coremask[MAX_COREMASK_LEN];
+#define MAX_MASTER_LCORE_LEN 64
+static char master_lcore[MAX_MASTER_LCORE_LEN];
 
 static rofl_result_t parse_extra_lcore_params(std::string& val){
 	int i;
@@ -148,6 +151,10 @@ static rofl_result_t parse_extra_params(const std::string& params){
 	strncpy(coremask, XSTR(DEFAULT_RTE_CORE_MASK), MAX_COREMASK_LEN);
 	argv_fake[2] = coremask;
 
+	//Asign the master_lcore pointer
+	strncpy(master_lcore, XSTR(DEFAULT_RTE_MASTER_LCORE), MAX_MASTER_LCORE_LEN);
+	argv_fake[4] = master_lcore;
+
 	//First split
 	while(std::getline(ss, t, ';')) {
 		std::istringstream ss_(t);
@@ -164,6 +171,13 @@ static rofl_result_t parse_extra_params(const std::string& params){
 
 			strncpy(coremask, r.c_str(), MAX_COREMASK_LEN);
 			XDPD_DEBUG(DRIVER_NAME" Overriding default coremask(%s) with %s\n", XSTR(DEFAULT_RTE_CORE_MASK), coremask);
+		}else if(r.compare(DRIVER_EXTRA_MASTER_LCORE) == 0){
+			std::getline(ss_, r, '=');
+			r.erase(std::remove_if( r.begin(), r.end(),
+						::isspace ), r.end() );
+
+			strncpy(master_lcore, r.c_str(), MAX_MASTER_LCORE_LEN);
+			XDPD_DEBUG(DRIVER_NAME" Overriding default master-lcore(%s) with %s\n", XSTR(DEFAULT_RTE_CORE_MASK), master_lcore);
 		}else if(r.compare(DRIVER_EXTRA_POOL_SIZE) == 0){
 			std::getline(ss_, r, '=');
 			r.erase(std::remove_if( r.begin(), r.end(),
