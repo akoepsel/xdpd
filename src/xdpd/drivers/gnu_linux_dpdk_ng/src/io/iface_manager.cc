@@ -1365,7 +1365,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_rxconf.rx_thresh.pthresh = RX_PTHRESH;
 				eth_rxconf.rx_thresh.hthresh = RX_HTHRESH;
 				eth_rxconf.rx_thresh.wthresh = RX_WTHRESH;
-				eth_rxconf.rx_drop_en = 1; //drop packets when descriptor space is exhausted
 				eth_rxconf.rx_free_thresh = 0;
 				eth_rxconf.rx_deferred_start = 0;
 				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
