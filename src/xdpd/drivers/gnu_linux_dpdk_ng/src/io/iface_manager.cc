@@ -1611,6 +1611,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			continue;
 		}
 
+		rte_eth_dev_info_get(port_id, &dev_info);
+		if (dev_info.pci_dev) {
+			memset(s_pci_addr, 0, sizeof(s_pci_addr));
+			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		}
 
 		//configure MAC addresses
 		node = iface_manager_port_conf(s_pci_addr)["mac_addr"];
