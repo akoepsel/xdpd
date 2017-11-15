@@ -1281,7 +1281,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		phyports[port_id].is_enabled = 1;
 
-		// is port a virtual function and owns a parent device?
+		// is port a virtual function and has a parent device?
 		if (iface_manager_port_setting_exists(s_pci_addr, "parent")) {
 			phyports[port_id].is_vf = 1;
 			phyports[port_id].parent_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"));
@@ -1320,7 +1320,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].port_id = port_id;
 						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = queue_id;
 						processing_core_tasks[lcore_id].n_rx_queue++;
-						XDPD_INFO("assigning physical port: %u, queue: %u to lcore: %u\n", port_id, queue_id, lcore_id);
+						XDPD_INFO("assigning physical port: %u, queue: %u to lcore: %u on socket: %u\n", port_id, queue_id, lcore_id, socket_id);
 						break;
 				}
 			}
@@ -1366,7 +1366,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
 
 				// values for i40e PF
-				nb_tx_desc = I40E_MAX_RING_DESC;
+				nb_tx_desc = dev_info.tx_desc_lim.nb_max;
 				eth_txconf.tx_thresh.pthresh = I40E_DEFAULT_TX_PTHRESH;
 				eth_txconf.tx_thresh.hthresh = I40E_DEFAULT_TX_HTHRESH;
 				eth_txconf.tx_thresh.wthresh = I40E_DEFAULT_TX_WTHRESH;
@@ -1380,7 +1380,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
 
 				// are these values also valid for i40e VF?
-				nb_tx_desc = I40E_MAX_RING_DESC;
+				nb_tx_desc = dev_info.tx_desc_lim.nb_max;
 				eth_txconf.tx_thresh.pthresh = I40E_DEFAULT_TX_PTHRESH;
 				eth_txconf.tx_thresh.hthresh = I40E_DEFAULT_TX_HTHRESH;
 				eth_txconf.tx_thresh.wthresh = I40E_DEFAULT_TX_WTHRESH;
@@ -1392,7 +1392,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE, sizeof(DPDK_DRIVER_NAME_IXGBE)) == 0) {
 
-				nb_tx_desc = IXGBE_MAX_RING_DESC;
+				nb_tx_desc = dev_info.tx_desc_lim.nb_max;
 				eth_txconf.tx_thresh.pthresh = IXGBE_DEFAULT_TX_PTHRESH;
 				eth_txconf.tx_thresh.hthresh = IXGBE_DEFAULT_TX_HTHRESH;
 				eth_txconf.tx_thresh.wthresh = IXGBE_DEFAULT_TX_WTHRESH;
@@ -1405,7 +1405,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			} else {
 
 				//defaults for unknown driver
-				nb_tx_desc = RTE_TX_DESC_DEFAULT;
+				nb_tx_desc = dev_info.tx_desc_lim.nb_max;
 				eth_txconf.tx_thresh.pthresh = TX_PTHRESH;
 				eth_txconf.tx_thresh.hthresh = TX_HTHRESH;
 				eth_txconf.tx_thresh.wthresh = TX_WTHRESH;
@@ -1433,7 +1433,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
 
 				// values for i40e PF
-				nb_rx_desc = I40E_MAX_RING_DESC;
+				nb_rx_desc = dev_info.rx_desc_lim.nb_max;
 				eth_rxconf.rx_thresh.pthresh = I40E_DEFAULT_RX_PTHRESH;
 				eth_rxconf.rx_thresh.hthresh = I40E_DEFAULT_RX_HTHRESH;
 				eth_rxconf.rx_thresh.wthresh = I40E_DEFAULT_RX_WTHRESH;
@@ -1446,7 +1446,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
 
 				// are these values also valid for i40e VF?
-				nb_rx_desc = I40E_MAX_RING_DESC;
+				nb_rx_desc = dev_info.rx_desc_lim.nb_max;
 				eth_rxconf.rx_thresh.pthresh = I40E_DEFAULT_RX_PTHRESH;
 				eth_rxconf.rx_thresh.hthresh = I40E_DEFAULT_RX_HTHRESH;
 				eth_rxconf.rx_thresh.wthresh = I40E_DEFAULT_RX_WTHRESH;
@@ -1457,7 +1457,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE, sizeof(DPDK_DRIVER_NAME_IXGBE)) == 0) {
 
-				nb_rx_desc = I40E_MAX_RING_DESC;
+				nb_rx_desc = dev_info.rx_desc_lim.nb_max;
 				eth_rxconf.rx_thresh.pthresh = IXGBE_DEFAULT_RX_PTHRESH;
 				eth_rxconf.rx_thresh.hthresh = IXGBE_DEFAULT_RX_HTHRESH;
 				eth_rxconf.rx_thresh.wthresh = IXGBE_DEFAULT_RX_WTHRESH;
@@ -1469,7 +1469,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			} else {
 
 				//defaults for unknown driver
-				nb_rx_desc = RTE_RX_DESC_DEFAULT;
+				nb_rx_desc = dev_info.rx_desc_lim.nb_max;
 				eth_rxconf.rx_thresh.pthresh = RX_PTHRESH;
 				eth_rxconf.rx_thresh.hthresh = RX_HTHRESH;
 				eth_rxconf.rx_thresh.wthresh = RX_WTHRESH;
