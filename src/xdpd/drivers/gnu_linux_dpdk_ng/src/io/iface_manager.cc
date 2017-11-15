@@ -1463,7 +1463,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	}
 
 	//configure MAC addresses
-	int vf_id = 0;
+	uint16_t vf_id = 0;
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 		rte_eth_dev_info_get(port_id, &dev_info);
 		if (dev_info.pci_dev) {
@@ -1487,7 +1487,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 							&eth_addr.addr_bytes[3],
 							&eth_addr.addr_bytes[4],
 							&eth_addr.addr_bytes[5]);
-				XDPD_INFO(DRIVER_NAME" adding mac-address: %s to port: %u\n", it.as<std::string>().c_str(), port_id);
+				XDPD_INFO(DRIVER_NAME" adding mac-address: %s to port: %u, vf_id: %u\n", it.as<std::string>().c_str(), port_id, vf_id);
 				if ((ret = set_vf_mac_addr(phyports[port_id].parent_port_id, vf_id++, &eth_addr)) < 0) {
 					XDPD_ERR(DRIVER_NAME" failed to configure mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
 					return ROFL_FAILURE;
