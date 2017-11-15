@@ -1666,7 +1666,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				if (filter["enabled"]) {
 					on = filter["enabled"].as<bool>();
 				}
-				XDPD_INFO(DRIVER_NAME" adding vlan filter with vlan_id: %u and vf_mask: %llx on port: %u\n", vlan_id, vf_mask, port_id);
+				XDPD_INFO(DRIVER_NAME" adding vlan filter with vlan_id: %u and vf_mask: 0x%llx on port: %u\n", vlan_id, vf_mask, port_id);
 				if ((ret = set_vf_vlan_filter(port_id, vlan_id, vf_mask, on)) < 0) {
 					XDPD_ERR(DRIVER_NAME" failed to configure vlan filter with vlan_id: %u and vf_mask: 0x%llx on port: %u\n", vlan_id, vf_mask, port_id);
 					//return ROFL_FAILURE;
