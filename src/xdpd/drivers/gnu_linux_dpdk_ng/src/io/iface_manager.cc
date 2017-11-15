@@ -1652,7 +1652,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (node && node.IsSequence()) {
 			int index = 0;
 			for (auto filter : node) {
-				if (not filter["vlan_id"] || not filter["vf_mask"] || not filter["on"]) {
+				if (not filter["vlan_id"] || not filter["vf_mask"] || not filter["enabled"]) {
 					continue;
 				}
 				uint16_t vlan_id = filter["vlan_id"].as<uint16_t>();
