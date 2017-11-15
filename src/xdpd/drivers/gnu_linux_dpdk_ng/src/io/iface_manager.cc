@@ -1153,7 +1153,7 @@ static uint16_t iface_manager_pci_address_to_port_id(const std::string& pci_addr
 		memset(s_pci_addr, 0, sizeof(s_pci_addr));
 		rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
 
-		if (pci_addr.compare(s_pci_addr)) {
+		if (!pci_addr.compare(s_pci_addr)) {
 			return port_id;
 		}
 	}
