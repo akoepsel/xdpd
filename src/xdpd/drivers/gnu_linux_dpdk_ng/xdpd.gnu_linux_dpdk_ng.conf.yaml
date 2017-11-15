@@ -2,16 +2,16 @@ dpdk:
   interfaces:
     10ge0: 
       pci_address: "0000:00:09.0"
-      enabled: false
+      enabled: true
       tx_loopback: true
       promisc: true
       allmulticast: true
       vlan_filter:
         - vlan_id: 103
-          vf_mask: 0x0000000000000006
+          vf_mask: 0xffffffffffffffff
           enabled: true
         - vlan_id: 104
-          vf_mask: 0x0000000000000009
+          vf_mask: 0x0000000000000003
           enabled: true
     10ge0vf0:
       pci_address: "0000:00:09.1"
@@ -30,31 +30,27 @@ dpdk:
       vlan_insert: 103
     10ge0vf1:
       pci_address: "0000:00:09.2"
+      parent: "0000:00:09.0"
+      enabled: true
       mac_addr: 
         - "00:11:11:11:01:04"
         - "00:11:11:11:01:14"
       mac_anti_spoof: true
       vlan_anti_spoof: true
-      tx_loopback: true
       unicast_promisc: true
       multicast_promisc: true
       broadcast: true
       vlan_stripq: true
       vlan_tag: true
       vlan_insert: 104
-    ens10: 
+    10ge1: 
       pci_address: "0000:00:0a.0"
       enabled: false
-    ens11: 
+    10ge2: 
       pci_address: "0000:00:0b.0"
-      driver: e1000
-      max_vfs: 2
-    ens12: 
+    10ge3: 
       pci_address: "0000:00:0c.0"
-      driver: e1000
-    ens13: 
+    10ge4: 
       pci_address: "0000:00:0d.0"
-      driver: e1000
-    ens14: 
+    some_weird_ifname: 
       pci_address: "0000:00:0e.0"
-      driver: e1000
