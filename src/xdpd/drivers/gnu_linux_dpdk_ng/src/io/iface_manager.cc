@@ -1652,12 +1652,20 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (node && node.IsSequence()) {
 			int index = 0;
 			for (auto filter : node) {
-				if (not filter["vlan_id"] || not filter["vf_mask"] || not filter["enabled"]) {
+				if (not filter["vlan_id"]) {
+					XDPD_INFO(DRIVER_NAME" skipping vlan filter for port: %u, no \"vlan_id\" specified\n", port_id);
+					continue;
+				}
+				if (not filter["vf_mask"]) {
+					XDPD_INFO(DRIVER_NAME" skipping vlan filter for port: %u, no \"vf_mask\" specified\n", port_id);
 					continue;
 				}
 				uint16_t vlan_id = filter["vlan_id"].as<uint16_t>();
 				uint64_t vf_mask = filter["vf_mask"].as<uint64_t>();
-				uint8_t on = filter["enabled"].as<bool>();
+				uint8_t on = 1; //default: enabled
+				if (filter["enabled"]) {
+					on = filter["enabled"].as<bool>();
+				}
 				XDPD_INFO(DRIVER_NAME" adding vlan filter with vlan_id: %u and vf_mask: %ull on port: %u\n", vlan_id, vf_mask, port_id);
 				if ((ret = set_vf_vlan_filter(port_id, vlan_id, vf_mask, on)) < 0) {
 					XDPD_ERR(DRIVER_NAME" failed to configure vlan filter with vlan_id: %u and vf_mask: %ull on port: %u\n", vlan_id, vf_mask, port_id);
