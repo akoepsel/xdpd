@@ -514,7 +514,7 @@ static int init_mem(unsigned int socket_id, unsigned int nb_mbuf)
 	}
 	if (direct_pools[socket_id] == NULL) {
 		snprintf(s, sizeof(s), "mbuf_pool_%d", socket_id);
-		XDPD_INFO("allocating rte_mempool for %u mbufs on socket %u\n", nb_mbuf, socket_id);
+		XDPD_INFO(DRIVER_NAME" allocating rte_mempool for %u mbufs on socket %u\n", nb_mbuf, socket_id);
 		if ((direct_pools[socket_id] = rte_pktmbuf_pool_create(s, nb_mbuf, MEMPOOL_CACHE_SIZE, 0,
 								 RTE_MBUF_DEFAULT_BUF_SIZE, socket_id)) == NULL) {
 			rte_exit(EXIT_FAILURE, "rte_mempool allocation failed on socket %u\n", socket_id);
@@ -1493,7 +1493,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				XDPD_INFO(DRIVER_NAME" adding mac-address: %s to port: %u, parent port: %u, vf_id: %u\n", it.as<std::string>().c_str(), port_id, phyports[port_id].parent_port_id, vf_id);
 				if ((ret = set_vf_mac_addr(phyports[port_id].parent_port_id, vf_id++, &eth_addr)) < 0) {
 					XDPD_ERR(DRIVER_NAME" failed to configure mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
-					return ROFL_FAILURE;
+					//return ROFL_FAILURE;
 				}
 			}
 		}
