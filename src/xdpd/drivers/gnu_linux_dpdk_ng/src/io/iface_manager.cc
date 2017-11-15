@@ -1164,6 +1164,27 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 	return ROFL_SUCCESS;
 }
 
+
+static uint16_t iface_manager_pci_address_to_port_id(const std::string& pci_addr){
+	struct rte_eth_dev_info dev_info;
+	char s_pci_addr[64];
+
+	//Calculate size of rte_mempool for rxqueue/txqueue configuration based on available physical ports
+	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+		rte_eth_dev_info_get(port_id, &dev_info);
+		if ((port_id >= RTE_MAX_ETHPORTS) || (!dev_info.pci_dev)) {
+			throw std::exception();
+		}
+		memset(s_pci_addr, 0, sizeof(s_pci_addr));
+		rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+
+		if (pci_addr.compare(s_pci_addr)) {
+			return port_id;
+		}
+	}
+	throw std::exception();
+}
+
 /**
 * Discovers physical ports.
 */
@@ -1186,6 +1207,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].is_enabled = 0;
 		phyports[port_id].nb_rx_queues = 0;
 		phyports[port_id].nb_tx_queues = 0;
+		phyports[port_id].is_vf = 0;
+		phyports[port_id].parent_port_id = -1;
 	}
 
 	//Calculate size of rte_mempool for rxqueue/txqueue configuration based on available physical ports
@@ -1213,17 +1236,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		int socket_id = rte_eth_dev_socket_id(port_id);
 		unsigned int nb_rx_queues = cores[socket_id].size() < dev_info.max_rx_queues ? cores[socket_id].size() : dev_info.max_rx_queues;
 
-		if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
-			nb_mbuf[socket_id] += /*rx*/nb_rx_queues * I40E_MAX_RING_DESC + /*tx*/nb_rx_queues * I40E_MAX_RING_DESC;
-		} else
-		if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
-			nb_mbuf[socket_id] += /*rx*/nb_rx_queues * I40E_MAX_RING_DESC + /*tx*/nb_rx_queues * I40E_MAX_RING_DESC;
-		} else
-		if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE, sizeof(DPDK_DRIVER_NAME_IXGBE)) == 0){
-			nb_mbuf[socket_id] += /*rx*/nb_rx_queues * IXGBE_MAX_RING_DESC + /*tx*/nb_rx_queues * IXGBE_MAX_RING_DESC;
-		} else {
-			nb_mbuf[socket_id] += /*rx*/nb_rx_queues * RTE_RX_DESC_DEFAULT + /*tx*/nb_rx_queues * RTE_TX_DESC_DEFAULT;
-		}
+		nb_mbuf[socket_id] += /*rx*/nb_rx_queues * dev_info.rx_desc_lim.nb_max + /*tx*/nb_rx_queues * dev_info.tx_desc_lim.nb_max;
 	}
 
 	//Initialize rte_mempool for all active NUMA nodes
@@ -1267,6 +1280,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		phyports[port_id].is_enabled = 1;
+
+		// is port a virtual function and owns a parent device?
+		if (iface_manager_port_setting_exists(s_pci_addr, "parent")) {
+			phyports[port_id].is_vf = 1;
+			phyports[port_id].parent_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"));
+		}
 
 		//number of configured RX queues on device should not exceed number of worker lcores on socket
 		unsigned int nb_rx_queues = cores[socket_id].size() < dev_info.max_rx_queues ? cores[socket_id].size() : dev_info.max_rx_queues;

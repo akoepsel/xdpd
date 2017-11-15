@@ -5,6 +5,7 @@ dpdk:
       enabled: false
     10ge0vf0:
       pci_address: "0000:00:09.1"
+      parent: "0000:00:09.0"
       enabled: true
       mac_addr: 
         - "00:11:11:11:01:03"
