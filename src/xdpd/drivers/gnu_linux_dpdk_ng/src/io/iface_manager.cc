@@ -1067,10 +1067,7 @@ YAML::Node iface_manager_port_conf(const std::string& pci_address){
 			}
 		}
 	}
-	YAML::Node not_found;
-	not_found["notfound"]["enabled"] = false;
-	XDPD_INFO(DRIVER_NAME" NOTFOUND: %s\n", (not_found["notfound"]["enabled"].as<bool>() ? "true" : "false"));
-	return not_found;
+	throw YAML::Exception();
 }
 
 /**
