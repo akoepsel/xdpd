@@ -143,6 +143,21 @@ static int set_vf_mac_addr(uint8_t port_id, uint16_t vf_id, struct ether_addr *m
 	return -ENOTSUP;
 }
 
+static int add_vf_mac_addr(uint8_t port_id, uint16_t vf_id, struct ether_addr *mac_addr)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_add_vf_mac_addr(port_id, vf_id, mac_addr);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_mac_addr() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
 static int set_vf_mac_anti_spoof(uint8_t port_id, uint16_t vf_id, uint8_t on)
 {
 	struct rte_eth_dev_info dev_info;
@@ -1562,6 +1577,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		//configure MAC addresses
 		node = iface_manager_port_conf(s_pci_addr)["mac_addr"];
 		if (node && node.IsSequence()) {
+			int index = 0;
 			for (auto it : node) {
 				struct ether_addr eth_addr;
 				sscanf(it.as<std::string>().c_str(),
@@ -1573,10 +1589,18 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 							&eth_addr.addr_bytes[4],
 							&eth_addr.addr_bytes[5]);
 				XDPD_INFO(DRIVER_NAME" adding mac-address: %s on port: %u, parent port: %u, vf_id: %u\n", it.as<std::string>().c_str(), port_id, phyports[port_id].parent_port_id, vf_id);
-				if ((ret = set_vf_mac_addr(phyports[port_id].parent_port_id, vf_id, &eth_addr)) < 0) {
-					XDPD_ERR(DRIVER_NAME" failed to configure mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
-					//return ROFL_FAILURE;
+				if (index == 0) {
+					if ((ret = set_vf_mac_addr(phyports[port_id].parent_port_id, vf_id, &eth_addr)) < 0) {
+						XDPD_ERR(DRIVER_NAME" failed to configure first mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
+						//return ROFL_FAILURE;
+					}
+				} else {
+					if ((ret = add_vf_mac_addr(phyports[port_id].parent_port_id, vf_id, &eth_addr)) < 0) {
+						XDPD_ERR(DRIVER_NAME" failed to configure additional mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
+						//return ROFL_FAILURE;
+					}
 				}
+				++index;
 			}
 		}
 
