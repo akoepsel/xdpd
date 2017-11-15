@@ -1128,7 +1128,7 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 			cores[socket_id].insert(lcore_id);
 		}
 
-		XDPD_INFO("adding lcore: %u %s on socket: %u, next lcore is: %u, #working lcores on this socket: %u\n",
+		XDPD_INFO(DRIVER_NAME" adding lcore: %u %s on socket: %u, next lcore is: %u, #working lcores on this socket: %u\n",
 				lcore_id,
 				(lcores[lcore_id].is_master ? " as master" : ""),
 				socket_id,
@@ -1242,14 +1242,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		// port not specified in configuration file
 		if (not iface_manager_port_exists(s_pci_addr)) {
-			XDPD_INFO("skipping physical port: %u (not found in configuration, assuming state \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
+			XDPD_INFO(DRIVER_NAME" skipping physical port: %u (not found in configuration, assuming state \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
 			continue;
 		}
 
 		// port disabled in configuration file?
 		if (not iface_manager_get_port_setting_as<bool>(s_pci_addr, "enabled")) {
-			XDPD_INFO("skipping physical port: %u (port explicitly \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
+			XDPD_INFO(DRIVER_NAME" skipping physical port: %u (port explicitly \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
 			continue;
 		}
@@ -1268,7 +1268,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].nb_rx_queues = nb_rx_queues;
 		phyports[port_id].nb_tx_queues = nb_rx_queues; //for now: symmetrical number of rx/tx queues
 
-		XDPD_INFO("adding physical port: %u on socket: %u with max_rx_queues: %u, nb_rx_queues: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
+		XDPD_INFO(DRIVER_NAME" adding physical port: %u on socket: %u with max_rx_queues: %u, nb_rx_queues: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
 				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
 
 		//map physical port rx queues to worker lcores on socket
@@ -1288,14 +1288,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				}
 				uint16_t nb_rx_queue = processing_core_tasks[lcore_id].n_rx_queue;
 				if (nb_rx_queue >= MAX_RX_QUEUE_PER_LCORE) {
-						XDPD_ERR("error: too many queues (%u) for lcore: %u\n",
+						XDPD_ERR(DRIVER_NAME" error: too many queues (%u) for lcore: %u\n",
 								(unsigned)nb_rx_queue + 1, (unsigned)lcore_id);
 						return ROFL_FAILURE;
 				} else {
 						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].port_id = port_id;
 						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = queue_id;
 						processing_core_tasks[lcore_id].n_rx_queue++;
-						XDPD_INFO("assigning physical port: %u, queue: %u to lcore: %u on socket: %u\n", port_id, queue_id, lcore_id, socket_id);
+						XDPD_INFO(DRIVER_NAME" assigning physical port: %u, queue: %u to lcore: %u on socket: %u\n", port_id, queue_id, lcore_id, socket_id);
 						break;
 				}
 			}
@@ -1329,7 +1329,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		//configure port
 		if (rte_eth_dev_configure(port_id, nb_rx_queues, /*no typo!*/nb_rx_queues, &eth_conf) < 0) {
-			XDPD_ERR("Failed to configure port: %u, aborting\n", port_id);
+			XDPD_ERR(DRIVER_NAME" failed to configure port: %u, aborting\n", port_id);
 			return ROFL_FAILURE;
 		}
 
@@ -1394,7 +1394,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			//configure txqueue
 			if (rte_eth_tx_queue_setup(port_id, tx_queue_id, nb_tx_desc, socket_id, &eth_txconf) < 0) {
-				XDPD_ERR("Failed to configure port: %u tx-queue: %u, aborting\n", port_id, tx_queue_id);
+				XDPD_ERR(DRIVER_NAME" Failed to configure port: %u tx-queue: %u, aborting\n", port_id, tx_queue_id);
 				return ROFL_FAILURE;
 			}
 		}
@@ -1456,13 +1456,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			//configure rxqueue
 			if (rte_eth_rx_queue_setup(port_id, rx_queue_id, nb_rx_desc, socket_id, &eth_rxconf, direct_pools[socket_id]) < 0) {
-				XDPD_ERR("Failed to configure port: %u rx-queue: %u, aborting\n", port_id, rx_queue_id);
+				XDPD_ERR(DRIVER_NAME" failed to configure port: %u rx-queue: %u, aborting\n", port_id, rx_queue_id);
 				return ROFL_FAILURE;
 			}
 		}
 	}
 
 	//configure MAC addresses
+	int vf_id = 0;
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 		rte_eth_dev_info_get(port_id, &dev_info);
 		if (dev_info.pci_dev) {
@@ -1486,9 +1487,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 							&eth_addr.addr_bytes[3],
 							&eth_addr.addr_bytes[4],
 							&eth_addr.addr_bytes[5]);
-				XDPD_INFO("adding mac-address: %s to port: %u\n", it.as<std::string>().c_str(), port_id);
-				if ((ret = set_vf_mac_addr(phyports[port_id].parent_port_id, port_id, &eth_addr)) < 0) {
-					XDPD_ERR("failed to configure mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
+				XDPD_INFO(DRIVER_NAME" adding mac-address: %s to port: %u\n", it.as<std::string>().c_str(), port_id);
+				if ((ret = set_vf_mac_addr(phyports[port_id].parent_port_id, vf_id++, &eth_addr)) < 0) {
+					XDPD_ERR(DRIVER_NAME" failed to configure mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
 					return ROFL_FAILURE;
 				}
 			}
