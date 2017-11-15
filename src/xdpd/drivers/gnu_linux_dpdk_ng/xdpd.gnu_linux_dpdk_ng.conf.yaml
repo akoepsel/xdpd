@@ -4,6 +4,8 @@ dpdk:
       pci_address: "0000:00:09.0"
       enabled: false
       tx_loopback: true
+      promisc: true
+      allmulticast: true
     10ge0vf0:
       pci_address: "0000:00:09.1"
       parent: "0000:00:09.0"

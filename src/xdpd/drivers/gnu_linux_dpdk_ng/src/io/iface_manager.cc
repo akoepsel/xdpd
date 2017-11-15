@@ -82,6 +82,46 @@ struct ether_addr port_ether_addr[RTE_MAX_ETHPORTS][ETHER_ADDR_LEN] = {
     {0}, {0x0e, 0x11, 0x11, 0x11, 0x03, 0x03}, {0x0e, 0x11, 0x11, 0x11, 0x03, 0x04}};
 
 
+
+static void set_promisc(uint8_t port_id, uint8_t on)
+{
+	if (on) {
+		rte_eth_promiscuous_enable(port_id);
+	} else {
+		rte_eth_promiscuous_disable(port_id);
+	}
+}
+
+static void set_allmulticast(uint8_t port_id, uint8_t on)
+{
+	if (on) {
+		rte_eth_allmulticast_enable(port_id);
+	} else {
+		rte_eth_allmulticast_disable(port_id);
+	}
+}
+
+static int set_tx_loopback(uint8_t port_id, uint8_t on)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_IXGBE_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0){
+		return rte_pmd_ixgbe_set_tx_loopback(port_id, on);
+	}
+#endif
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_tx_loopback(port_id, on);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_tx_loopback() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
 static int set_vf_mac_addr(uint8_t port_id, uint16_t vf_id, struct ether_addr *mac_addr)
 {
 	struct rte_eth_dev_info dev_info;
@@ -142,27 +182,6 @@ static int set_vf_vlan_anti_spoof(uint8_t port_id, uint16_t vf_id, uint8_t on)
 #endif
 
 	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_vlan_anti_spoof() not implemented for devices of type: %s\n", dev_info.driver_name);
-	return -ENOTSUP;
-}
-
-static int set_tx_loopback(uint8_t port_id, uint8_t on)
-{
-	struct rte_eth_dev_info dev_info;
-	rte_eth_dev_info_get(port_id, &dev_info);
-
-#ifdef RTE_LIBRTE_IXGBE_PMD
-	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0){
-		return rte_pmd_ixgbe_set_tx_loopback(port_id, on);
-	}
-#endif
-
-#ifdef RTE_LIBRTE_I40E_PMD
-	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
-		return rte_pmd_i40e_set_tx_loopback(port_id, on);
-	}
-#endif
-
-	XDPD_ERR(DRIVER_NAME" iface_manager::set_tx_loopback() not implemented for devices of type: %s\n", dev_info.driver_name);
 	return -ENOTSUP;
 }
 
@@ -1492,6 +1511,22 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		if (phyports[port_id].is_vf) {
 			continue;
+		}
+
+		//configure promisc
+		node = iface_manager_port_conf(s_pci_addr)["promisc"];
+		if (node && node.IsScalar()) {
+			bool on = node.as<bool>();
+			XDPD_INFO(DRIVER_NAME" setting promisc: %s on port: %u\n", (on ? "yes":"no"), port_id);
+			set_promisc(port_id, on);
+		}
+
+		//configure allmulticast
+		node = iface_manager_port_conf(s_pci_addr)["allmulticast"];
+		if (node && node.IsScalar()) {
+			bool on = node.as<bool>();
+			XDPD_INFO(DRIVER_NAME" setting allmulticast: %s on port: %u\n", (on ? "yes":"no"), port_id);
+			set_allmulticast(port_id, on);
 		}
 
 		//configure tx loopback
