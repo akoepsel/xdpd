@@ -6,6 +6,13 @@ dpdk:
       tx_loopback: true
       promisc: true
       allmulticast: true
+      vlan_filter:
+        - vlan_id: 103
+          vf_mask: 0x0000000000000006
+          enabled: true
+        - vlan_id: 104
+          vf_mask: 0x0000000000000009
+          enabled: true
     10ge0vf0:
       pci_address: "0000:00:09.1"
       parent: "0000:00:09.0"
@@ -21,13 +28,6 @@ dpdk:
       vlan_stripq: true
       vlan_tag: true
       vlan_insert: 103
-      vlan_filter:
-        - vlan_id: 103
-          vf_mask: 0xffffffffffffffff
-          on: true
-        - vlan_id: 113
-          vf_mask: 0xffffffffffffffff
-          on: true
     10ge0vf1:
       pci_address: "0000:00:09.2"
       mac_addr: 
@@ -42,13 +42,6 @@ dpdk:
       vlan_stripq: true
       vlan_tag: true
       vlan_insert: 104
-      vlan_filter:
-        - vlan_id: 104
-          vf_mask: 0xffffffffffffffff
-          on: true
-        - vlan_id: 114
-          vf_mask: 0xffffffffffffffff
-          on: true
     ens10: 
       pci_address: "0000:00:0a.0"
       enabled: false

@@ -46,12 +46,8 @@ extern YAML::Node y_config_dpdk_ng;
 
 #define MEMPOOL_CACHE_SIZE 256
 
-//#define VLAN_ANTI_SPOOF
-//#define VLAN_INSERT
 #define VLAN_RX_FILTER
-//#define VLAN_STRIP
-//#define VLAN_ADD_MAC
-#define VLAN_SET_MACVLAN_FILTER
+//#define VLAN_SET_MACVLAN_FILTER
 //#define USE_INPUT_FILTER_SET
 
 struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
@@ -71,6 +67,8 @@ static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 static std::set<int> sockets;
 //a map of available logical cores per NUMA socket (set of lcore_id)
 static std::map<unsigned int, std::set<unsigned int> > cores;
+//a set of virtual functions
+static std::set<uint16_t> vfs;
 
 // XXX(toanju) these values need a proper configuration
 int port_vf_id[RTE_MAX_ETHPORTS] = {-1, 0, 1, -1, 0, 1, -1, 0, 1};
@@ -83,7 +81,28 @@ struct ether_addr port_ether_addr[RTE_MAX_ETHPORTS][ETHER_ADDR_LEN] = {
 
 
 
-static void set_promisc(uint8_t port_id, uint8_t on)
+static int set_vf_vlan_filter(uint16_t port_id, uint16_t vlan_id, uint64_t vf_mask, uint8_t on)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_IXGBE_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0){
+		return rte_pmd_ixgbe_set_vf_vlan_filter(port_id, vlan_id, vf_mask, on);
+	}
+#endif
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_vf_vlan_filter(port_id, vlan_id, vf_mask, on);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_vlan_filter() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
+static void set_promisc(uint16_t port_id, uint8_t on)
 {
 	if (on) {
 		rte_eth_promiscuous_enable(port_id);
@@ -92,7 +111,7 @@ static void set_promisc(uint8_t port_id, uint8_t on)
 	}
 }
 
-static void set_allmulticast(uint8_t port_id, uint8_t on)
+static void set_allmulticast(uint16_t port_id, uint8_t on)
 {
 	if (on) {
 		rte_eth_allmulticast_enable(port_id);
@@ -121,6 +140,51 @@ static int set_tx_loopback(uint8_t port_id, uint8_t on)
 	XDPD_ERR(DRIVER_NAME" iface_manager::set_tx_loopback() not implemented for devices of type: %s\n", dev_info.driver_name);
 	return -ENOTSUP;
 }
+
+#ifdef VLAN_SET_MACVLAN_FILTER
+static int set_mac_vlan_filter(uint8_t port_id, struct ether_addr *address, const char *filter_type, int is_on)
+{
+	int ret = -EINVAL;
+	struct rte_eth_mac_filter filter;
+
+	if (!filter_type) {
+		return -EINVAL;
+	}
+
+	memset(&filter, 0, sizeof(struct rte_eth_mac_filter));
+
+	(void)rte_memcpy(&filter.mac_addr, &address, ETHER_ADDR_LEN);
+
+	/* set VF MAC filter */
+	filter.is_vf = 0;
+
+	/* no VF ID as this is a physical device */
+	filter.dst_id = 0;
+
+	if (!strcmp(filter_type, "exact-mac"))
+		filter.filter_type = RTE_MAC_PERFECT_MATCH;
+	else if (!strcmp(filter_type, "exact-mac-vlan"))
+		filter.filter_type = RTE_MACVLAN_PERFECT_MATCH;
+	else if (!strcmp(filter_type, "hashmac"))
+		filter.filter_type = RTE_MAC_HASH_MATCH;
+	else if (!strcmp(filter_type, "hashmac-vlan"))
+		filter.filter_type = RTE_MACVLAN_HASH_MATCH;
+	else {
+		printf("bad filter type");
+		return ret;
+	}
+
+	if (is_on)
+		ret = rte_eth_dev_filter_ctrl(port_id, RTE_ETH_FILTER_MACVLAN, RTE_ETH_FILTER_ADD, &filter);
+	else
+		ret = rte_eth_dev_filter_ctrl(port_id, RTE_ETH_FILTER_MACVLAN, RTE_ETH_FILTER_DELETE, &filter);
+
+	if (ret < 0)
+		printf("bad set MAC hash parameter, return code = %d\n", ret);
+
+	return ret;
+}
+#endif
 
 static int set_vf_mac_addr(uint8_t port_id, uint16_t vf_id, struct ether_addr *mac_addr)
 {
@@ -303,13 +367,14 @@ static int set_vf_vlan_tag(uint8_t port_id, uint16_t vf_id, uint8_t on)
 }
 
 #ifdef VLAN_SET_MACVLAN_FILTER
-static int set_vf_macvlan_filter(uint8_t port_id, uint8_t vf_id, struct ether_addr *address, const char *filter_type, int is_on)
+static int set_vf_mac_vlan_filter(uint8_t port_id, uint8_t vf_id, struct ether_addr *address, const char *filter_type, int is_on)
 {
-	int ret = -1;
+	int ret = -EINVAL;
 	struct rte_eth_mac_filter filter;
-	fprintf(stderr, "%s\n", __FUNCTION__);
 
-	assert(filter_type);
+	if (!filter_type) {
+		return -EINVAL;
+	}
 
 	memset(&filter, 0, sizeof(struct rte_eth_mac_filter));
 
@@ -345,6 +410,22 @@ static int set_vf_macvlan_filter(uint8_t port_id, uint8_t vf_id, struct ether_ad
 	return ret;
 }
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #ifdef USE_INPUT_FILTER_SET
 static int set_hash_input_set(uint8_t port_id, enum rte_filter_input_set_op op, uint16_t type,
@@ -1144,6 +1225,7 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 	}
 	sockets.clear();
 	cores.clear();
+	vfs.clear();
 
 	//Get master lcore
 	unsigned int master_lcore_id = rte_get_master_lcore();
@@ -1312,6 +1394,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (iface_manager_port_setting_exists(s_pci_addr, "parent")) {
 			phyports[port_id].is_vf = 1;
 			phyports[port_id].parent_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"));
+			vfs.insert(port_id);
 			if (phyports[port_id].parent_port_id == port_id) {
 				XDPD_ERR(DRIVER_NAME" unlikely configuration detected: parent port_id == port_id (%u), probably a misconfiguration?\n", port_id);
 			}
@@ -1526,6 +1609,57 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		if (phyports[port_id].is_vf) {
 			continue;
+		}
+
+
+		//configure MAC addresses
+		node = iface_manager_port_conf(s_pci_addr)["mac_addr"];
+		if (node && node.IsSequence()) {
+			int index = 0;
+			for (auto it : node) {
+				struct ether_addr eth_addr;
+				sscanf(it.as<std::string>().c_str(),
+						"%02" SCNx8 ":%02" SCNx8 ":%02" SCNx8 ":%02" SCNx8 ":%02" SCNx8 ":%02" SCNx8,
+							&eth_addr.addr_bytes[0],
+							&eth_addr.addr_bytes[1],
+							&eth_addr.addr_bytes[2],
+							&eth_addr.addr_bytes[3],
+							&eth_addr.addr_bytes[4],
+							&eth_addr.addr_bytes[5]);
+				XDPD_INFO(DRIVER_NAME" adding mac-address: %s on port: %u\n", it.as<std::string>().c_str(), port_id);
+				if (index == 0) {
+					if ((ret = rte_eth_dev_default_mac_addr_set(port_id, &eth_addr)) < 0) {
+						XDPD_ERR(DRIVER_NAME" failed to configure first mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
+						//return ROFL_FAILURE;
+					}
+				} else {
+					if ((ret = rte_eth_dev_mac_addr_add(port_id, &eth_addr, 0)) < 0) {
+						XDPD_ERR(DRIVER_NAME" failed to configure additional mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
+						//return ROFL_FAILURE;
+					}
+				}
+				++index;
+			}
+		}
+
+		//configure VLAN filters for virtual functions
+		node = iface_manager_port_conf(s_pci_addr)["vlan_filter"];
+		if (node && node.IsSequence()) {
+			int index = 0;
+			for (auto filter : node) {
+				if (not filter["vlan_id"] || not filter["vf_mask"] || not filter["on"]) {
+					continue;
+				}
+				uint16_t vlan_id = filter["vlan_id"].as<uint16_t>();
+				uint64_t vf_mask = filter["vf_mask"].as<uint64_t>();
+				uint8_t on = filter["enabled"].as<bool>();
+				XDPD_INFO(DRIVER_NAME" adding vlan filter with vlan_id: %u and vf_mask: %ull on port: %u\n", vlan_id, vf_mask, port_id);
+				if ((ret = set_vf_vlan_filter(port_id, vlan_id, vf_mask, on)) < 0) {
+					XDPD_ERR(DRIVER_NAME" failed to configure vlan filter with vlan_id: %u and vf_mask: %ull on port: %u\n", vlan_id, vf_mask, port_id);
+					//return ROFL_FAILURE;
+				}
+				++index;
+			}
 		}
 
 		//configure promisc
