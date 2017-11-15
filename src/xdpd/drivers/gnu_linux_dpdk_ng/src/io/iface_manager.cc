@@ -80,42 +80,17 @@ struct ether_addr port_ether_addr[RTE_MAX_ETHPORTS][ETHER_ADDR_LEN] = {
     {0}, {0x0e, 0x11, 0x11, 0x11, 0x02, 0x03}, {0x0e, 0x11, 0x11, 0x11, 0x02, 0x04},
     {0}, {0x0e, 0x11, 0x11, 0x11, 0x03, 0x03}, {0x0e, 0x11, 0x11, 0x11, 0x03, 0x04}};
 
-#ifdef VLAN_ADD_MAC
-static void set_vf_mac_addr(uint8_t port_id, uint16_t vf_id, struct ether_addr *mac_addr)
+
+static int set_vf_mac_addr(uint8_t port_id, uint16_t vf_id, struct ether_addr *mac_addr)
 {
-	int ret = -ENOTSUP;
-	fprintf(stderr, "%s\n", __FUNCTION__);
-
-	//if (port_id_is_invalid(res->port_id, ENABLED_WARN))
-	//	return;
-
 #ifdef RTE_LIBRTE_IXGBE_PMD
-	if (ret == -ENOTSUP)
-		ret = rte_pmd_ixgbe_set_vf_mac_addr(port_id, vf_id, mac_addr);
+	return rte_pmd_ixgbe_set_vf_mac_addr(port_id, vf_id, mac_addr);
 #endif
 #ifdef RTE_LIBRTE_I40E_PMD
-	if (ret == -ENOTSUP)
-		ret = rte_pmd_i40e_set_vf_mac_addr(port_id, vf_id, mac_addr);
+	return rte_pmd_i40e_set_vf_mac_addr(port_id, vf_id, mac_addr);
 #endif
-
-	switch (ret) {
-	case 0:
-		break;
-	case -EINVAL:
-		printf("invalid vf_id %d or mac_addr\n", vf_id);
-		break;
-	case -ENODEV:
-		printf("invalid port_id %d\n", port_id);
-		break;
-	case -ENOTSUP:
-		printf("%s: function not implemented\n", __FUNCTION__);
-		break;
-	default:
-		printf("programming error: (%s)\n", strerror(-ret));
-		assert(0 && "programming error");
-	}
 }
-#endif
+
 
 #ifdef VLAN_SET_MACVLAN_FILTER
 static int set_vf_macvlan_filter(uint8_t port_id, uint8_t vf_id, struct ether_addr *address, const char *filter_type, int is_on)
@@ -1483,6 +1458,39 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if (rte_eth_rx_queue_setup(port_id, rx_queue_id, nb_rx_desc, socket_id, &eth_rxconf, direct_pools[socket_id]) < 0) {
 				XDPD_ERR("Failed to configure port: %u rx-queue: %u, aborting\n", port_id, rx_queue_id);
 				return ROFL_FAILURE;
+			}
+		}
+	}
+
+	//configure MAC addresses
+	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+		rte_eth_dev_info_get(port_id, &dev_info);
+		if (dev_info.pci_dev) {
+			memset(s_pci_addr, 0, sizeof(s_pci_addr));
+			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		}
+
+		if (not phyports[port_id].is_vf) {
+			continue;
+		}
+		YAML::Node node = iface_manager_port_conf(s_pci_addr)["mac_addr"];
+		if (node && node.IsSequence()) {
+			int ret = 0;
+			for (auto it : node) {
+				struct ether_addr eth_addr;
+				sscanf(it.as<std::string>().c_str(),
+						"%02" SCNx8 ":%02" SCNx8 ":%02" SCNx8 ":%02" SCNx8 ":%02" SCNx8 ":%02" SCNx8,
+							&eth_addr.addr_bytes[0],
+							&eth_addr.addr_bytes[1],
+							&eth_addr.addr_bytes[2],
+							&eth_addr.addr_bytes[3],
+							&eth_addr.addr_bytes[4],
+							&eth_addr.addr_bytes[5]);
+				XDPD_INFO("adding mac-address: %s to port: %u\n", it.as<std::string>().c_str(), port_id);
+				if ((ret = set_vf_mac_addr(phyports[port_id].parent_port_id, port_id, &eth_addr)) < 0) {
+					XDPD_ERR("failed to configure mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
+					return ROFL_FAILURE;
+				}
 			}
 		}
 	}
