@@ -1260,6 +1260,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (iface_manager_port_setting_exists(s_pci_addr, "parent")) {
 			phyports[port_id].is_vf = 1;
 			phyports[port_id].parent_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"));
+			if (phyports[port_id].parent_port_id == port_id) {
+				XDPD_ERR(DRIVER_NAME" unlikely configuration detected: parent port_id %u == port_id %u, probably a misconfiguration?", phyports[port_id].parent_port_id, port_id);
+			}
 		}
 
 		//number of configured RX queues on device should not exceed number of worker lcores on socket
