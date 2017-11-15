@@ -1203,8 +1203,13 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			return ROFL_FAILURE;
 		}
 
-		// port not defined or disabled in configuration file?
-		if (not iface_manager_port_exists(s_pci_addr) || not iface_manager_get_port_setting_as<bool>(s_pci_addr, "enabled")) {
+		// port not specified in configuration file
+		if (not iface_manager_port_exists(s_pci_addr)) {
+			continue;
+		}
+
+		// port disabled in configuration file?
+		if (not iface_manager_get_port_setting_as<bool>(s_pci_addr, "enabled")) {
 			continue;
 		}
 
