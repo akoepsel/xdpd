@@ -67,14 +67,17 @@ YAML::Node iface_manager_port_conf(const std::string& pci_address);
 /**
 *
 */
-template<typename T> T iface_manager_port_setting(const std::string& pci_address, const std::string& key){
-	try {
-		return iface_manager_port_conf(pci_address)[key].as<T>();
-	} catch (YAML::Exception& e) {
-		XDPD_ERR(DRIVER_NAME" dpdk port: %s, setting: \"%s\" not found, aborting\n", pci_address.c_str(), key.c_str());
-		throw;
-	}
-}
+bool iface_manager_port_exists(const std::string& pci_address);
+
+/**
+*
+*/
+bool iface_manager_port_setting_exists(const std::string& pci_address, const std::string& key);
+
+/**
+*
+*/
+template<typename T> T iface_manager_get_port_setting_as(const std::string& pci_address, const std::string& key);
 
 //C++ extern C
 ROFL_BEGIN_DECLS

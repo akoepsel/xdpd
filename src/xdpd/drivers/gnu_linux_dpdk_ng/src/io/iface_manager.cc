@@ -1069,7 +1069,44 @@ YAML::Node iface_manager_port_conf(const std::string& pci_address){
 	}
 	YAML::Node not_found;
 	not_found["notfound"]["enabled"] = false;
+	XDPD_INFO(DRIVER_NAME" NOTFOUND: %s\n", (not_found["notfound"]["enabled"].as<bool>() ? "true" : "false"));
 	return not_found;
+}
+
+/**
+*
+*/
+bool iface_manager_port_exists(const std::string& pci_address){
+	try {
+		if (iface_manager_port_conf(pci_address)){
+			return true;
+		}
+	} catch (YAML::Exception& e) {}
+	return false;
+}
+
+/**
+*
+*/
+bool iface_manager_port_setting_exists(const std::string& pci_address, const std::string& key){
+	try {
+		return iface_manager_port_conf(pci_address)[key];
+	} catch (YAML::Exception& e) {
+		XDPD_ERR(DRIVER_NAME" dpdk port: %s, setting: \"%s\" not found, aborting\n", pci_address.c_str(), key.c_str());
+		throw;
+	}
+}
+
+/**
+*
+*/
+template<typename T> T iface_manager_get_port_setting_as(const std::string& pci_address, const std::string& key){
+	try {
+		return iface_manager_port_conf(pci_address)[key].as<T>();
+	} catch (YAML::Exception& e) {
+		XDPD_ERR(DRIVER_NAME" dpdk port: %s, setting: \"%s\" not found, aborting\n", pci_address.c_str(), key.c_str());
+		throw;
+	}
 }
 
 /**
@@ -1166,8 +1203,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			return ROFL_FAILURE;
 		}
 
-		// port disabled in configuration file?
-		if (not iface_manager_port_setting<bool>(s_pci_addr, "enabled")) {
+		// port not defined or disabled in configuration file?
+		if (not iface_manager_port_exists(s_pci_addr) || not iface_manager_get_port_setting_as<bool>(s_pci_addr, "enabled")) {
 			continue;
 		}
 
@@ -1204,14 +1241,25 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			return ROFL_FAILURE;
 		}
 
-		// port disabled in configuration file?
-		if (not iface_manager_port_setting<bool>(s_pci_addr, "enabled")) {
-			continue;
-		}
-
 		int socket_id = rte_eth_dev_socket_id(port_id);
 
 		phyports[port_id].socket_id = socket_id;
+		phyports[port_id].is_enabled = 0;
+
+		// port not specified in configuration file
+		if (not iface_manager_port_exists(s_pci_addr)) {
+			XDPD_INFO("skipping physical port: %u (not found in configuration, assuming state \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
+					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
+			continue;
+		}
+
+		// port disabled in configuration file?
+		if (not iface_manager_get_port_setting_as<bool>(s_pci_addr, "enabled")) {
+			XDPD_INFO("skipping physical port: %u (port explicitly \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
+					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
+			continue;
+		}
+
 		phyports[port_id].is_enabled = 1;
 
 		rte_eth_dev_info_get(port_id, &dev_info);
@@ -1428,7 +1476,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
 		}
 
-		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, iface_manager_port_setting<std::string>(s_pci_addr, "ifname").c_str());
+		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, iface_manager_get_port_setting_as<std::string>(s_pci_addr, "ifname").c_str());
 		XDPD_INFO("adding xdpd port: %s for dpdk port: %u\n", port_name, port_id);
 
 		//Initialize pipeline port
