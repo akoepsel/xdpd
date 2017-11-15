@@ -1473,6 +1473,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		char port_name[SWITCH_PORT_MAX_LEN_NAME];
 		switch_port_t* port;
 
+		if (not phyports[port_id].is_enabled) {
+			continue;
+		}
+
 		rte_eth_dev_info_get(port_id, &dev_info);
 		if (dev_info.pci_dev) {
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
