@@ -36,7 +36,8 @@ extern YAML::Node y_config_dpdk_ng;
 
 #define DPDK_DRIVER_NAME_I40E_PF "net_i40e"
 #define DPDK_DRIVER_NAME_I40E_VF "net_i40e_vf"
-#define DPDK_DRIVER_NAME_IXGBE "net_ixgbe"
+#define DPDK_DRIVER_NAME_IXGBE_PF "net_ixgbe"
+#define DPDK_DRIVER_NAME_IXGBE_VF "net_ixgbe_vf"
 
 #define NB_MBUF                                                                                                        \
 	RTE_MAX((nb_ports * nb_rx_queue * RTE_RX_DESC_DEFAULT + nb_ports * nb_lcores * IO_IFACE_MAX_PKT_BURST +        \
@@ -83,14 +84,189 @@ struct ether_addr port_ether_addr[RTE_MAX_ETHPORTS][ETHER_ADDR_LEN] = {
 
 static int set_vf_mac_addr(uint8_t port_id, uint16_t vf_id, struct ether_addr *mac_addr)
 {
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
 #ifdef RTE_LIBRTE_IXGBE_PMD
-	return rte_pmd_ixgbe_set_vf_mac_addr(port_id, vf_id, mac_addr);
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0){
+		return rte_pmd_ixgbe_set_vf_mac_addr(port_id, vf_id, mac_addr);
+	}
 #endif
+
 #ifdef RTE_LIBRTE_I40E_PMD
-	return rte_pmd_i40e_set_vf_mac_addr(port_id, vf_id, mac_addr);
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_vf_mac_addr(port_id, vf_id, mac_addr);
+	}
 #endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_mac_addr() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
 }
 
+static int set_vf_mac_anti_spoof(uint8_t port_id, uint16_t vf_id, uint8_t on)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_IXGBE_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0){
+		return rte_pmd_ixgbe_set_vf_mac_anti_spoof(port_id, vf_id, on);
+	}
+#endif
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_vf_mac_anti_spoof(port_id, vf_id, on);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_mac_anti_spoof() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
+static int set_vf_vlan_anti_spoof(uint8_t port_id, uint16_t vf_id, uint8_t on)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_IXGBE_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0){
+		return rte_pmd_ixgbe_set_vf_vlan_anti_spoof(port_id, vf_id, on);
+	}
+#endif
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_vf_vlan_anti_spoof(port_id, vf_id, on);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_vlan_anti_spoof() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
+static int set_tx_loopback(uint8_t port_id, uint8_t on)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_IXGBE_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0){
+		return rte_pmd_ixgbe_set_tx_loopback(port_id, on);
+	}
+#endif
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_tx_loopback(port_id, on);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_tx_loopback() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
+static int set_vf_unicast_promisc(uint8_t port_id, uint16_t vf_id, uint8_t on)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_vf_unicast_promisc(port_id, vf_id, on);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_unicast_promisc() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
+static int set_vf_multicast_promisc(uint8_t port_id, uint16_t vf_id, uint8_t on)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_vf_multicast_promisc(port_id, vf_id, on);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_multicast_promisc() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
+static int set_vf_broadcast(uint8_t port_id, uint16_t vf_id, uint8_t on)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_vf_broadcast(port_id, vf_id, on);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_broadcast() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
+static int set_vf_vlan_insert(uint8_t port_id, uint16_t vf_id, uint16_t vlan_id)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_IXGBE_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0){
+		return rte_pmd_ixgbe_set_vf_vlan_insert(port_id, vf_id, vlan_id);
+	}
+#endif
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_vf_vlan_insert(port_id, vf_id, vlan_id);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_vlan_insert() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
+static int set_vf_vlan_stripq(uint8_t port_id, uint16_t vf_id, uint8_t on)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_IXGBE_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0){
+		return rte_pmd_ixgbe_set_vf_vlan_stripq(port_id, vf_id, on);
+	}
+#endif
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_vf_vlan_stripq(port_id, vf_id, on);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_vlan_stripq() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
+
+static int set_vf_vlan_tag(uint8_t port_id, uint16_t vf_id, uint8_t on)
+{
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
+		return rte_pmd_i40e_set_vf_vlan_tag(port_id, vf_id, on);
+	}
+#endif
+
+	XDPD_ERR(DRIVER_NAME" iface_manager::set_vf_vlan_tag() not implemented for devices of type: %s\n", dev_info.driver_name);
+	return -ENOTSUP;
+}
 
 #ifdef VLAN_SET_MACVLAN_FILTER
 static int set_vf_macvlan_filter(uint8_t port_id, uint8_t vf_id, struct ether_addr *address, const char *filter_type, int is_on)
@@ -133,157 +309,6 @@ static int set_vf_macvlan_filter(uint8_t port_id, uint8_t vf_id, struct ether_ad
 		printf("bad set MAC hash parameter, return code = %d\n", ret);
 
 	return ret;
-}
-#endif
-
-#ifdef VLAN_ANTI_SPOOF
-static void set_vf_vlan_anti_spoof(uint8_t port_id, uint32_t vf_id, int is_on)
-{
-	int ret = -ENOTSUP;
-
-	fprintf(stderr, "%s\n", __FUNCTION__);
-
-	//if (port_id_is_invalid(port_id, ENABLED_WARN))
-	//	return;
-
-#ifdef RTE_LIBRTE_IXGBE_PMD
-	if (ret == -ENOTSUP)
-		ret = rte_pmd_ixgbe_set_vf_vlan_anti_spoof(port_id, vf_id, is_on);
-#endif
-#ifdef RTE_LIBRTE_I40E_PMD
-	if (ret == -ENOTSUP)
-		ret = rte_pmd_i40e_set_vf_vlan_anti_spoof(port_id, vf_id, is_on);
-#endif
-
-	switch (ret) {
-	case 0:
-		break;
-	case -EINVAL:
-		printf("invalid vf_id %d\n", vf_id);
-		break;
-	case -ENODEV:
-		printf("invalid port_id %d\n", port_id);
-		break;
-	case -ENOTSUP:
-		printf("%s: function not implemented\n", __FUNCTION__);
-		break;
-	default:
-		printf("programming error: (%s)\n", strerror(-ret));
-	}
-}
-#endif
-
-#ifdef VLAN_INSERT
-static void vf_vlan_insert(uint8_t port_id, uint16_t vf_id, uint16_t vlan_id)
-{
-	int ret = -ENOTSUP;
-
-	fprintf(stderr, "%s\n", __FUNCTION__);
-
-	//if (port_id_is_invalid(port_id, ENABLED_WARN))
-	//	return;
-
-#ifdef RTE_LIBRTE_IXGBE_PMD
-	if (ret == -ENOTSUP)
-		ret = rte_pmd_ixgbe_set_vf_vlan_insert(port_id, vf_id, vlan_id);
-#endif
-#ifdef RTE_LIBRTE_I40E_PMD
-	if (ret == -ENOTSUP)
-		ret = rte_pmd_i40e_set_vf_vlan_insert(port_id, vf_id, vlan_id);
-#endif
-
-	switch (ret) {
-	case 0:
-		break;
-	case -EINVAL:
-		printf("invalid vf_id %d or vlan_id %d\n", vf_id, vlan_id);
-		break;
-	case -ENODEV:
-		printf("invalid port_id %d\n", port_id);
-		break;
-	case -ENOTSUP:
-		printf("%s: function not implemented\n", __FUNCTION__);
-		break;
-	default:
-		printf("programming error: (%s)\n", strerror(-ret));
-		assert(0 && "programming error");
-	}
-}
-#endif
-
-#ifdef VLAN_RX_FILTER
-static void vf_rx_filter_vlan(uint16_t vlan_id, uint8_t port_id, uint64_t vf_mask, int is_add)
-{
-	int ret = -ENOTSUP;
-
-	fprintf(stderr, "%s\n", __FUNCTION__);
-
-	//if (port_id_is_invalid(port_id, ENABLED_WARN))
-	//	return;
-
-#ifdef RTE_LIBRTE_IXGBE_PMD
-	if (ret == -ENOTSUP)
-		ret = rte_pmd_ixgbe_set_vf_vlan_filter(port_id, vlan_id, vf_mask, is_add);
-#endif
-#ifdef RTE_LIBRTE_I40E_PMD
-	if (ret == -ENOTSUP)
-		ret = rte_pmd_i40e_set_vf_vlan_filter(port_id, vlan_id, vf_mask, is_add);
-#endif
-
-	switch (ret) {
-	case 0:
-		break;
-	case -EINVAL:
-		printf("invalid vlan_id %d or vf_mask %" PRIu64 "\n", vlan_id, vf_mask);
-		break;
-	case -ENODEV:
-		printf("invalid port_id %d\n", port_id);
-		break;
-	case -ENOTSUP:
-		printf("%s: function not implemented of supported\n", __FUNCTION__);
-		break;
-	default:
-		printf("programming error: (%s)\n", strerror(-ret));
-		assert(0 && "programming error");
-	}
-}
-#endif
-
-#ifdef VLAN_STRIP
-static void vf_enable_strip_vlan(uint8_t port_id, uint16_t vf_id, int is_on)
-{
-	int ret = -ENOTSUP;
-
-	fprintf(stderr, "%s\n", __FUNCTION__);
-
-	//if (port_id_is_invalid(port_id, ENABLED_WARN))
-	//	return;
-
-#ifdef RTE_LIBRTE_IXGBE_PMD
-	if (ret == -ENOTSUP)
-		ret = rte_pmd_ixgbe_set_vf_vlan_stripq(port_id, vf_id, is_on);
-#endif
-#ifdef RTE_LIBRTE_I40E_PMD
-	if (ret == -ENOTSUP)
-		ret = rte_pmd_i40e_set_vf_vlan_stripq(port_id, vf_id, is_on);
-#endif
-
-	switch (ret) {
-	case 0:
-		break;
-	case -EINVAL:
-		printf("invalid vf_id %d or is_on %d\n", vf_id, is_on);
-		break;
-	case -ENODEV:
-		printf("invalid port_id %d\n", port_id);
-		break;
-	case -ENOTSUP:
-		printf("%s: function not implemented\n", __FUNCTION__);
-		break;
-	default:
-		printf("programming error: (%s)\n", strerror(-ret));
-		assert(0 && "programming error");
-	}
 }
 #endif
 
@@ -677,16 +702,6 @@ static switch_port_t *configure_port(uint8_t port_id)
 #endif
 #ifdef VLAN_ANTI_SPOOF
 			set_vf_vlan_anti_spoof(port_parent_id_of_vf[port_id], port_vf_id[port_id], 0);
-#endif
-#ifdef VLAN_INSERT
-			vf_vlan_insert(port_parent_id_of_vf[port_id], port_vf_id[port_id], port_pvid[port_id]);
-#endif
-#ifdef VLAN_RX_FILTER
-			vf_rx_filter_vlan(port_pvid[port_id], port_parent_id_of_vf[port_id],
-					  1ULL << port_vf_id[port_id], 1);
-#endif
-#ifdef VLAN_STRIP
-			vf_enable_strip_vlan(port_parent_id_of_vf[port_id], port_vf_id[port_id], 1);
 #endif
 #ifdef VLAN_SET_MACVLAN_FILTER
 			set_vf_macvlan_filter(port_parent_id_of_vf[port_id], port_vf_id[port_id],
@@ -1170,6 +1185,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	char s_pci_addr[64];
 	unsigned int next_lcore_id[RTE_MAX_NUMA_NODES]; //The next lcore_id to be assigned to a queue on NUMA node i
 	size_t nb_mbuf[RTE_MAX_NUMA_NODES]; //The required space per NUMA node
+	YAML::Node node;
+	int ret = 0;
+
 
 	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
 		next_lcore_id[socket_id] = 0;
@@ -1261,7 +1279,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			phyports[port_id].is_vf = 1;
 			phyports[port_id].parent_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"));
 			if (phyports[port_id].parent_port_id == port_id) {
-				XDPD_ERR(DRIVER_NAME" unlikely configuration detected: parent port_id %u == port_id %u, probably a misconfiguration?", phyports[port_id].parent_port_id, port_id);
+				XDPD_ERR(DRIVER_NAME" unlikely configuration detected: parent port_id == port_id (%u), probably a misconfiguration?\n", port_id);
 			}
 		}
 
@@ -1368,7 +1386,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
-			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE, sizeof(DPDK_DRIVER_NAME_IXGBE)) == 0) {
+			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0) {
 
 				nb_tx_desc = dev_info.tx_desc_lim.nb_max;
 				eth_txconf.tx_thresh.pthresh = IXGBE_DEFAULT_TX_PTHRESH;
@@ -1433,7 +1451,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_rxconf.rx_deferred_start = 0;
 				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
 
-			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE, sizeof(DPDK_DRIVER_NAME_IXGBE)) == 0) {
+			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0) {
 
 				nb_rx_desc = dev_info.rx_desc_lim.nb_max;
 				eth_rxconf.rx_thresh.pthresh = IXGBE_DEFAULT_RX_PTHRESH;
@@ -1465,9 +1483,29 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 	}
 
-	//configure MAC addresses
+	//configure physical functions
+	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+
+		if (phyports[port_id].is_vf) {
+			continue;
+		}
+
+		//configure tx loopback
+		node = iface_manager_port_conf(s_pci_addr)["tx_loopback"];
+		if (node && node.IsScalar()) {
+			bool on = node.as<bool>();
+			XDPD_INFO(DRIVER_NAME" setting tx-loopback: %s on port: %u\n", (on ? "yes":"no"), port_id);
+			if ((ret = set_tx_loopback(port_id, on)) < 0) {
+				XDPD_ERR(DRIVER_NAME" failed to configure tx-loopback: %s on port: %u, aborting\n", (on ? "yes":"no"), port_id);
+				//return ROFL_FAILURE;
+			}
+		}
+	}
+
+	//configure virtual functions
 	uint16_t vf_id = 0;
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+
 		rte_eth_dev_info_get(port_id, &dev_info);
 		if (dev_info.pci_dev) {
 			memset(s_pci_addr, 0, sizeof(s_pci_addr));
@@ -1477,9 +1515,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (not phyports[port_id].is_vf) {
 			continue;
 		}
-		YAML::Node node = iface_manager_port_conf(s_pci_addr)["mac_addr"];
+
+		//configure MAC addresses
+		node = iface_manager_port_conf(s_pci_addr)["mac_addr"];
 		if (node && node.IsSequence()) {
-			int ret = 0;
 			for (auto it : node) {
 				struct ether_addr eth_addr;
 				sscanf(it.as<std::string>().c_str(),
@@ -1490,13 +1529,103 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 							&eth_addr.addr_bytes[3],
 							&eth_addr.addr_bytes[4],
 							&eth_addr.addr_bytes[5]);
-				XDPD_INFO(DRIVER_NAME" adding mac-address: %s to port: %u, parent port: %u, vf_id: %u\n", it.as<std::string>().c_str(), port_id, phyports[port_id].parent_port_id, vf_id);
-				if ((ret = set_vf_mac_addr(phyports[port_id].parent_port_id, vf_id++, &eth_addr)) < 0) {
+				XDPD_INFO(DRIVER_NAME" adding mac-address: %s on port: %u, parent port: %u, vf_id: %u\n", it.as<std::string>().c_str(), port_id, phyports[port_id].parent_port_id, vf_id);
+				if ((ret = set_vf_mac_addr(phyports[port_id].parent_port_id, vf_id, &eth_addr)) < 0) {
 					XDPD_ERR(DRIVER_NAME" failed to configure mac-address: %s on port: %u, aborting\n", it.as<std::string>().c_str(), port_id);
 					//return ROFL_FAILURE;
 				}
 			}
 		}
+
+		//configure MAC anti spoof
+		node = iface_manager_port_conf(s_pci_addr)["mac_anti_spoof"];
+		if (node && node.IsScalar()) {
+			bool on = node.as<bool>();
+			XDPD_INFO(DRIVER_NAME" setting mac-anti-spoof: %s on port: %u, parent port: %u, vf_id: %u\n", (on ? "yes":"no"), port_id, phyports[port_id].parent_port_id, vf_id);
+			if ((ret = set_vf_mac_anti_spoof(phyports[port_id].parent_port_id, vf_id, on)) < 0) {
+				XDPD_ERR(DRIVER_NAME" failed to configure mac-anti-spoof: %s on port: %u, aborting\n", (on ? "yes":"no"), port_id);
+				//return ROFL_FAILURE;
+			}
+		}
+
+		//configure VLAN anti spoof
+		node = iface_manager_port_conf(s_pci_addr)["vlan_anti_spoof"];
+		if (node && node.IsScalar()) {
+			bool on = node.as<bool>();
+			XDPD_INFO(DRIVER_NAME" setting vlan-anti-spoof: %s on port: %u, parent port: %u, vf_id: %u\n", (on ? "yes":"no"), port_id, phyports[port_id].parent_port_id, vf_id);
+			if ((ret = set_vf_vlan_anti_spoof(phyports[port_id].parent_port_id, vf_id, on)) < 0) {
+				XDPD_ERR(DRIVER_NAME" failed to configure vlan-anti-spoof: %s on port: %u, aborting\n", (on ? "yes":"no"), port_id);
+				//return ROFL_FAILURE;
+			}
+		}
+
+		//configure unicast promisc
+		node = iface_manager_port_conf(s_pci_addr)["unicast_promisc"];
+		if (node && node.IsScalar()) {
+			bool on = node.as<bool>();
+			XDPD_INFO(DRIVER_NAME" setting unicast-promisc: %s on port: %u, parent port: %u, vf_id: %u\n", (on ? "yes":"no"), port_id, phyports[port_id].parent_port_id, vf_id);
+			if ((ret = set_vf_unicast_promisc(phyports[port_id].parent_port_id, vf_id, on)) < 0) {
+				XDPD_ERR(DRIVER_NAME" failed to configure unicast-promisc: %s on port: %u, aborting\n", (on ? "yes":"no"), port_id);
+				//return ROFL_FAILURE;
+			}
+		}
+
+		//configure multicast promisc
+		node = iface_manager_port_conf(s_pci_addr)["multicast_promisc"];
+		if (node && node.IsScalar()) {
+			bool on = node.as<bool>();
+			XDPD_INFO(DRIVER_NAME" setting multicast-promisc: %s on port: %u, parent port: %u, vf_id: %u\n", (on ? "yes":"no"), port_id, phyports[port_id].parent_port_id, vf_id);
+			if ((ret = set_vf_multicast_promisc(phyports[port_id].parent_port_id, vf_id, on)) < 0) {
+				XDPD_ERR(DRIVER_NAME" failed to configure multicast-promisc: %s on port: %u, aborting\n", (on ? "yes":"no"), port_id);
+				//return ROFL_FAILURE;
+			}
+		}
+
+		//configure broadcast
+		node = iface_manager_port_conf(s_pci_addr)["broadcast"];
+		if (node && node.IsScalar()) {
+			bool on = node.as<bool>();
+			XDPD_INFO(DRIVER_NAME" setting broadcast: %s on port: %u, parent port: %u, vf_id: %u\n", (on ? "yes":"no"), port_id, phyports[port_id].parent_port_id, vf_id);
+			if ((ret = set_vf_broadcast(phyports[port_id].parent_port_id, vf_id, on)) < 0) {
+				XDPD_ERR(DRIVER_NAME" failed to configure broadcast: %s on port: %u, aborting\n", (on ? "yes":"no"), port_id);
+				//return ROFL_FAILURE;
+			}
+		}
+
+		//configure vlan stripq
+		node = iface_manager_port_conf(s_pci_addr)["vlan_stripq"];
+		if (node && node.IsScalar()) {
+			bool on = node.as<bool>();
+			XDPD_INFO(DRIVER_NAME" setting vlan-stripq: %s on port: %u, parent port: %u, vf_id: %u\n", (on ? "yes":"no"), port_id, phyports[port_id].parent_port_id, vf_id);
+			if ((ret = set_vf_vlan_stripq(phyports[port_id].parent_port_id, vf_id, on)) < 0) {
+				XDPD_ERR(DRIVER_NAME" failed to configure vlan-stripq: %s on port: %u, aborting\n", (on ? "yes":"no"), port_id);
+				//return ROFL_FAILURE;
+			}
+		}
+
+		//configure vlan insert
+		node = iface_manager_port_conf(s_pci_addr)["vlan_insert"];
+		if (node && node.IsScalar()) {
+			uint16_t vlan_id = node.as<uint16_t>();
+			XDPD_INFO(DRIVER_NAME" setting vlan-insert: %u on port: %u, parent port: %u, vf_id: %u\n", vlan_id, port_id, phyports[port_id].parent_port_id, vf_id);
+			if ((ret = set_vf_vlan_insert(phyports[port_id].parent_port_id, vf_id, vlan_id)) < 0) {
+				XDPD_ERR(DRIVER_NAME" failed to configure vlan-insert: %u on port: %u, aborting\n", vlan_id, port_id);
+				//return ROFL_FAILURE;
+			}
+		}
+
+		//configure vlan tag
+		node = iface_manager_port_conf(s_pci_addr)["vlan_tag"];
+		if (node && node.IsScalar()) {
+			bool on = node.as<bool>();
+			XDPD_INFO(DRIVER_NAME" setting vlan-tag: %s on port: %u, parent port: %u, vf_id: %u\n", (on ? "yes":"no"), port_id, phyports[port_id].parent_port_id, vf_id);
+			if ((ret = set_vf_vlan_tag(phyports[port_id].parent_port_id, vf_id, on)) < 0) {
+				XDPD_ERR(DRIVER_NAME" failed to configure vlan-tag: %s on port: %u, aborting\n", (on ? "yes":"no"), port_id);
+				//return ROFL_FAILURE;
+			}
+		}
+
+		++vf_id;
 	}
 
 	//Iterate over all available physical ports
@@ -1514,12 +1643,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, iface_manager_get_port_setting_as<std::string>(s_pci_addr, "ifname").c_str());
-		XDPD_INFO("adding xdpd port: %s for dpdk port: %u\n", port_name, port_id);
+		XDPD_INFO(DRIVER_NAME" adding xdpd port: %s for dpdk port: %u\n", port_name, port_id);
 
 		//Initialize pipeline port
 		port = switch_port_init(port_name, false, PORT_TYPE_PHYSICAL, PORT_STATE_NONE);
 		if(!port){
-			XDPD_ERR("Failed to create xdpd port: %s for dpdk port: %u\n", port_name, port_id);
+			XDPD_ERR(DRIVER_NAME" failed to create xdpd port: %s for dpdk port: %u\n", port_name, port_id);
 			return ROFL_FAILURE;
 		}
 
@@ -1527,7 +1656,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		dpdk_port_state_t* ps = (dpdk_port_state_t*)rte_malloc(NULL,sizeof(dpdk_port_state_t),0);
 
 		if(!ps){
-			XDPD_ERR("Unable to allocate memory for xdpd switch_port_t: %s\n", port_name);
+			XDPD_ERR(DRIVER_NAME" unable to allocate memory for xdpd switch_port_t: %s\n", port_name);
 			switch_port_destroy(port);
 			return ROFL_FAILURE;
 		}
