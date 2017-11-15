@@ -1458,8 +1458,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.rxmode.jumbo_frame = 0;
 		eth_conf.rxmode.enable_scatter = 0;
 		eth_conf.rxmode.enable_lro = 0;
+		eth_conf.rxmode.split_hdr_size = 0;
+		eth_conf.rxmode.max_rx_pkt_len = IO_MAX_PACKET_SIZE;
 		eth_conf.rx_adv_conf.rss_conf.rss_key = NULL;
 		eth_conf.rx_adv_conf.rss_conf.rss_key_len = 0;
+		eth_conf.rx_adv_conf.rss_conf.rss_hf = /*ETH_RSS_L2_PAYLOAD |*/ ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP;
 
 		//transmit side
 		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
