@@ -47,9 +47,9 @@ extern YAML::Node y_config_dpdk_ng;
 #define MEMPOOL_CACHE_SIZE 256
 
 //#define VLAN_ANTI_SPOOF
-#define VLAN_INSERT
+//#define VLAN_INSERT
 #define VLAN_RX_FILTER
-#define VLAN_STRIP
+//#define VLAN_STRIP
 //#define VLAN_ADD_MAC
 #define VLAN_SET_MACVLAN_FILTER
 //#define USE_INPUT_FILTER_SET
@@ -1486,6 +1486,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	//configure physical functions
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 
+		if (not phyports[port_id].is_enabled) {
+			continue;
+		}
+
 		if (phyports[port_id].is_vf) {
 			continue;
 		}
@@ -1506,14 +1510,18 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	uint16_t vf_id = 0;
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 
-		rte_eth_dev_info_get(port_id, &dev_info);
-		if (dev_info.pci_dev) {
-			memset(s_pci_addr, 0, sizeof(s_pci_addr));
-			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		if (not phyports[port_id].is_enabled) {
+			continue;
 		}
 
 		if (not phyports[port_id].is_vf) {
 			continue;
+		}
+
+		rte_eth_dev_info_get(port_id, &dev_info);
+		if (dev_info.pci_dev) {
+			memset(s_pci_addr, 0, sizeof(s_pci_addr));
+			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
 		}
 
 		//configure MAC addresses
