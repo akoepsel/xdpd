@@ -1067,7 +1067,7 @@ YAML::Node iface_manager_port_conf(const std::string& pci_address){
 			}
 		}
 	}
-	throw YAML::Exception();
+	throw YAML::InvalidNode();
 }
 
 /**
