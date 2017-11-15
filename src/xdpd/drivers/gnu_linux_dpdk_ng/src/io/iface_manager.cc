@@ -60,8 +60,8 @@ pthread_rwlock_t iface_manager_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 static int numa_on = 1; /**< NUMA is enabled by default. */
 /* Static global variables used within this file. */
 //static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
-static uint16_t nb_txd = RTE_TX_DESC_DEFAULT;
-static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
+uint16_t nb_txd = RTE_TX_DESC_DEFAULT;
+uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 
 //a set of available NUMA sockets (socket_id)
 static std::set<int> sockets;
@@ -469,7 +469,7 @@ static int set_hash_global_config(uint8_t port_id, enum rte_eth_hash_function ha
 }
 #endif
 
-static uint8_t get_port_n_rx_queues(const uint8_t port)
+uint8_t get_port_n_rx_queues(const uint8_t port)
 {
 	int queue = -1;
 	uint16_t i;
@@ -487,7 +487,7 @@ static uint8_t get_port_n_rx_queues(const uint8_t port)
 	return (uint8_t)(++queue);
 }
 
-static uint8_t get_port_n_tx_queues(const uint8_t lsi_id, const uint8_t port)
+uint8_t get_port_n_tx_queues(const uint8_t lsi_id, const uint8_t port)
 {
 	int queue_cnt[RTE_MAX_LCORE];
 	uint16_t i;
@@ -513,7 +513,7 @@ static uint8_t get_port_n_tx_queues(const uint8_t lsi_id, const uint8_t port)
 	return (uint8_t)(queue);
 }
 
-static uint8_t get_lsi_id(const uint8_t port_id) {
+uint8_t get_lsi_id(const uint8_t port_id) {
 	unsigned i;
 
 	for (i = 0; i < nb_lcore_params; ++i) {
@@ -525,7 +525,7 @@ static uint8_t get_lsi_id(const uint8_t port_id) {
 	return -1;
 }
 
-static unsigned is_txq_enabled(const uint8_t lsi_id, const uint8_t port_id, const uint8_t lcore_id)
+unsigned is_txq_enabled(const uint8_t lsi_id, const uint8_t port_id, const uint8_t lcore_id)
 {
 	unsigned i;
 
@@ -663,15 +663,17 @@ static int init_mem(unsigned int socket_id, unsigned int nb_mbuf)
 	return ROFL_SUCCESS;
 }
 
-static void print_ethaddr(const char *name, const struct ether_addr *eth_addr)
+void print_ethaddr(const char *name, const struct ether_addr *eth_addr)
 {
 	char buf[ETHER_ADDR_FMT_SIZE];
 	ether_format_addr(buf, ETHER_ADDR_FMT_SIZE, eth_addr);
 	XDPD_INFO("%s%s", name, buf);
 }
 
+
+#if 1
 //Initializes the pipeline structure and launches the port
-static switch_port_t *configure_port(uint8_t port_id)
+switch_port_t *configure_port(uint8_t port_id)
 {
 	int ret;
 	switch_port_t* port;
@@ -1052,6 +1054,7 @@ static switch_port_t *configure_port(uint8_t port_id)
 
 	return port;
 }
+#endif
 
 rofl_result_t iface_manager_set_queues(switch_port_t *port)
 {
@@ -1877,6 +1880,21 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			switch_port_destroy(port);
 			return ROFL_FAILURE;
 		}
+
+		//Fill-in dpdk port state
+		ps->queues_set = false;
+		ps->scheduled = false;
+		ps->port_id = port_id;
+		port->platform_port_state = (platform_port_state_t*)ps;
+
+		//Set the port in the phy_port_mapping
+		phy_port_mapping[port_id] = port;
+
+		//Add port to the pipeline
+		if( physical_switch_add_port(port) != ROFL_SUCCESS ){
+			XDPD_ERR(DRIVER_NAME"[iface_manager] Unable to add the switch port to physical switch; perhaps there are no more physical port slots available?\n");
+			return ROFL_FAILURE;
+		}
 	}
 
 	return ROFL_SUCCESS;
@@ -1886,9 +1904,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 * Discovers and initializes (including rofl-pipeline state) DPDK-enabled ports.
 */
 rofl_result_t iface_manager_discover_system_ports(void){
-
+#if 0
 	uint8_t i;
 	switch_port_t* port;
+#endif
 
 	if (iface_manager_discover_logical_cores() < 0) {
 		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_logical_cores failed\n");
@@ -1920,6 +1939,7 @@ rofl_result_t iface_manager_discover_system_ports(void){
 		return ROFL_FAILURE;
 	}
 #endif
+#if 0
 	for (i = 0; i < nb_phy_ports; ++i) {
 		// only VF ports for now
 		if (port_vf_id[i] == -1) {
@@ -1938,7 +1958,7 @@ rofl_result_t iface_manager_discover_system_ports(void){
 		}
 
 	}	
-
+#endif
 	return ROFL_SUCCESS;
 }
 
