@@ -1248,6 +1248,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].socket_id = socket_id;
 		phyports[port_id].is_enabled = 0;
 
+		rte_eth_dev_info_get(port_id, &dev_info);
+		strncpy(s_fw_version, "none", sizeof(s_fw_version)-1);
+		rte_eth_dev_fw_version_get(port_id, s_fw_version, sizeof(s_fw_version));
+
 		// port not specified in configuration file
 		if (not iface_manager_port_exists(s_pci_addr)) {
 			XDPD_INFO("skipping physical port: %u (not found in configuration, assuming state \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
@@ -1263,10 +1267,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		phyports[port_id].is_enabled = 1;
-
-		rte_eth_dev_info_get(port_id, &dev_info);
-		strncpy(s_fw_version, "none", sizeof(s_fw_version)-1);
-		rte_eth_dev_fw_version_get(port_id, s_fw_version, sizeof(s_fw_version));
 
 		//number of configured RX queues on device should not exceed number of worker lcores on socket
 		unsigned int nb_rx_queues = cores[socket_id].size() < dev_info.max_rx_queues ? cores[socket_id].size() : dev_info.max_rx_queues;
