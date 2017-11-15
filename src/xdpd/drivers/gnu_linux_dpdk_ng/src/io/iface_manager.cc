@@ -1931,8 +1931,10 @@ rofl_result_t iface_manager_discover_system_ports(void){
 		return ROFL_FAILURE;
 	}
 #endif
+#if 0
 	nb_phy_ports = rte_eth_dev_count();
 	XDPD_INFO(DRIVER_NAME"[iface_manager] Found %u DPDK-capable interfaces\n", nb_phy_ports);
+#endif
 #if 0
 	if (check_port_config(nb_phy_ports) < 0) {
 		XDPD_ERR(DRIVER_NAME "[iface_manager] check_port_config failed\n");
