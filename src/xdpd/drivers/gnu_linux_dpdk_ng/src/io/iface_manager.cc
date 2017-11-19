@@ -1411,7 +1411,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		unsigned int rx_queue_id = 0;
 		unsigned int tx_queue_id = 0;
 
-		XDPD_INFO(DRIVER_NAME" adding physical port: %u on socket: %u with max_rx_queues: %u, nb_rx_queues: %u, max_tx_queues: %u, nb_tx_queues: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
+		XDPD_INFO(DRIVER_NAME" adding physical port: %u on socket: %u with max_rx_queues: %u, rx_queues in use: %u, max_tx_queues: %u, tx_queues in use: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
 				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, dev_info.max_tx_queues, nb_tx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
 
 		//iterate over all lcores (except master and disabled ones including those on other NUMA nodes) and assign rx queues
