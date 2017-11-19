@@ -1061,16 +1061,17 @@ rofl_result_t iface_manager_set_queues(switch_port_t *port)
 {
 	unsigned int i;
 	int ret;
+#if 0
 	unsigned int sock_id;
 	struct rte_eth_rxconf rx_conf;
 	struct rte_eth_txconf tx_conf;
-
+#endif
 	if (port->type != PORT_TYPE_PHYSICAL)
 		return ROFL_SUCCESS;
 
 	//Recover the platform state
 	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
-
+#if 0
 	memset(&rx_conf, 0, sizeof(rx_conf));
 	memset(&tx_conf, 0, sizeof(tx_conf));
 
@@ -1090,7 +1091,7 @@ rofl_result_t iface_manager_set_queues(switch_port_t *port)
 	sock_id = rte_eth_dev_socket_id(ps->port_id);
 	if(sock_id == 0xFFFFFFFF)
 		sock_id = 0;//Single CPU socket system
-
+#endif
 	
 	if(ps->queues_set)
 		return ROFL_SUCCESS;
@@ -1143,11 +1144,13 @@ START_RETRY:
 		phy_port_mapping[ps->port_id]->up = true;
 	}
 
+#if 0
 	//Set promiscuous mode
 	rte_eth_promiscuous_enable(ps->port_id);
 
 	//Enable multicast
 	rte_eth_allmulticast_enable(ps->port_id);
+#endif
 	
 	//Reset stats
 	rte_eth_stats_reset(ps->port_id);
