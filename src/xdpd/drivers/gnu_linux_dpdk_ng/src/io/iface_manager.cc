@@ -1417,9 +1417,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		XDPD_INFO(DRIVER_NAME" adding physical port: %u on socket: %u with max_rx_queues: %u, rx_queues in use: %u, max_tx_queues: %u, tx_queues in use: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
 				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, dev_info.max_tx_queues, nb_tx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
 
-		//iterate over all lcores (except master and disabled ones including those on other NUMA nodes) and assign rx queues
+		//iterate over all lcores (except master and disabled ones and those on other NUMA nodes) and assign rx queues
 		for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 
+			if (socket_id != rte_lcore_to_socket_id(lcore_id)) {
+				continue;
+			}
 			if (lcores[lcore_id].is_master) {
 				continue;
 			}
@@ -1905,7 +1908,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		//Fill-in dpdk port state
-		ps->queues_set = true;
+		ps->queues_set = false;
 		ps->scheduled = false;
 		ps->port_id = port_id;
 		port->platform_port_state = (platform_port_state_t*)ps;
