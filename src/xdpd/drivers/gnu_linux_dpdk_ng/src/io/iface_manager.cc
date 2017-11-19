@@ -1369,7 +1369,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			return ROFL_FAILURE;
 		}
 
-		int socket_id = rte_eth_dev_socket_id(port_id);
+		unsigned int socket_id = rte_eth_dev_socket_id(port_id);
 
 		phyports[port_id].socket_id = socket_id;
 		phyports[port_id].is_enabled = 0;
