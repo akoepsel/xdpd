@@ -916,13 +916,14 @@ switch_port_t *configure_port(uint8_t port_id)
 			rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup: err=%d, "
 					       "port=%d\n",
 				 ret, port_id);
-
+#if 0
 		qconf = &processing_core_tasks[lcore_id];
 		qconf->tx_queue_id[port_id] = queueid;
 		queueid++;
 
 		qconf->tx_port_id[qconf->n_tx_port] = port_id;
 		qconf->n_tx_port++;
+#endif
 	}
 #else
 	/* init one TX queue */
@@ -1302,14 +1303,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	struct rte_eth_dev_info dev_info;
 	char s_fw_version[256];
 	char s_pci_addr[64];
-	unsigned int next_lcore_id[RTE_MAX_NUMA_NODES]; //The next lcore_id to be assigned to a queue on NUMA node i
 	size_t nb_mbuf[RTE_MAX_NUMA_NODES]; //The required space per NUMA node
 	YAML::Node node;
 	int ret = 0;
 
-
 	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
-		next_lcore_id[socket_id] = 0;
 		nb_mbuf[socket_id] = rte_eth_dev_count() * cores.size() * IO_IFACE_MAX_PKT_BURST + cores.size() * MEMPOOL_CACHE_SIZE;
 	}
 
@@ -1405,42 +1403,60 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		//number of configured RX queues on device should not exceed number of worker lcores on socket
 		unsigned int nb_rx_queues = cores[socket_id].size() < dev_info.max_rx_queues ? cores[socket_id].size() : dev_info.max_rx_queues;
+		//number of configured TX queues on device should not exceed number of worker lcores on socket
+		unsigned int nb_tx_queues = cores[socket_id].size() < dev_info.max_tx_queues ? cores[socket_id].size() : dev_info.max_tx_queues;
 
 		phyports[port_id].nb_rx_queues = nb_rx_queues;
-		phyports[port_id].nb_tx_queues = nb_rx_queues; //for now: symmetrical number of rx/tx queues
+		phyports[port_id].nb_tx_queues = nb_tx_queues;
+		uint8_t rx_queue_id = 0;
+		uint8_t tx_queue_id = 0;
 
-		XDPD_INFO(DRIVER_NAME" adding physical port: %u on socket: %u with max_rx_queues: %u, nb_rx_queues: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
-				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
+		XDPD_INFO(DRIVER_NAME" adding physical port: %u on socket: %u with max_rx_queues: %u, nb_rx_queues: %u, max_tx_queues: %u, nb_tx_queues: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
+				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, dev_info.max_tx_queues, nb_tx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
 
-		//map physical port rx queues to worker lcores on socket
-		for (unsigned int queue_id = 0; queue_id < nb_rx_queues; queue_id++) {
-			for (;;) {
-				next_lcore_id[socket_id] = (next_lcore_id[socket_id] < (RTE_MAX_LCORE-1)) ? next_lcore_id[socket_id] + 1 : 0;
-				unsigned int lcore_id = next_lcore_id[socket_id];
+		//iterate over all lcores (except master and disabled ones including those on other NUMA nodes) and assign rx queues
+		for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 
-				if (lcores[lcore_id].socket_id != socket_id) {
-					continue;
-				}
-				if (lcores[lcore_id].is_master) {
-					continue;
-				}
-				if (not lcores[lcore_id].is_enabled) {
-					continue;
-				}
-				uint16_t nb_rx_queue = processing_core_tasks[lcore_id].n_rx_queue;
-				if (nb_rx_queue >= MAX_RX_QUEUE_PER_LCORE) {
-						XDPD_ERR(DRIVER_NAME" error: too many queues (%u) for lcore: %u\n",
-								(unsigned)nb_rx_queue + 1, (unsigned)lcore_id);
-						return ROFL_FAILURE;
-				} else {
-						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].port_id = port_id;
-						processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = queue_id;
-						processing_core_tasks[lcore_id].n_rx_queue++;
-						XDPD_INFO(DRIVER_NAME" assigning physical port: %u, queue: %u to lcore: %u on socket: %u\n", port_id, queue_id, lcore_id, socket_id);
-						break;
-				}
+			if (lcores[lcore_id].is_master) {
+				continue;
 			}
+			if (not lcores[lcore_id].is_enabled) {
+				continue;
+			}
+
+			uint16_t nb_rx_queue = processing_core_tasks[lcore_id].n_rx_queue;
+			if (nb_rx_queue >= MAX_RX_QUEUE_PER_LCORE) {
+					XDPD_ERR(DRIVER_NAME" error: too many rx queues (%u) for lcore: %u\n",
+							(unsigned)nb_rx_queue + 1, (unsigned)lcore_id);
+					return ROFL_FAILURE;
+			} else {
+					processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].port_id = port_id;
+					processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = rx_queue_id;
+					processing_core_tasks[lcore_id].n_rx_queue++;
+					XDPD_INFO(DRIVER_NAME" assigning physical port: %u, rx queue: %u on socket: %u to lcore: %u on socket: %u\n", port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
+					break;
+			}
+
+			rx_queue_id = (rx_queue_id < phyports[port_id].nb_rx_queues) ? rx_queue_id + 1 : 0;
 		}
+
+		//iterate over all lcores (except master and disabled ones including those on other NUMA nodes) and assign tx queues
+		for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
+
+			if (lcores[lcore_id].is_master) {
+				continue;
+			}
+			if (not lcores[lcore_id].is_enabled) {
+				continue;
+			}
+
+			processing_core_tasks[lcore_id].tx_queue_id[port_id] = tx_queue_id;
+			processing_core_tasks[lcore_id].n_tx_port++;
+			XDPD_INFO(DRIVER_NAME" assigning physical port: %u, tx queue: %u on socket: %u to lcore: %u on socket: %u\n", port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
+
+			tx_queue_id = (tx_queue_id < phyports[port_id].nb_tx_queues) ? tx_queue_id + 1 : 0;
+		}
+
 
 		//Configure the port
 		struct rte_eth_conf eth_conf;
@@ -1493,6 +1509,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_rs_thresh = I40E_DEFAULT_TX_RSBIT_THRESH; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
+				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			} else
@@ -1507,6 +1524,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_rs_thresh = I40E_DEFAULT_TX_RSBIT_THRESH; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
+				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0) {
@@ -1519,6 +1537,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_rs_thresh = IXGBE_DEFAULT_TX_RSBIT_THRESH; //use default, e.g., IXGBE_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
+				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			} else {
@@ -1532,6 +1551,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_rs_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
+				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			}
@@ -1882,7 +1902,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		//Fill-in dpdk port state
-		ps->queues_set = false;
+		ps->queues_set = true;
 		ps->scheduled = false;
 		ps->port_id = port_id;
 		port->platform_port_state = (platform_port_state_t*)ps;

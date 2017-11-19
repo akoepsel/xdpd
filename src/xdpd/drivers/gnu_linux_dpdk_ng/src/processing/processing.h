@@ -54,8 +54,7 @@ typedef struct core_tasks{
 	uint16_t n_rx_queue;
 	struct lcore_rx_queue rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
 	uint16_t n_tx_port;
-	uint16_t tx_port_id[RTE_MAX_ETHPORTS];
-	uint16_t tx_queue_id[RTE_MAX_ETHPORTS];
+	uint8_t tx_queue_id[RTE_MAX_ETHPORTS]; // tx_queue_id[port_id] = queue_id => transmission queue for outgoing packets
 
 	//This are the TX-queues for ALL ports in the system; index is port_id
 	struct mbuf_burst tx_mbufs[RTE_MAX_ETHPORTS];
