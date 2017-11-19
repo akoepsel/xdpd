@@ -1408,8 +1408,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		phyports[port_id].nb_rx_queues = nb_rx_queues;
 		phyports[port_id].nb_tx_queues = nb_tx_queues;
-		uint8_t rx_queue_id = 0;
-		uint8_t tx_queue_id = 0;
+		unsigned int rx_queue_id = 0;
+		unsigned int tx_queue_id = 0;
 
 		XDPD_INFO(DRIVER_NAME" adding physical port: %u on socket: %u with max_rx_queues: %u, nb_rx_queues: %u, max_tx_queues: %u, nb_tx_queues: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
 				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, dev_info.max_tx_queues, nb_tx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
@@ -1436,7 +1436,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					XDPD_INFO(DRIVER_NAME" assigning physical port: %u, rx queue: %u on socket: %u to lcore: %u on socket: %u\n", port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
 			}
 
-			rx_queue_id = (rx_queue_id < phyports[port_id].nb_rx_queues) ? rx_queue_id + 1 : 0;
+			rx_queue_id = (rx_queue_id < (phyports[port_id].nb_rx_queues - 1)) ? rx_queue_id + 1 : 0;
 		}
 
 		//iterate over all lcores (except master and disabled ones including those on other NUMA nodes) and assign tx queues
@@ -1454,7 +1454,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			processing_core_tasks[lcore_id].n_tx_port++;
 			XDPD_INFO(DRIVER_NAME" assigning physical port: %u, tx queue: %u on socket: %u to lcore: %u on socket: %u\n", port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
 
-			tx_queue_id = (tx_queue_id < phyports[port_id].nb_tx_queues) ? tx_queue_id + 1 : 0;
+			tx_queue_id = (tx_queue_id < (phyports[port_id].nb_tx_queues - 1)) ? tx_queue_id + 1 : 0;
 		}
 
 
@@ -1488,7 +1488,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.txmode.offloads = dev_info.tx_offload_capa;
 
 		//configure port
-		if (rte_eth_dev_configure(port_id, nb_rx_queues, /*no typo!*/nb_rx_queues, &eth_conf) < 0) {
+		if (rte_eth_dev_configure(port_id, nb_rx_queues, nb_tx_queues, &eth_conf) < 0) {
 			XDPD_ERR(DRIVER_NAME" failed to configure port: %u, aborting\n", port_id);
 			return ROFL_FAILURE;
 		}

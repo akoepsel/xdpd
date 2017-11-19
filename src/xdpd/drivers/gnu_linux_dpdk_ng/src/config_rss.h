@@ -36,8 +36,8 @@ extern struct lcore lcores[RTE_MAX_LCORE];
 struct phyport {
 	int socket_id;
 	int is_enabled; //0:disabled, 1:enabled, -1:administratively disabled
-	int nb_rx_queues; //number of rxqueues to be used
-	int nb_tx_queues; //number of txqueues to be used, (nb_rx_queues == nb_tx_queues)
+	unsigned int nb_rx_queues; //number of rxqueues to be used
+	unsigned int nb_tx_queues; //number of txqueues to be used, (nb_rx_queues == nb_tx_queues)
 	int is_vf; //0:not a virtual function, 1:virtual function
 	int parent_port_id; //-1:no parent port, only valid when is_vf is true
 };
