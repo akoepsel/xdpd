@@ -1,4 +1,6 @@
 dpdk:
+  mbuf_elems_in_pool: 8191
+  mbuf_data_room_size: 16383
   knis:
     kni0:
       pci_address: "0000:00:0a.0"

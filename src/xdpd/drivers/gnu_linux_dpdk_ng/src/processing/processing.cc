@@ -16,12 +16,12 @@
 #include <rofl/datapath/pipeline/openflow/of_switch.h>
 #include <yaml-cpp/yaml.h>
 
-extern unsigned int mbuf_pool_size; //Pool sizes
+extern unsigned int mbuf_elems_in_pool;
+extern unsigned int mbuf_data_room_size;
+extern YAML::Node y_config_dpdk_ng;
 
 //Wrong CPU socket overhead weight
 #define POOL_MAX_LEN_NAME 32
-
-extern YAML::Node y_config_dpdk_ng;
 
 using namespace xdpd::gnu_linux_dpdk_ng;
 
@@ -67,34 +67,77 @@ rofl_result_t processing_init(void){
 	//mp_hdlr_init_ops_mp_mc();
 
 #if 1
-	YAML::Node mbuf_node = y_config_dpdk_ng["dpdk"]["mbuf_pool_size"];
-	if (mbuf_node && mbuf_node.IsScalar()) {
-		mbuf_pool_size = mbuf_node.as<unsigned int>();
+	YAML::Node mbuf_elems_node = y_config_dpdk_ng["dpdk"]["mbuf_elems_in_pool"];
+	if (mbuf_elems_node && mbuf_elems_node.IsScalar()) {
+		mbuf_elems_in_pool = mbuf_elems_node.as<unsigned int>();
 	}
 
+	YAML::Node mbuf_data_node = y_config_dpdk_ng["dpdk"]["mbuf_data_room_size"];
+	if (mbuf_data_node && mbuf_data_node.IsScalar()) {
+		mbuf_data_room_size = mbuf_data_node.as<unsigned int>();
+	}
+
+
 	//Define available cores
-	for(unsigned int i=0; i < RTE_MAX_LCORE; ++i){
-		enum rte_lcore_role_t role = rte_eal_lcore_role(i);
+	for(unsigned int lcore_id=0; lcore_id < RTE_MAX_LCORE; ++lcore_id){
+		enum rte_lcore_role_t role = rte_eal_lcore_role(lcore_id);
 		if(role == ROLE_RTE){
 
-			if(i != config->master_lcore){
-				processing_core_tasks[i].available = true;
-				XDPD_DEBUG(DRIVER_NAME"[processing] Marking core %u as available\n",i);
+			if(lcore_id == rte_get_master_lcore()){
+				continue;
 			}
 
+			processing_core_tasks[lcore_id].available = true;
+			XDPD_DEBUG(DRIVER_NAME"[processing] Marking core %u as available\n", lcore_id);
+
 			//Recover CPU socket for the lcore
-			unsigned int socket_id = rte_lcore_to_socket_id(i);
+			unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
 
 			if(direct_pools[socket_id] == NULL){
 
 				/**
 				*  create the mbuf pool for that socket id
 				*/
-				unsigned int flags = 0;
 				char pool_name[POOL_MAX_LEN_NAME+1];
 				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_direct_%u", socket_id);
-				XDPD_INFO(DRIVER_NAME"[processing] Creating mempool %s with #mbufs %u for CPU socket %u\n", pool_name, mbuf_pool_size, socket_id);
+				XDPD_INFO(DRIVER_NAME"[processing] Creating mempool %s with %u mbufs with size %u for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
 
+				direct_pools[socket_id] = rte_pktmbuf_pool_create(
+						pool_name,
+						/*number of elements in pool=*/mbuf_elems_in_pool,
+						/*cache_size=*/0,
+						/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
+						/*data_room_size=*/mbuf_data_room_size,
+						socket_id);
+
+				if (direct_pools[socket_id] == NULL) {
+					XDPD_INFO(DRIVER_NAME"[processing] Unable to allocate mempool %s due to error \"%s\"\n", pool_name, rte_strerror(rte_errno));
+					switch (rte_errno) {
+					case E_RTE_NO_CONFIG: {
+
+					} break;
+					case E_RTE_SECONDARY: {
+
+					} break;
+					case EINVAL: {
+
+					} break;
+					case ENOSPC: {
+
+					} break;
+					case EEXIST: {
+
+					} break;
+					case ENOMEM: {
+
+					} break;
+					default: {
+
+					};
+					}
+				}
+
+#if 0
 				direct_pools[socket_id] = rte_mempool_create(
 					pool_name,
 					mbuf_pool_size,
@@ -106,6 +149,7 @@ rofl_result_t processing_init(void){
 
 				if (direct_pools[socket_id] == NULL)
 					rte_panic("Cannot init direct mbuf pool for CPU socket: %u\n", socket_id);
+#endif
 
 //Softclonning is disabled
 #if 0

@@ -83,7 +83,8 @@ using namespace xdpd::gnu_linux;
 
 
 //Number of MBUFs per pool (per CPU socket)
-unsigned int mbuf_pool_size = DEFAULT_NB_MBUF;
+unsigned int mbuf_elems_in_pool = DEFAULT_NB_MBUF;
+unsigned int mbuf_data_room_size = MBUF_SIZE;
 
 //configuration file
 static std::string s_config_dpdk_ng("./xdpd.gnu_linux_dpdk_ng.conf.yaml");
@@ -206,7 +207,7 @@ static rofl_result_t parse_extra_params(const std::string& params){
 			std::istringstream ss__(r);
 			unsigned int mbufs;
 			ss__ >> mbufs;
-			mbuf_pool_size = mbufs;
+			mbuf_elems_in_pool = mbufs;
 			XDPD_DEBUG(DRIVER_NAME" Overriding default #mbufs per pool(%u) with %u\n", DEFAULT_NB_MBUF, mbufs);
 		}else if(r.compare(DRIVER_EXTRA_LCORE_PARAMS) == 0){
 			std::getline(ss_, r, '=');
