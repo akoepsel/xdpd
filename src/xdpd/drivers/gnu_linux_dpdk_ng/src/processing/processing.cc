@@ -453,8 +453,9 @@ void processing_dump_core_states(void){
 			}
 			ss << phy_port_list[j]->name <<",";
 		}
-		ss << "]\n";
+		ss << "]";
 #endif
+		ss << "\n";
 	}
 
 	XDPD_INFO("%s", ss.str().c_str());
