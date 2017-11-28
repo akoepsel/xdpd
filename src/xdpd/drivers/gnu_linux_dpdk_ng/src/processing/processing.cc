@@ -157,7 +157,7 @@ rofl_result_t processing_init(void){
 			continue;
 		}
 
-		XDPD_DEBUG(DRIVER_NAME "[processing][init] starting lcore %u \n", lcore_id);
+		XDPD_DEBUG(DRIVER_NAME "[processing][init] starting lcore %u (%u)\n", lcore_id, processing_core_tasks[lcore_id].n_rx_queue);
 
 		// launch processing task on lcore
 		if (rte_eal_remote_launch(&processing_core_process_packets, NULL, lcore_id)) {
