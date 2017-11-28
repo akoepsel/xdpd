@@ -1299,6 +1299,53 @@ static uint16_t iface_manager_pci_address_to_port_id(const std::string& pci_addr
 }
 
 /**
+* Setup virtual ports.
+*/
+rofl_result_t iface_manager_setup_virtual_ports(void){
+
+	size_t max_kni_ifaces = 0;
+
+	//2 x KNI_FIFO_COUNT_MAX
+
+	YAML::Node knis_node = y_config_dpdk_ng["dpdk"]["knis"];
+
+	if (knis_node && knis_node.IsMap()) {
+		max_kni_ifaces = y_config_dpdk_ng["dpdk"]["knis"].size();
+
+		rte_kni_init(max_kni_ifaces);
+
+		// TODO: KNI
+#if 0
+		for (auto it : knis_node) {
+			std::string ifname(it.first.as<std::string>());
+			YAML::Node& kni_node = it.second;
+
+			struct rte_kni_ops kni_ops;
+			kni_ops.change_mtu = nullptr;
+			kni_ops.config_network_if = nullptr;
+
+			struct rte_kni_conf kni_conf;
+			strncpy(kni_conf.name, ifname.c_str(), RTE_KNI_NAMESIZE);
+			kni_conf.addr;
+			kni_conf.core_id = rte_get_master_lcore();
+			kni_conf.id;
+			kni_conf.force_bind = 0;
+			kni_conf.group_id = 0;
+			kni_conf.mbuf_size = 0;
+
+			if (rte_kni_alloc(nullptr, &kni_conf, &kni_ops) == NULL) {
+				XDPD_INFO(DRIVER_NAME" failed to allocate virtual KNI port: %s\n", ifname.c_str());
+				return ROFL_FAILURE;
+			}
+		}
+#endif
+	}
+
+
+	return ROFL_SUCCESS;
+}
+
+/**
 * Discovers physical ports.
 */
 rofl_result_t iface_manager_discover_physical_ports(void){
@@ -1942,6 +1989,11 @@ rofl_result_t iface_manager_discover_system_ports(void){
 
 	if (iface_manager_discover_physical_ports() < 0) {
 		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_physical_ports failed\n");
+		return ROFL_FAILURE;
+	}
+
+	if (iface_manager_setup_virtual_ports() < 0) {
+		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_setup_virtual_ports failed\n");
 		return ROFL_FAILURE;
 	}
 

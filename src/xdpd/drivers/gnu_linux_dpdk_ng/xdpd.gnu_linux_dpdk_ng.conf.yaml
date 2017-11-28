@@ -1,4 +1,13 @@
 dpdk:
+  knis:
+    kni0:
+      pci_address: "0000:00:0a.0"
+    kni1:
+      pci_address: "0000:00:0b.0"
+    kni2:
+      pci_address: "0000:00:0c.0"
+    kni3:
+      pci_address: "0000:00:0d.0"
   interfaces:
     10ge0: 
       pci_address: "0000:00:09.0"

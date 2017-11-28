@@ -88,6 +88,11 @@ ROFL_BEGIN_DECLS
 rofl_result_t iface_manager_discover_logical_cores(void);
 
 /**
+* Setup DPDK virtual ports.
+*/
+rofl_result_t iface_manager_setup_virtual_ports(void);
+
+/**
 * Discovers DPDK physical ports.
 */
 rofl_result_t iface_manager_discover_physical_ports(void);
