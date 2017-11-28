@@ -14,11 +14,14 @@
 #include "../io/port_state.h"
 #include "../io/iface_manager.h"
 #include <rofl/datapath/pipeline/openflow/of_switch.h>
+#include <yaml-cpp/yaml.h>
 
 extern unsigned int mbuf_pool_size; //Pool sizes
 
 //Wrong CPU socket overhead weight
 #define POOL_MAX_LEN_NAME 32
+
+extern YAML::Node y_config_dpdk_ng;
 
 using namespace xdpd::gnu_linux_dpdk_ng;
 
@@ -64,6 +67,11 @@ rofl_result_t processing_init(void){
 	//mp_hdlr_init_ops_mp_mc();
 
 #if 1
+	YAML::Node mbuf_node = y_config_dpdk_ng["dpdk"]["mbuf_pool_size"];
+	if (mbuf_node && mbuf_node.IsScalar()) {
+		mbuf_pool_size = mbuf_node.as<unsigned int>();
+	}
+
 	//Define available cores
 	for(unsigned int i=0; i < RTE_MAX_LCORE; ++i){
 		enum rte_lcore_role_t role = rte_eal_lcore_role(i);
@@ -85,7 +93,7 @@ rofl_result_t processing_init(void){
 				unsigned int flags = 0;
 				char pool_name[POOL_MAX_LEN_NAME+1];
 				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_direct_%u", socket_id);
-				XDPD_INFO(DRIVER_NAME"[processing] Creating %s with #mbufs %u for CPU socket %u\n", pool_name, mbuf_pool_size, socket_id);
+				XDPD_INFO(DRIVER_NAME"[processing] Creating mempool %s with #mbufs %u for CPU socket %u\n", pool_name, mbuf_pool_size, socket_id);
 
 				direct_pools[socket_id] = rte_mempool_create(
 					pool_name,
