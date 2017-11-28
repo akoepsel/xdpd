@@ -1076,6 +1076,9 @@ START_RETRY:
 	if((ret=rte_eth_dev_start(ps->port_id)) < 0){
 		XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot start port %u (%s) %s\n", ps->port_id, port->name, strerror(ret));
 		switch (ret) {
+		case -ENOMEM: {
+
+		} break;
 		case -EINVAL: {
 
 		} break;
