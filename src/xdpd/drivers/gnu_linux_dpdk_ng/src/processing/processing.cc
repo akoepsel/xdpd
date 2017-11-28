@@ -319,6 +319,12 @@ rofl_result_t processing_schedule_port(switch_port_t* port){
 
 	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
 
+	if (iface_manager_reset_port(port) != ROFL_SUCCESS) {
+		XDPD_DEBUG(DRIVER_NAME"[processing][port] Resetting port %u (%s)\n", ps->port_id, port->name);
+		assert(0);
+		return ROFL_FAILURE;
+	}
+
 	if (iface_manager_start_port(port) != ROFL_SUCCESS) {
 		XDPD_DEBUG(DRIVER_NAME"[processing][port] Starting port %u (%s)\n", ps->port_id, port->name);
 		assert(0);

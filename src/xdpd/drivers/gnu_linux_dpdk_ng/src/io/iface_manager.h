@@ -113,6 +113,11 @@ rofl_result_t iface_manager_create_virtual_port_pair(of_switch_t* lsw1, switch_p
 rofl_result_t iface_manager_destroy(void);
 
 /**
+* Reset physical devices
+*/
+rofl_result_t iface_manager_reset_port(switch_port_t* port);
+
+/**
 * Start physical devices
 */
 rofl_result_t iface_manager_start_port(switch_port_t* port);
