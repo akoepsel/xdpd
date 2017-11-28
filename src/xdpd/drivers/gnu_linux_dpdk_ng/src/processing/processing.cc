@@ -406,7 +406,9 @@ void processing_dump_core_states(void){
 			continue;
 
 		//Print basic info
-		ss << "\t core [" << i << "("<<rte_lcore_to_socket_id(i)<<")]";
+		ss << "\t socket (" << rte_lcore_to_socket_id(i) << ")";
+
+		ss << " core (" << i << ")";
 
 		if(i == 0){
 			ss << " Master"<<std::endl;
@@ -423,6 +425,9 @@ void processing_dump_core_states(void){
 				break;
 			case ROLE_OFF:
 				ss << "OFF";
+				break;
+			case ROLE_SERVICE:
+				ss << "SERVICE";
 				break;
 			default:
 				assert(0);
