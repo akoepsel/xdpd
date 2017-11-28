@@ -21,8 +21,6 @@ extern unsigned int mbuf_elems_in_pool;
 extern unsigned int mbuf_data_room_size;
 extern YAML::Node y_config_dpdk_ng;
 
-#define POOL_MAX_LEN_NAME 32
-
 using namespace xdpd::gnu_linux_dpdk_ng;
 
 //
@@ -93,8 +91,8 @@ rofl_result_t processing_init(void){
 				/**
 				*  create the mbuf pool for that socket id
 				*/
-				char pool_name[POOL_MAX_LEN_NAME+1];
-				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_direct_%u", socket_id);
+				char pool_name[RTE_MEMPOOL_NAMESIZE];
+				snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_direct_%u", socket_id);
 				XDPD_INFO(DRIVER_NAME"[processing] Creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
 
 				direct_pools[socket_id] = rte_pktmbuf_pool_create(

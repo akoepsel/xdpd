@@ -84,7 +84,7 @@ using namespace xdpd::gnu_linux;
 
 //Number of MBUFs per pool (per CPU socket)
 unsigned int mbuf_elems_in_pool = DEFAULT_NB_MBUF;
-unsigned int mbuf_data_room_size = MBUF_SIZE;
+unsigned int mbuf_data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE;
 
 //configuration file
 static std::string s_config_dpdk_ng("./xdpd.gnu_linux_dpdk_ng.conf.yaml");
