@@ -63,10 +63,10 @@ rofl_result_t processing_init(void){
 	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: %u logical cores guessed from rte_eal_get_configuration(). Master is: %u\n", config->lcore_count, config->master_lcore);
 	//mp_hdlr_init_ops_mp_mc();
 
-#if 0
+#if 1
 	//Define available cores
-	for(i=0; i < RTE_MAX_LCORE; ++i){
-		role = rte_eal_lcore_role(i);
+	for(unsigned int i=0; i < RTE_MAX_LCORE; ++i){
+		enum rte_lcore_role_t role = rte_eal_lcore_role(i);
 		if(role == ROLE_RTE){
 
 			if(i != config->master_lcore){
@@ -75,44 +75,45 @@ rofl_result_t processing_init(void){
 			}
 
 			//Recover CPU socket for the lcore
-			sock_id = rte_lcore_to_socket_id(i);
+			unsigned int socket_id = rte_lcore_to_socket_id(i);
 
-			if(direct_pools[sock_id] == NULL){
+			if(direct_pools[socket_id] == NULL){
 
 				/**
 				*  create the mbuf pool for that socket id
 				*/
-				flags = 0;
-				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_direct_%u", sock_id);
-				XDPD_INFO(DRIVER_NAME"[processing] Creating %s with #mbufs %u for CPU socket %u\n", pool_name, mbuf_pool_size, sock_id);
+				unsigned int flags = 0;
+				char pool_name[POOL_MAX_LEN_NAME+1];
+				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_direct_%u", socket_id);
+				XDPD_INFO(DRIVER_NAME"[processing] Creating %s with #mbufs %u for CPU socket %u\n", pool_name, mbuf_pool_size, socket_id);
 
-				direct_pools[sock_id] = rte_mempool_create(
+				direct_pools[socket_id] = rte_mempool_create(
 					pool_name,
 					mbuf_pool_size,
 					MBUF_SIZE, 32,
 					sizeof(struct rte_pktmbuf_pool_private),
 					rte_pktmbuf_pool_init, NULL,
 					rte_pktmbuf_init, NULL,
-					sock_id, flags);
+					socket_id, flags);
 
-				if (direct_pools[sock_id] == NULL)
-					rte_panic("Cannot init direct mbuf pool for CPU socket: %u\n", sock_id);
+				if (direct_pools[socket_id] == NULL)
+					rte_panic("Cannot init direct mbuf pool for CPU socket: %u\n", socket_id);
 
 //Softclonning is disabled
 #if 0
-				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_indirect_%u", sock_id);
-				XDPD_INFO(DRIVER_NAME"[processing] Creating %s with #mbufs %u for CPU socket %u\n", pool_name, mbuf_pool_size, sock_id);
-				indirect_pools[sock_id] = rte_mempool_create(
+				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_indirect_%u", socket_id);
+				XDPD_INFO(DRIVER_NAME"[processing] Creating %s with #mbufs %u for CPU socket %u\n", pool_name, mbuf_pool_size, socket_id);
+				indirect_pools[socket_id] = rte_mempool_create(
 						pool_name,
 						mbuf_pool_size,
 						sizeof(struct rte_mbuf), 32,
 						0,
 						NULL, NULL,
 						rte_pktmbuf_init, NULL,
-						sock_id, 0);
+						socket_id, 0);
 
-				if(indirect_pools[sock_id] == NULL)
-					rte_panic("Cannot init indirect mbuf pool for CPU socket: %u\n", sock_id);
+				if(indirect_pools[socket_id] == NULL)
+					rte_panic("Cannot init indirect mbuf pool for CPU socket: %u\n", socket_id);
 #else
 				//Avoid compiler to complain
 				(void)indirect_pools;
