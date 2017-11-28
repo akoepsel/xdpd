@@ -57,7 +57,7 @@ struct rte_ring* port_tx_lcore_queue[PORT_MANAGER_MAX_PORTS][IO_IFACE_NUM_QUEUES
 
 uint8_t nb_phy_ports = 0;
 pthread_rwlock_t iface_manager_rwlock = PTHREAD_RWLOCK_INITIALIZER;
-static int numa_on = 1; /**< NUMA is enabled by default. */
+
 /* Static global variables used within this file. */
 //static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 uint16_t nb_txd = RTE_TX_DESC_DEFAULT;
@@ -671,7 +671,7 @@ void print_ethaddr(const char *name, const struct ether_addr *eth_addr)
 }
 
 
-#if 1
+#if 0
 //Initializes the pipeline structure and launches the port
 switch_port_t *configure_port(uint8_t port_id)
 {
@@ -1057,72 +1057,18 @@ switch_port_t *configure_port(uint8_t port_id)
 }
 #endif
 
-rofl_result_t iface_manager_set_queues(switch_port_t *port)
+rofl_result_t iface_manager_start_port(switch_port_t *port)
 {
 	unsigned int i;
 	int ret;
-#if 0
-	unsigned int sock_id;
-	struct rte_eth_rxconf rx_conf;
-	struct rte_eth_txconf tx_conf;
-#endif
+
 	if (port->type != PORT_TYPE_PHYSICAL)
 		return ROFL_SUCCESS;
 
 	//Recover the platform state
 	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
-#if 0
-	memset(&rx_conf, 0, sizeof(rx_conf));
-	memset(&tx_conf, 0, sizeof(tx_conf));
 
-	rx_conf.rx_thresh.pthresh = RX_PTHRESH;
-	rx_conf.rx_thresh.hthresh = RX_HTHRESH;
-	rx_conf.rx_thresh.wthresh = RX_WTHRESH;
-	rx_conf.rx_free_thresh = 32;
-
-	tx_conf.tx_thresh.pthresh = TX_PTHRESH;
-	tx_conf.tx_thresh.hthresh = TX_HTHRESH;
-	tx_conf.tx_thresh.wthresh = TX_WTHRESH;
-	tx_conf.tx_free_thresh = 0; /* Use PMD default values */
-	tx_conf.tx_rs_thresh = 0; /* Use PMD default values */
-	tx_conf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
-
-	//Check first for the socket CPU id
-	sock_id = rte_eth_dev_socket_id(ps->port_id);
-	if(sock_id == 0xFFFFFFFF)
-		sock_id = 0;//Single CPU socket system
-#endif
-	
-	if(ps->queues_set)
-		return ROFL_SUCCESS;
-	
-#if 0
-	//Setup RX
-	if( (ret=rte_eth_rx_queue_setup(port_id, 0, RTE_RX_DESC_DEFAULT, rte_eth_dev_socket_id(port_id), &rx_conf, direct_pools[sock_id])) < 0 ){
-		XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot setup RX queue: %s\n", rte_strerror(ret));
-		assert(0);
-		return ROFL_FAILURE;
-	}
-
-	//Setup TX
-	for(i=0;i<IO_IFACE_NUM_QUEUES;++i){
-		//setup the queue
-		if( (ret = rte_eth_tx_queue_setup(port_id, i, RTE_TX_DESC_DEFAULT, sock_id, &tx_conf)) < 0 ){
-			XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot setup TX queues: %s\n", rte_strerror(ret));
-			assert(0);
-			return ROFL_FAILURE;
-		}
-
-#if 0
-		//bind stats IGB not supporting this???
-		if( (ret = rte_eth_dev_set_tx_queue_stats_mapping(port_id, i, i)) < 0 ){
-			XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot bind TX queue(%u) stats: %s\n", i, rte_strerror(ret));
-			assert(0);
-			return ROFL_FAILURE;
-		}
-#endif
-	}
-#endif
+	XDPD_INFO(DRIVER_NAME"[iface_manager] starting port %u\n", ps->port_id);
 
 	//Start port
 	i = 0;
@@ -1162,6 +1108,30 @@ START_RETRY:
 	//Set as queues setup
 	ps->queues_set=true;
 	
+	return ROFL_SUCCESS;
+}
+
+rofl_result_t iface_manager_stop_port(switch_port_t *port)
+{
+	if (port->type != PORT_TYPE_PHYSICAL)
+		return ROFL_SUCCESS;
+
+	//Recover the platform state
+	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
+
+	XDPD_INFO(DRIVER_NAME"[iface_manager] stopping port %u\n", ps->port_id);
+
+	//Make sure the link is down
+	rte_eth_dev_set_link_down(ps->port_id);
+
+	//Stop port
+	rte_eth_dev_stop(ps->port_id);
+
+	//Set pipeline state to UP
+	if(likely(phy_port_mapping[ps->port_id]!=NULL)){
+		phy_port_mapping[ps->port_id]->up = true;
+	}
+
 	return ROFL_SUCCESS;
 }
 

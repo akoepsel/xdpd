@@ -311,9 +311,9 @@ transmit_kni_nf_port_burst(core_tasks_t *task, uint8_t port_id)
 	//Send burst
 	port_state = (dpdk_kni_port_state_t*)port->platform_port_state;
 
-	rte_spinlock_lock(&spinlock_conf[port_id]);
+	//rte_spinlock_lock(&spinlock_conf[port_id]);
 	ret = rte_kni_tx_burst(port_state->kni, m_table, len);
-	rte_spinlock_unlock(&spinlock_conf[port_id]);
+	//rte_spinlock_unlock(&spinlock_conf[port_id]);
 
 	//XXX port_statistics[port].tx += ret;
 	if (ret > 0)

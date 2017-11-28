@@ -10,6 +10,7 @@
 #include <rte_memory.h>
 #include <rte_eal.h>
 #include <rte_lcore.h>
+#include <rte_kni.h>
 
 /**
 * @file config.h
@@ -46,7 +47,7 @@ struct phyport {
 * phyports
 */
 extern struct phyport phyports[RTE_MAX_ETHPORTS];
-#if 0
+
 struct virport {
 	struct rte_kni_conf conf;
 	struct rte_kni_ops  ops;
@@ -56,7 +57,7 @@ struct virport {
 * virports
 */
 extern struct virport virports[RTE_MAX_ETHPORTS];
-#endif
+
 #define LCORE_PARAMS_MAX 1024
 
 //Auxiliary struct to hold binding between port, queue and lcore

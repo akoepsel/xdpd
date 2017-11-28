@@ -49,7 +49,6 @@ typedef struct port_bursts{
 typedef struct core_tasks{
 	bool available;
 	bool active;
-	volatile unsigned int running_hash;
 	
 	uint16_t n_rx_queue;
 	struct lcore_rx_queue rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
