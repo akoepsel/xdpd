@@ -1,4 +1,5 @@
 dpdk:
+  log_level: 8
   mbuf_elems_in_pool: 8191
   mbuf_data_room_size: 16383
   knis:

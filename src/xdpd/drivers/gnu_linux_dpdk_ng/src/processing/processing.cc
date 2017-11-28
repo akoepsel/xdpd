@@ -1,5 +1,6 @@
 #include "processing.h"
 #include <utils/c_logger.h>
+#include <rte_common.h>
 #include <rte_cycles.h>
 #include <rte_spinlock.h>
 #include <rte_rwlock.h>
@@ -20,7 +21,6 @@ extern unsigned int mbuf_elems_in_pool;
 extern unsigned int mbuf_data_room_size;
 extern YAML::Node y_config_dpdk_ng;
 
-//Wrong CPU socket overhead weight
 #define POOL_MAX_LEN_NAME 32
 
 using namespace xdpd::gnu_linux_dpdk_ng;
@@ -47,6 +47,11 @@ rofl_result_t processing_init(void){
 	memset(direct_pools, 0, sizeof(direct_pools));
 	memset(processing_core_tasks, 0, sizeof(processing_core_tasks));
 	memset(port_list, 0, sizeof(port_list));
+
+	YAML::Node log_level_node = y_config_dpdk_ng["dpdk"]["log_level"];
+	if (log_level_node && log_level_node.IsScalar()) {
+		rte_log_set_global_level(log_level_node.as<uint32_t>());
+	}
 
 	//Initialize basics
 	max_cores = rte_lcore_count();
@@ -90,7 +95,7 @@ rofl_result_t processing_init(void){
 				*/
 				char pool_name[POOL_MAX_LEN_NAME+1];
 				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_direct_%u", socket_id);
-				XDPD_INFO(DRIVER_NAME"[processing] Creating mempool %s with %u mbufs with size %u for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
+				XDPD_INFO(DRIVER_NAME"[processing] Creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
 
 				direct_pools[socket_id] = rte_pktmbuf_pool_create(
 						pool_name,
