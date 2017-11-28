@@ -323,7 +323,8 @@ rofl_result_t processing_schedule_port(switch_port_t* port){
 		total_num_of_ports++;
 		XDPD_DEBUG(DRIVER_NAME"[processing][port] adding port %u (%s) to active lcores\n", ps->port_id, port->name);
 		ps->scheduled = true;
-	} // release port_list_rwlock
+		rte_rwlock_write_unlock(&port_list_rwlock);
+	}
 
 	//Print the status of the cores
 	processing_dump_core_states();
@@ -363,7 +364,8 @@ rofl_result_t processing_deschedule_port(switch_port_t* port){
 		total_num_of_ports--;
 		XDPD_DEBUG(DRIVER_NAME"[processing][port] dropping port %u (%s) from active lcores\n", ps->port_id, port->name);
 		ps->scheduled = false;
-	} // release port_list_rwlock
+		rte_rwlock_write_unlock(&port_list_rwlock);
+	}
 
 	//Print the status of the cores
 	processing_dump_core_states();

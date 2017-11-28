@@ -1068,7 +1068,7 @@ rofl_result_t iface_manager_start_port(switch_port_t *port)
 	//Recover the platform state
 	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
 
-	XDPD_INFO(DRIVER_NAME"[iface_manager] starting port %u\n", ps->port_id);
+	XDPD_INFO(DRIVER_NAME"[iface_manager] starting port %u (%s)\n", ps->port_id, port->name);
 
 	//Start port
 	i = 0;
@@ -1080,7 +1080,7 @@ START_RETRY:
 			goto START_RETRY;
 		}
 
-		XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot start device %u:  %s\n", ps->port_id, rte_strerror(ret));
+		XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot start port %u (%s) %s\n", ps->port_id, port->name, rte_strerror(ret));
 		assert(0 && "rte_eth_dev_start failed");
 		return ROFL_FAILURE; 
 	}
@@ -1119,7 +1119,7 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 	//Recover the platform state
 	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
 
-	XDPD_INFO(DRIVER_NAME"[iface_manager] stopping port %u\n", ps->port_id);
+	XDPD_INFO(DRIVER_NAME"[iface_manager] stopping port %u (%s)\n", ps->port_id, port->name);
 
 	//Make sure the link is down
 	rte_eth_dev_set_link_down(ps->port_id);
