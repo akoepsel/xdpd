@@ -212,7 +212,7 @@ int processing_core_process_packets(void* not_used){
 
 	if (task->n_rx_queue == 0) {
 		RTE_LOG(INFO, XDPD, "lcore %u has nothing to do\n", lcore_id);
-		return 0;
+		//return 0;
 	}
 
 	//Parsing and pipeline extra state
