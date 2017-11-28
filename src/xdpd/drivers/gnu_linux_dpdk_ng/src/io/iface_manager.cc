@@ -1074,12 +1074,12 @@ rofl_result_t iface_manager_start_port(switch_port_t *port)
 	i = 0;
 START_RETRY:
 	if((ret=rte_eth_dev_start(ps->port_id)) < 0){
-		XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot start port %u (%s) %s\n", ps->port_id, port->name, rte_strerror(rte_errno));
-		switch (rte_errno) {
-		case EINVAL: {
+		XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot start port %u (%s) %s\n", ps->port_id, port->name, strerror(ret));
+		switch (ret) {
+		case -EINVAL: {
 
 		} break;
-		case ENOTSUP: {
+		case -ENOTSUP: {
 
 		} break;
 		default: {
