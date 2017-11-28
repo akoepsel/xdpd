@@ -34,7 +34,6 @@ core_tasks_t processing_core_tasks[RTE_MAX_LCORE];
 static unsigned total_num_of_ports = 0;
 
 struct rte_mempool* direct_pools[NB_SOCKETS];
-struct rte_mempool* indirect_pools[NB_SOCKETS];
 
 switch_port_t* port_list[PROCESSING_MAX_PORTS];
 static rte_rwlock_t port_list_rwlock;
@@ -44,29 +43,20 @@ static rte_rwlock_t port_list_rwlock;
 */
 rofl_result_t processing_init(void){
 
-	//unsigned int i;
-	//int flags=0;
-	struct rte_config* config;
-	//enum rte_lcore_role_t role;
-	//unsigned int sock_id;
-	//char pool_name[POOL_MAX_LEN_NAME];
-
 	//Cleanup
 	memset(direct_pools, 0, sizeof(direct_pools));
-	memset(indirect_pools, 0, sizeof(indirect_pools));
 	memset(processing_core_tasks, 0, sizeof(processing_core_tasks));
 	memset(port_list, 0, sizeof(port_list));
 
 	//Initialize basics
-	config = rte_eal_get_configuration();
-	max_cores = config->lcore_count;
+	max_cores = rte_lcore_count();
 
 	rte_rwlock_init(&port_list_rwlock);
 
-	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: %u logical cores guessed from rte_eal_get_configuration(). Master is: %u\n", config->lcore_count, config->master_lcore);
+	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: %u logical cores guessed from rte_eal_get_configuration(). Master is: %u\n", rte_lcore_count(), rte_get_master_lcore());
 	//mp_hdlr_init_ops_mp_mc();
 
-#if 1
+
 	YAML::Node mbuf_elems_node = y_config_dpdk_ng["dpdk"]["mbuf_elems_in_pool"];
 	if (mbuf_elems_node && mbuf_elems_node.IsScalar()) {
 		mbuf_elems_in_pool = mbuf_elems_node.as<unsigned int>();
@@ -79,7 +69,7 @@ rofl_result_t processing_init(void){
 
 
 	//Define available cores
-	for(unsigned int lcore_id=0; lcore_id < RTE_MAX_LCORE; ++lcore_id){
+	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 		enum rte_lcore_role_t role = rte_eal_lcore_role(lcore_id);
 		if(role == ROLE_RTE){
 
@@ -135,46 +125,13 @@ rofl_result_t processing_init(void){
 
 					};
 					}
-				}
 
-#if 0
-				direct_pools[socket_id] = rte_mempool_create(
-					pool_name,
-					mbuf_pool_size,
-					MBUF_SIZE, 32,
-					sizeof(struct rte_pktmbuf_pool_private),
-					rte_pktmbuf_pool_init, NULL,
-					rte_pktmbuf_init, NULL,
-					socket_id, flags);
-
-				if (direct_pools[socket_id] == NULL)
 					rte_panic("Cannot init direct mbuf pool for CPU socket: %u\n", socket_id);
-#endif
-
-//Softclonning is disabled
-#if 0
-				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_indirect_%u", socket_id);
-				XDPD_INFO(DRIVER_NAME"[processing] Creating %s with #mbufs %u for CPU socket %u\n", pool_name, mbuf_pool_size, socket_id);
-				indirect_pools[socket_id] = rte_mempool_create(
-						pool_name,
-						mbuf_pool_size,
-						sizeof(struct rte_mbuf), 32,
-						0,
-						NULL, NULL,
-						rte_pktmbuf_init, NULL,
-						socket_id, 0);
-
-				if(indirect_pools[socket_id] == NULL)
-					rte_panic("Cannot init indirect mbuf pool for CPU socket: %u\n", socket_id);
-#else
-				//Avoid compiler to complain
-				(void)indirect_pools;
-#endif
+				}
 			}
 
 		}
 	}
-#endif
 
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 		// sanity check

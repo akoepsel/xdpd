@@ -33,7 +33,6 @@
 
 //MBUF pool
 extern struct rte_mempool* direct_pools[NB_SOCKETS];
-extern struct rte_mempool* indirect_pools[NB_SOCKETS];
 
 /*
 * ROFL-Pipeline packet mangling platform API implementation
