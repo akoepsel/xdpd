@@ -1418,6 +1418,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			return ROFL_FAILURE;
 		}
 
+		if ((ret = rte_eth_dev_reset(port_id)) < 0) {
+			return ROFL_FAILURE;
+		}
+
 		unsigned int socket_id = rte_eth_dev_socket_id(port_id);
 
 		phyports[port_id].socket_id = socket_id;

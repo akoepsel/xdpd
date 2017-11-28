@@ -70,7 +70,6 @@ rofl_result_t processing_init(void){
 		mbuf_data_room_size = mbuf_data_node.as<unsigned int>();
 	}
 
-
 	//Define available cores
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 		enum rte_lcore_role_t role = rte_eal_lcore_role(lcore_id);
@@ -83,6 +82,7 @@ rofl_result_t processing_init(void){
 			processing_core_tasks[lcore_id].available = true;
 			XDPD_DEBUG(DRIVER_NAME"[processing] Marking core %u as available\n", lcore_id);
 
+#if 0
 			//Recover CPU socket for the lcore
 			unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
 
@@ -132,7 +132,7 @@ rofl_result_t processing_init(void){
 					rte_panic("Cannot init direct mbuf pool for CPU socket: %u\n", socket_id);
 				}
 			}
-
+#endif
 		}
 	}
 
@@ -318,12 +318,6 @@ rofl_result_t processing_schedule_port(switch_port_t* port){
 	}
 
 	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
-
-	if (iface_manager_reset_port(port) != ROFL_SUCCESS) {
-		XDPD_DEBUG(DRIVER_NAME"[processing][port] Resetting port %u (%s)\n", ps->port_id, port->name);
-		assert(0);
-		return ROFL_FAILURE;
-	}
 
 	if (iface_manager_start_port(port) != ROFL_SUCCESS) {
 		XDPD_DEBUG(DRIVER_NAME"[processing][port] Starting port %u (%s)\n", ps->port_id, port->name);
