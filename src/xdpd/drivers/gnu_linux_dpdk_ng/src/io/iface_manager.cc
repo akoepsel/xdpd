@@ -1430,7 +1430,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if ((ret = rte_eth_dev_reset(port_id)) < 0) {
 			XDPD_INFO(DRIVER_NAME" skipping physical port: %u (device reset failed) on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
-			continue;
+			//continue;
 		}
 
 		// port not specified in configuration file
