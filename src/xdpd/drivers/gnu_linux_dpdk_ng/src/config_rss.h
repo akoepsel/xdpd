@@ -42,7 +42,7 @@ struct phyport {
 	int is_vf; //0:not a virtual function, 1:virtual function
 	int parent_port_id; //-1:no parent port, only valid when is_vf is true
 	unsigned int nb_vfs; //number of virtual functions attached to this port, only valid when is_vf is false
-	unsigned int vf_id; //vf_id for this phyport, only valid when is_vf is true
+	int vf_id; //vf_id for this phyport, only valid when is_vf is true
 };
 
 /**

@@ -1139,6 +1139,8 @@ START_RETRY:
 
 	//Set as queues setup
 	ps->queues_set=true;
+
+	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successful started\n", ps->port_id, port->name);
 	
 	return ROFL_SUCCESS;
 }
@@ -1163,6 +1165,8 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 	if(likely(phy_port_mapping[ps->port_id]!=NULL)){
 		phy_port_mapping[ps->port_id]->up = true;
 	}
+
+	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successful stopped\n", ps->port_id, port->name);
 
 	return ROFL_SUCCESS;
 }
@@ -1376,7 +1380,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].is_vf = 0;
 		phyports[port_id].parent_port_id = -1;
 		phyports[port_id].nb_vfs = 0;
-		phyports[port_id].vf_id = 0;
+		phyports[port_id].vf_id = -1;
 	}
 
 	//Calculate size of rte_mempool for rxqueue/txqueue configuration based on available physical ports
