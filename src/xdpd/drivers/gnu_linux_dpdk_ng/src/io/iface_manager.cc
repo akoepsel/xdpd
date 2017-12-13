@@ -1494,7 +1494,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].port_id = port_id;
 					processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = rx_queue_id;
 					processing_core_tasks[lcore_id].n_rx_queue++;
-					XDPD_INFO(DRIVER_NAME" assigning physical port: %u, rx queue: %u on socket: %u to lcore: %u on socket: %u\n", port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
+					XDPD_INFO(DRIVER_NAME" assigning physical port: %u, rx queue: %u on socket: %u to lcore: %u on socket: %u\n", port_id, rx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
 			}
 
 			rx_queue_id = (rx_queue_id < (phyports[port_id].nb_rx_queues - 1)) ? rx_queue_id + 1 : 0;
@@ -1555,7 +1555,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		// configure transmit queues
-		for (uint16_t tx_queue_id = 0; tx_queue_id < /*no typo!*/nb_rx_queues; tx_queue_id++) {
+		for (uint16_t tx_queue_id = 0; tx_queue_id < /*no typo!*/nb_tx_queues; tx_queue_id++) {
 			uint16_t nb_tx_desc = 0;
 			struct rte_eth_txconf eth_txconf;
 
