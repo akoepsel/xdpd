@@ -1427,13 +1427,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		strncpy(s_fw_version, "none", sizeof(s_fw_version)-1);
 		rte_eth_dev_fw_version_get(port_id, s_fw_version, sizeof(s_fw_version));
 
-		phyports[port_id].ifindex = dev_info.if_index;
-
-		if (if_indextoname(dev_info.if_index, phyports[port_id].ifname) == NULL) {
-			XDPD_INFO(DRIVER_NAME" unable to retrieve ifname for physical port: %u on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
-								port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
-		}
-
 		if ((ret = rte_eth_dev_reset(port_id)) < 0) {
 			XDPD_INFO(DRIVER_NAME" skipping physical port: %u (device reset failed) on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);

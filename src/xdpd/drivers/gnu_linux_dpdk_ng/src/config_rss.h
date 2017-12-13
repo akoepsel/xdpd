@@ -5,8 +5,6 @@
 #ifndef XDPD_GNU_LINUX_XDPD_CONFIG_RSS_H
 #define XDPD_GNU_LINUX_XDPD_CONFIG_RSS_H
 
-#include <net/if.h>
-
 #include <rte_config.h>
 #include <rte_common.h>
 #include <rte_memory.h>
@@ -43,8 +41,6 @@ struct phyport {
 	unsigned int nb_tx_queues; //number of txqueues to be used, (nb_rx_queues == nb_tx_queues)
 	int is_vf; //0:not a virtual function, 1:virtual function
 	int parent_port_id; //-1:no parent port, only valid when is_vf is true
-	int ifindex;
-	char ifname[IF_NAMESIZE+1];
 };
 
 /**
