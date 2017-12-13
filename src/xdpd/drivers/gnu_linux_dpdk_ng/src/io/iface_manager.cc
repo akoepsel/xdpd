@@ -1358,6 +1358,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	size_t nb_mbuf[RTE_MAX_NUMA_NODES]; //The required space per NUMA node
 	YAML::Node node;
 	int ret = 0;
+	unsigned int lcore_id_rxqueue_assignment = 0;
+	unsigned int lcore_id_txqueue_assignment = 0;
 
 	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
 		nb_mbuf[socket_id] = rte_eth_dev_count() * cores.size() * IO_IFACE_MAX_PKT_BURST + cores.size() * MEMPOOL_CACHE_SIZE;
@@ -1473,7 +1475,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, dev_info.max_tx_queues, nb_tx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
 
 		//iterate over all lcores (except master and disabled ones and those on other NUMA nodes) and assign rx queues
-		for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
+		for (unsigned int lcore_id = lcore_id_rxqueue_assignment; lcore_id < rte_lcore_count(); lcore_id++) {
 
 			if (socket_id != rte_lcore_to_socket_id(lcore_id)) {
 				continue;
@@ -1497,11 +1499,16 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					XDPD_INFO(DRIVER_NAME" assigning physical port: %u, rx queue: %u on socket: %u to lcore: %u on socket: %u\n", port_id, rx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
 			}
 
-			rx_queue_id = (rx_queue_id < (phyports[port_id].nb_rx_queues - 1)) ? rx_queue_id + 1 : 0;
+			if (rx_queue_id == phyports[port_id].nb_rx_queues) {
+				lcore_id_rxqueue_assignment = (lcore_id < (rte_lcore_count() - 1)) ? lcore_id + 1 : 0;
+				break;
+			}
+			rx_queue_id += 1;
+			//rx_queue_id = (rx_queue_id < (phyports[port_id].nb_rx_queues - 1)) ? rx_queue_id + 1 : 0;
 		}
 
 		//iterate over all lcores (except master and disabled ones including those on other NUMA nodes) and assign tx queues
-		for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
+		for (unsigned int lcore_id = lcore_id_txqueue_assignment; lcore_id < rte_lcore_count(); lcore_id++) {
 
 			if (lcores[lcore_id].is_master) {
 				continue;
@@ -1515,7 +1522,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			processing_core_tasks[lcore_id].n_tx_port++;
 			XDPD_INFO(DRIVER_NAME" assigning physical port: %u, tx queue: %u on socket: %u to lcore: %u on socket: %u\n", port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
 
-			tx_queue_id = (tx_queue_id < (phyports[port_id].nb_tx_queues - 1)) ? tx_queue_id + 1 : 0;
+			if (tx_queue_id == phyports[port_id].nb_tx_queues) {
+				lcore_id_txqueue_assignment = (lcore_id < (rte_lcore_count() - 1)) ? lcore_id + 1 : 0;
+				break;
+			}
+			tx_queue_id += 1;
+			//tx_queue_id = (tx_queue_id < (phyports[port_id].nb_tx_queues - 1)) ? tx_queue_id + 1 : 0;
 		}
 
 
