@@ -1418,10 +1418,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			return ROFL_FAILURE;
 		}
 
-		if ((ret = rte_eth_dev_reset(port_id)) < 0) {
-			return ROFL_FAILURE;
-		}
-
 		unsigned int socket_id = rte_eth_dev_socket_id(port_id);
 
 		phyports[port_id].socket_id = socket_id;
@@ -1430,6 +1426,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		rte_eth_dev_info_get(port_id, &dev_info);
 		strncpy(s_fw_version, "none", sizeof(s_fw_version)-1);
 		rte_eth_dev_fw_version_get(port_id, s_fw_version, sizeof(s_fw_version));
+
+		if ((ret = rte_eth_dev_reset(port_id)) < 0) {
+			XDPD_INFO(DRIVER_NAME" skipping physical port: %u (device reset failed) on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
+					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
+			continue;
+		}
 
 		// port not specified in configuration file
 		if (not iface_manager_port_exists(s_pci_addr)) {
