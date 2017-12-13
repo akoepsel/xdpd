@@ -1140,7 +1140,7 @@ START_RETRY:
 	//Set as queues setup
 	ps->queues_set=true;
 
-	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successful started\n", ps->port_id, port->name);
+	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successfully started\n", ps->port_id, port->name);
 	
 	return ROFL_SUCCESS;
 }
@@ -1166,7 +1166,7 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 		phy_port_mapping[ps->port_id]->up = true;
 	}
 
-	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successful stopped\n", ps->port_id, port->name);
+	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successfully stopped\n", ps->port_id, port->name);
 
 	return ROFL_SUCCESS;
 }
