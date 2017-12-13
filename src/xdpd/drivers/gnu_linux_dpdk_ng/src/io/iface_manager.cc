@@ -1375,6 +1375,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].nb_tx_queues = 0;
 		phyports[port_id].is_vf = 0;
 		phyports[port_id].parent_port_id = -1;
+		phyports[port_id].nb_vfs = 0;
+		phyports[port_id].vf_id = 0;
 	}
 
 	//Calculate size of rte_mempool for rxqueue/txqueue configuration based on available physical ports
@@ -1457,6 +1459,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (iface_manager_port_setting_exists(s_pci_addr, "parent")) {
 			phyports[port_id].is_vf = 1;
 			phyports[port_id].parent_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"));
+			phyports[port_id].vf_id = phyports[phyports[port_id].parent_port_id].nb_vfs++;
 			vfs.insert(port_id);
 			if (phyports[port_id].parent_port_id == port_id) {
 				XDPD_ERR(DRIVER_NAME" unlikely configuration detected: parent port_id == port_id (%u), probably a misconfiguration?\n", port_id);
@@ -1790,7 +1793,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	}
 
 	//configure virtual functions
-	uint16_t vf_id = 0;
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 
 		if (not phyports[port_id].is_enabled) {
@@ -1800,6 +1802,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (not phyports[port_id].is_vf) {
 			continue;
 		}
+
+		uint16_t vf_id = phyports[port_id].vf_id;
 
 		rte_eth_dev_info_get(port_id, &dev_info);
 		if (dev_info.pci_dev) {
