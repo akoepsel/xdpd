@@ -1468,66 +1468,54 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		phyports[port_id].nb_rx_queues = nb_rx_queues;
 		phyports[port_id].nb_tx_queues = nb_tx_queues;
-		unsigned int rx_queue_id = 0;
-		unsigned int tx_queue_id = 0;
 
 		XDPD_INFO(DRIVER_NAME" adding physical port: %u on socket: %u with max_rx_queues: %u, rx_queues in use: %u, max_tx_queues: %u, tx_queues in use: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
 				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, dev_info.max_tx_queues, nb_tx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
 
-		//iterate over all lcores (except master and disabled ones and those on other NUMA nodes) and assign rx queues
-		for (unsigned int lcore_id = lcore_id_rxqueue_assignment; lcore_id < rte_lcore_count(); lcore_id++) {
+		//assign a lcore to all rxqueues
+		for (unsigned int rx_queue_id = 0; rx_queue_id < phyports[port_id].nb_rx_queues; ++rx_queue_id) {
+			lcore_id_rxqueue_assignment = (lcore_id_rxqueue_assignment < (rte_lcore_count() - 1)) ? lcore_id_rxqueue_assignment + 1 : 0;
 
-			if (socket_id != rte_lcore_to_socket_id(lcore_id)) {
+			if (socket_id != rte_lcore_to_socket_id(lcore_id_rxqueue_assignment)) {
 				continue;
 			}
-			if (lcores[lcore_id].is_master) {
+			if (lcores[lcore_id_rxqueue_assignment].is_master) {
 				continue;
 			}
-			if (not lcores[lcore_id].is_enabled) {
+			if (not lcores[lcore_id_rxqueue_assignment].is_enabled) {
 				continue;
 			}
 
-			uint16_t nb_rx_queue = processing_core_tasks[lcore_id].n_rx_queue;
+			uint16_t nb_rx_queue = processing_core_tasks[lcore_id_rxqueue_assignment].n_rx_queue;
 			if (nb_rx_queue >= MAX_RX_QUEUE_PER_LCORE) {
 					XDPD_ERR(DRIVER_NAME" error: too many rx queues (%u) for lcore: %u\n",
-							(unsigned)nb_rx_queue + 1, (unsigned)lcore_id);
+							(unsigned)nb_rx_queue + 1, (unsigned)lcore_id_rxqueue_assignment);
 					return ROFL_FAILURE;
 			} else {
-					processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].port_id = port_id;
-					processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = rx_queue_id;
-					processing_core_tasks[lcore_id].n_rx_queue++;
-					XDPD_INFO(DRIVER_NAME" assigning physical port: %u, rx queue: %u on socket: %u to lcore: %u on socket: %u\n", port_id, rx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
+					processing_core_tasks[lcore_id_rxqueue_assignment].rx_queue_list[nb_rx_queue].port_id = port_id;
+					processing_core_tasks[lcore_id_rxqueue_assignment].rx_queue_list[nb_rx_queue].queue_id = rx_queue_id;
+					processing_core_tasks[lcore_id_rxqueue_assignment].n_rx_queue++;
+					XDPD_INFO(DRIVER_NAME" assigning physical port: %u, rx queue: %u on socket: %u to lcore: %u on socket: %u\n",
+							port_id, rx_queue_id, socket_id, lcore_id_rxqueue_assignment, rte_lcore_to_socket_id(lcore_id_rxqueue_assignment));
 			}
-
-			if (rx_queue_id == (phyports[port_id].nb_rx_queues - 1)) {
-				lcore_id_rxqueue_assignment = (lcore_id < (rte_lcore_count() - 1)) ? lcore_id + 1 : 0;
-				break;
-			}
-			rx_queue_id += 1;
-			//rx_queue_id = (rx_queue_id < (phyports[port_id].nb_rx_queues - 1)) ? rx_queue_id + 1 : 0;
 		}
 
-		//iterate over all lcores (except master and disabled ones including those on other NUMA nodes) and assign tx queues
-		for (unsigned int lcore_id = lcore_id_txqueue_assignment; lcore_id < rte_lcore_count(); lcore_id++) {
+		//assign a lcore to all txqueues
+		for (unsigned int tx_queue_id = 0; tx_queue_id < phyports[port_id].nb_tx_queues; ++tx_queue_id) {
+			lcore_id_txqueue_assignment = (lcore_id_txqueue_assignment < (rte_lcore_count() - 1)) ? lcore_id_txqueue_assignment + 1 : 0;
 
-			if (lcores[lcore_id].is_master) {
+			if (lcores[lcore_id_txqueue_assignment].is_master) {
 				continue;
 			}
-			if (not lcores[lcore_id].is_enabled) {
+			if (not lcores[lcore_id_txqueue_assignment].is_enabled) {
 				continue;
 			}
 
-			processing_core_tasks[lcore_id].tx_queue_id[port_id] = tx_queue_id;
-			processing_core_tasks[lcore_id].tx_port_id[processing_core_tasks[lcore_id].n_tx_port] = port_id;
-			processing_core_tasks[lcore_id].n_tx_port++;
-			XDPD_INFO(DRIVER_NAME" assigning physical port: %u, tx queue: %u on socket: %u to lcore: %u on socket: %u\n", port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
-
-			if (tx_queue_id == (phyports[port_id].nb_tx_queues - 1)) {
-				lcore_id_txqueue_assignment = (lcore_id < (rte_lcore_count() - 1)) ? lcore_id + 1 : 0;
-				break;
-			}
-			tx_queue_id += 1;
-			//tx_queue_id = (tx_queue_id < (phyports[port_id].nb_tx_queues - 1)) ? tx_queue_id + 1 : 0;
+			processing_core_tasks[lcore_id_txqueue_assignment].tx_queue_id[port_id] = tx_queue_id;
+			processing_core_tasks[lcore_id_txqueue_assignment].tx_port_id[processing_core_tasks[lcore_id_txqueue_assignment].n_tx_port] = port_id;
+			processing_core_tasks[lcore_id_txqueue_assignment].n_tx_port++;
+			XDPD_INFO(DRIVER_NAME" assigning physical port: %u, tx queue: %u on socket: %u to lcore: %u on socket: %u\n",
+					port_id, tx_queue_id, socket_id, lcore_id_txqueue_assignment, rte_lcore_to_socket_id(lcore_id_txqueue_assignment));
 		}
 
 
