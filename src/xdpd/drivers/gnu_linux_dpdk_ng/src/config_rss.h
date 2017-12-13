@@ -5,6 +5,8 @@
 #ifndef XDPD_GNU_LINUX_XDPD_CONFIG_RSS_H
 #define XDPD_GNU_LINUX_XDPD_CONFIG_RSS_H
 
+#include <net/if.h>
+
 #include <rte_config.h>
 #include <rte_common.h>
 #include <rte_memory.h>
