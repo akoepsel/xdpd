@@ -1504,9 +1504,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			do {
 				lcore_id_txqueue[socket_id] = (lcore_id_txqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_txqueue[socket_id] + 1 : 0;
-			} while((phyports[port_id].socket_id != (int)rte_lcore_to_socket_id(lcore_id_rxqueue[socket_id])) ||
-					(lcores[lcore_id_rxqueue[socket_id]].is_master) ||
-					(not lcores[lcore_id_rxqueue[socket_id]].is_enabled));
+			} while((phyports[port_id].socket_id != (int)rte_lcore_to_socket_id(lcore_id_txqueue[socket_id])) ||
+					(lcores[lcore_id_txqueue[socket_id]].is_master) ||
+					(not lcores[lcore_id_txqueue[socket_id]].is_enabled));
 
 			unsigned int lcore_id = lcore_id_txqueue[socket_id];
 
