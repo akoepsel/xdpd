@@ -54,6 +54,8 @@ rofl_result_t processing_init(void){
 	}
 
 	rte_vdev_init("event_sw0", NULL);
+	uint8_t nb_event_devs = rte_event_dev_count();
+	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: %u eventdev devices available\n", nb_event_devs);
 
 	//Initialize basics
 	max_cores = rte_lcore_count();
