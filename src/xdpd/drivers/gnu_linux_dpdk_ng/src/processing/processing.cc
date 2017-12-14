@@ -285,23 +285,77 @@ rofl_result_t processing_init_eventdev(void){
 	}
 
 	/* configure event queues */
-	for (unsigned int ev_queue_id = 0; ev_queue_id < eventdev_conf.nb_event_queues; ev_queue_id++) {
-		struct rte_event_queue_conf ev_queue_conf;
-		memset(&ev_queue_conf, 0, sizeof(ev_queue_conf));
-		ev_queue_conf.schedule_type = (y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["schedule_type"]) ?
-				y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["schedule_type"].as<uint8_t>() : RTE_SCHED_TYPE_ORDERED;
-		ev_queue_conf.priority = (y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["priority"]) ?
-				y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["priority"].as<uint8_t>() : RTE_EVENT_DEV_PRIORITY_NORMAL;
-		ev_queue_conf.nb_atomic_flows = (y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["nb_atomic_flows"]) ?
-				y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["nb_atomic_flows"].as<uint32_t>() : 1024; /* not used for RTE_SCHED_TYPE_ORDERED */
-		ev_queue_conf.nb_atomic_order_sequences = (y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["nb_atomic_order_sequences"]) ?
-				y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["nb_atomic_order_sequences"].as<uint32_t>() : eventdev_conf.nb_event_queue_flows;
+	for (unsigned int queue_id = 0; queue_id < eventdev_conf.nb_event_queues; queue_id++) {
+		struct rte_event_queue_conf queue_conf;
+		memset(&queue_conf, 0, sizeof(queue_conf));
 
-		if (rte_event_queue_setup(eventdev_id, ev_queue_id, &ev_queue_conf) < 0) {
-			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_queue_setup() for queue_id: %u\n", eventdev_name.c_str(), ev_queue_id);
+		/* schedule type */
+		YAML::Node schedule_type_node = y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][queue_id]["schedule_type"];
+		if (schedule_type_node && schedule_type_node.IsScalar()) {
+			queue_conf.schedule_type = schedule_type_node.as<uint8_t>();
+		} else {
+			queue_conf.schedule_type = RTE_SCHED_TYPE_ORDERED;
+		}
+
+		/* priority */
+		YAML::Node priority_node = y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][queue_id]["priority"];
+		if (priority_node && priority_node.IsScalar()) {
+			queue_conf.priority = priority_node.as<uint8_t>();
+		} else {
+			queue_conf.priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
+		}
+
+		/* nb_atomic_flows */
+		YAML::Node nb_atomic_flows_node = y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][queue_id]["nb_atomic_flows"];
+		if (nb_atomic_flows_node && nb_atomic_flows_node.IsScalar()) {
+			queue_conf.nb_atomic_flows = nb_atomic_flows_node.as<uint8_t>();
+		} else {
+			queue_conf.nb_atomic_flows = 1024; /* not used for RTE_SCHED_TYPE_ORDERED */
+		}
+
+		/* nb_atomic_flows */
+		YAML::Node nb_atomic_order_sequences_node = y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][queue_id]["nb_atomic_order_sequences_node"];
+		if (nb_atomic_order_sequences_node && nb_atomic_order_sequences_node.IsScalar()) {
+			queue_conf.nb_atomic_order_sequences = nb_atomic_order_sequences_node.as<uint8_t>();
+		} else {
+			queue_conf.nb_atomic_order_sequences = eventdev_conf.nb_event_queue_flows;
+		}
+
+		if (rte_event_queue_setup(eventdev_id, queue_id, &queue_conf) < 0) {
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_queue_setup() for queue_id: %u\n", eventdev_name.c_str(), queue_id);
 			return ROFL_FAILURE;
 		}
 	}
+
+	/* configure event ports for worker lcores */
+	for (unsigned int port_id = 0; port_id < wk_lcores.size(); port_id++) {
+		struct rte_event_port_conf port_conf;
+		memset(&port_conf, 0, sizeof(port_conf));
+		port_conf.dequeue_depth = eventdev_conf.nb_event_port_dequeue_depth;
+		port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
+		port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
+
+		if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_port_setup() for port_id: %u\n", eventdev_name.c_str(), port_id);
+			return ROFL_FAILURE;
+		}
+	}
+
+	/* configure event ports for TX lcores */
+	for (unsigned int port_id = wk_lcores.size(); port_id < (wk_lcores.size() + tx_lcores.size()); port_id++) {
+		struct rte_event_port_conf port_conf;
+		memset(&port_conf, 0, sizeof(port_conf));
+		port_conf.dequeue_depth = eventdev_conf.nb_event_port_dequeue_depth;
+		port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
+		port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
+
+		if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_port_setup() for port_id: %u\n", eventdev_name.c_str(), port_id);
+			return ROFL_FAILURE;
+		}
+	}
+
+	/* link up event ports and queues */
 
 	return ROFL_SUCCESS;
 }
