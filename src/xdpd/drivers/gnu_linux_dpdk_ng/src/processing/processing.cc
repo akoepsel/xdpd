@@ -39,9 +39,17 @@ switch_port_t* port_list[PROCESSING_MAX_PORTS];
 static rte_rwlock_t port_list_rwlock;
 
 /*
+ * eventdev related parameters
+ */
+std::string eventdev_name("event_sw0");
+std::string eventdev_args("sched_quanta=64,credit_quanta=32");
+
+/*
 * Initialize data structures for processing to work
 */
 rofl_result_t processing_init(void){
+
+	int ret;
 
 	//Cleanup
 	memset(direct_pools, 0, sizeof(direct_pools));
@@ -53,7 +61,32 @@ rofl_result_t processing_init(void){
 		rte_log_set_global_level(log_level_node.as<uint32_t>());
 	}
 
-	rte_vdev_init("event_sw0", NULL);
+
+	YAML::Node eventdev_name_node = y_config_dpdk_ng["dpdk"]["eventdev"]["name"];
+	if (eventdev_name_node && eventdev_name_node.IsScalar()) {
+		eventdev_name = eventdev_name_node.as<std::string>();
+	}
+
+	YAML::Node eventdev_args_node = y_config_dpdk_ng["dpdk"]["eventdev"]["args"];
+	if (eventdev_args_node && eventdev_args_node.IsScalar()) {
+		eventdev_args = eventdev_args_node.as<std::string>();
+	}
+	if ((ret = rte_vdev_init(eventdev_name.c_str(), eventdev_args.c_str())) < 0) {
+		switch (ret) {
+		case -EINVAL: {
+			rte_exit(1, "initialization of eventdev %s with args \"%s\" failed (EINVAL)\n", eventdev_name.c_str(), eventdev_args.c_str());
+		} break;
+		case -EEXIST: {
+			XDPD_ERR(DRIVER_NAME"[processing] Processing init: initializing eventdev %s failed (EXIST)\n", eventdev_name.c_str());
+		} break;
+		case -ENOMEM: {
+			rte_exit(1, "initialization of eventdev %s with args \"%s\" failed (ENOMEM)\n", eventdev_name.c_str(), eventdev_args.c_str());
+		} break;
+		default: {
+			rte_exit(1, "initialization of eventdev %s with args \"%s\" failed\n", eventdev_name.c_str(), eventdev_args.c_str());
+		};
+		}
+	}
 	uint8_t nb_event_devs = rte_event_dev_count();
 	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: %u eventdev devices available\n", nb_event_devs);
 
