@@ -7,6 +7,7 @@
 
 #include <rofl_datapath.h>
 #include "../config.h"
+#include "../config_rss.h"
 #include <rte_config.h> 
 #include <rte_common.h> 
 #include <rte_eal.h> 
@@ -89,6 +90,16 @@ ROFL_BEGIN_DECLS
 
 /**
 * Initialize data structures for processing to work 
+*/
+rofl_result_t processing_init_lcores(void);
+
+/**
+* Initialize data structures for processing to work
+*/
+rofl_result_t processing_init_eventdev(void);
+
+/**
+* Initialize data structures for processing to work
 */
 rofl_result_t processing_init(void);
 

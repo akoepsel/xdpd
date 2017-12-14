@@ -39,6 +39,21 @@ switch_port_t* port_list[PROCESSING_MAX_PORTS];
 static rte_rwlock_t port_list_rwlock;
 
 /*
+ * lcore related parameters
+ */
+/* a set of available NUMA sockets (socket_id) */
+std::set<int> sockets;
+/* a map of available logical cores per NUMA socket (set of lcore_id) */
+std::map<unsigned int, std::set<unsigned int> > cores;
+
+/* event lcore */
+static uint64_t ev_coremask = 0x0001; // lcore_id = 0
+/* RX lcore */
+static uint64_t rx_coremask = 0x0002; // lcore_id = 1
+/* TX lcore */
+static uint64_t tx_coremask = 0x0004; // lcore_id = 2
+
+/*
  * eventdev related parameters
  */
 /* event device name */
@@ -52,57 +67,166 @@ struct rte_event_dev_info eventdev_info;
 /* event device configuration */
 struct rte_event_dev_config eventdev_config;
 
+
 /*
-* Initialize data structures for processing to work
+* Initialize data structures for lcores
 */
-rofl_result_t processing_init(void){
+rofl_result_t processing_init_lcores(void){
+
+	//Initialize logical core structure: all lcores disabled
+	for (int j = 0; j < RTE_MAX_LCORE; j++) {
+		lcores[j].socket_id = -1;
+		lcores[j].is_master = 0;
+		lcores[j].is_enabled = 0;
+		lcores[j].next_lcore_id = -1;
+		lcores[j].is_wk_lcore = 0;
+		lcores[j].is_ev_lcore = 0;
+		lcores[j].is_rx_lcore = 0;
+		lcores[j].is_tx_lcore = 0;
+	}
+	sockets.clear();
+	cores.clear();
+
+	//Get master lcore
+	unsigned int master_lcore_id = rte_get_master_lcore();
+
+	/* get ev coremask */
+	YAML::Node ev_coremask_node = y_config_dpdk_ng["dpdk"]["lcores"]["ev_coremask"];
+	if (ev_coremask_node && ev_coremask_node.IsScalar()) {
+		ev_coremask = ev_coremask_node.as<uint64_t>();
+	}
+
+	/* get rx coremask */
+	YAML::Node rx_coremask_node = y_config_dpdk_ng["dpdk"]["lcores"]["rx_coremask"];
+	if (rx_coremask_node && rx_coremask_node.IsScalar()) {
+		rx_coremask = rx_coremask_node.as<uint64_t>();
+	}
+
+	/* get tx coremask */
+	YAML::Node tx_coremask_node = y_config_dpdk_ng["dpdk"]["lcores"]["tx_coremask"];
+	if (tx_coremask_node && tx_coremask_node.IsScalar()) {
+		tx_coremask = tx_coremask_node.as<uint64_t>();
+	}
+
+	/* detect all lcores and their state */
+	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
+		if (lcore_id >= RTE_MAX_LCORE) {
+			continue;
+		}
+		unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
+
+		lcores[lcore_id].socket_id = socket_id;
+		lcores[lcore_id].is_enabled = rte_lcore_is_enabled(lcore_id);
+
+		/* get next lcore */
+		unsigned int next_lcore_id = RTE_MAX_LCORE;
+		if ((next_lcore_id = rte_get_next_lcore(lcore_id, /*skip-master=*/1, /*wrap=*/1)) < RTE_MAX_LCORE) {
+			lcores[lcore_id].next_lcore_id = next_lcore_id;
+		}
+
+		/* get lcore's role */
+		enum rte_lcore_role_t role = rte_eal_lcore_role(lcore_id);
+		switch (role) {
+		case ROLE_OFF: {
+			/* skip node, i.e.: do nothing */
+			XDPD_INFO(DRIVER_NAME" skipping lcore: %u on socket: %u, role: OFF\n", lcore_id, socket_id);
+		} break;
+		case ROLE_SERVICE: {
+			/* skip node, i.e.: do nothing */
+			XDPD_INFO(DRIVER_NAME" skipping lcore: %u on socket: %u, role: SERVICE\n", lcore_id, socket_id);
+		} break;
+		case ROLE_RTE: {
+
+			std::string s_task;
+
+			//master lcore?
+			if (lcore_id == master_lcore_id) {
+				lcores[lcore_id].is_master = 1;
+				s_task.assign("master lcore");
+			} else
+			//event lcore (=event scheduler)
+			if (ev_coremask & (1 << lcore_id)) {
+				lcores[lcore_id].is_ev_lcore = 1;
+				s_task.assign("event lcore");
+			} else
+			//rx lcore (=packet receiving lcore)
+			if (rx_coremask & (1 << lcore_id)) {
+				lcores[lcore_id].is_rx_lcore = 1;
+				s_task.assign("RX lcore");
+			} else
+			//tx lcore (=packet transmitting lcore)
+			if (tx_coremask & (1 << lcore_id)) {
+				lcores[lcore_id].is_tx_lcore = 1;
+				s_task.assign("TX lcore");
+			} else
+			//wk lcore (=worker running openflow pipeline)
+			{
+				lcores[lcore_id].is_wk_lcore = 1;
+				//Store socket_id in sockets
+				sockets.insert(socket_id);
+				//Increase number of worker lcores for this socket
+				cores[socket_id].insert(lcore_id);
+				s_task.assign("worker lcore");
+			}
+
+			XDPD_INFO(DRIVER_NAME" adding lcore: %u on socket: %u, task: %s, next lcore is: %u, #working lcores on this socket: %u\n",
+					lcore_id,
+					socket_id,
+					s_task.c_str(),
+					lcores[lcore_id].next_lcore_id,
+					cores[socket_id].size());
+
+		} break;
+		default: {
+
+		}
+		}
+	}
+
+	return ROFL_SUCCESS;
+}
+
+/*
+* Initialize data structures for RTE event device
+*/
+rofl_result_t processing_init_eventdev(void){
 
 	int ret;
-
-	//Cleanup
-	memset(direct_pools, 0, sizeof(direct_pools));
-	memset(processing_core_tasks, 0, sizeof(processing_core_tasks));
-	memset(port_list, 0, sizeof(port_list));
-
-	/*
-	 * set log level
-	 */
-
-	YAML::Node log_level_node = y_config_dpdk_ng["dpdk"]["log_level"];
-	if (log_level_node && log_level_node.IsScalar()) {
-		rte_log_set_global_level(log_level_node.as<uint32_t>());
-	}
 
 	/*
 	 * initialize eventdev device
 	 */
 	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: initializing eventdev device\n");
 
+	/* get software event name */
 	YAML::Node eventdev_name_node = y_config_dpdk_ng["dpdk"]["eventdev"]["name"];
 	if (eventdev_name_node && eventdev_name_node.IsScalar()) {
 		eventdev_name = eventdev_name_node.as<std::string>();
 	}
 
+	/* get software event arguments */
 	YAML::Node eventdev_args_node = y_config_dpdk_ng["dpdk"]["eventdev"]["args"];
 	if (eventdev_args_node && eventdev_args_node.IsScalar()) {
 		eventdev_args = eventdev_args_node.as<std::string>();
 	}
 
+	/* initialize software event pmd */
 	if ((ret = rte_vdev_init(eventdev_name.c_str(), eventdev_args.c_str())) < 0) {
 		switch (ret) {
 		case -EINVAL: {
-			rte_exit(1, "initialization of eventdev %s with args \"%s\" failed (EINVAL)\n", eventdev_name.c_str(), eventdev_args.c_str());
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s with args \"%s\" failed (EINVAL)\n", eventdev_name.c_str(), eventdev_args.c_str());
 		} break;
 		case -EEXIST: {
 			XDPD_ERR(DRIVER_NAME"[processing] Processing init: initializing eventdev %s failed (EXIST)\n", eventdev_name.c_str());
 		} break;
 		case -ENOMEM: {
-			rte_exit(1, "initialization of eventdev %s with args \"%s\" failed (ENOMEM)\n", eventdev_name.c_str(), eventdev_args.c_str());
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s with args \"%s\" failed (ENOMEM)\n", eventdev_name.c_str(), eventdev_args.c_str());
 		} break;
 		default: {
-			rte_exit(1, "initialization of eventdev %s with args \"%s\" failed\n", eventdev_name.c_str(), eventdev_args.c_str());
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s with args \"%s\" failed\n", eventdev_name.c_str(), eventdev_args.c_str());
 		};
 		}
+		return ROFL_FAILURE;
 	}
 	uint8_t nb_event_devs = rte_event_dev_count();
 	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: %u eventdev device(s) available\n", nb_event_devs);
@@ -115,7 +239,8 @@ rofl_result_t processing_init(void){
 		rte_exit(1, "unable to retrieve info struct for eventdev %s\n", eventdev_name.c_str());
 	}
 
-	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: max_event_ports: %u max_event_queues: %u\n", eventdev_info.max_event_ports, eventdev_info.max_event_queues);
+	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: eventdev: %s max_event_ports: %u max_event_queues: %u\n",
+			eventdev_name.c_str(), eventdev_info.max_event_ports, eventdev_info.max_event_queues);
 
 #if 0
 	eventdev_config = {
@@ -127,6 +252,43 @@ rofl_result_t processing_init(void){
 			        .nb_event_port_enqueue_depth = 128,
 			};
 #endif
+
+
+
+	return ROFL_SUCCESS;
+}
+
+/*
+* Initialize data structures for processing to work
+*/
+rofl_result_t processing_init(void){
+
+	//Cleanup
+	memset(direct_pools, 0, sizeof(direct_pools));
+	memset(processing_core_tasks, 0, sizeof(processing_core_tasks));
+	memset(port_list, 0, sizeof(port_list));
+
+	/*
+	 * set log level
+	 */
+	YAML::Node log_level_node = y_config_dpdk_ng["dpdk"]["log_level"];
+	if (log_level_node && log_level_node.IsScalar()) {
+		rte_log_set_global_level(log_level_node.as<uint32_t>());
+	}
+
+	/*
+	 * discover lcores
+	 */
+	if (ROFL_FAILURE == processing_init_lcores()) {
+		rte_exit(1, "RTE lcore discovery failed\n");
+	}
+
+	/*
+	 * initialize RTE event device
+	 */
+	if (ROFL_FAILURE == processing_init_eventdev()) {
+		rte_exit(1, "RTE event device initialization failed\n");
+	}
 
 	//Initialize basics
 	max_cores = rte_lcore_count();

@@ -1997,10 +1997,12 @@ rofl_result_t iface_manager_discover_system_ports(void){
 	switch_port_t* port;
 #endif
 
+#if 0
 	if (iface_manager_discover_logical_cores() < 0) {
 		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_logical_cores failed\n");
 		return ROFL_FAILURE;
 	}
+#endif
 
 	if (iface_manager_discover_physical_ports() < 0) {
 		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_physical_ports failed\n");

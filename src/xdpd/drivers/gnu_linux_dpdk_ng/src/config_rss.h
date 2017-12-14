@@ -26,10 +26,10 @@ struct lcore {
 	int is_master;  //0:work horse, 1:master
 	int is_enabled; //0:disabled, 1:enabled
 	int next_lcore_id; //lcore_id of next lcore on actual socket or -1, excluding the master lcore
-	int is_wk_core; //1: lcore is used as worker lcore (running the openflow pipeline)
-	int is_rx_core; //1: lcore is used for conducting packet RX operations
-	int is_tx_core; //1: lcore is used for conducting packet TX operations
-	int is_ev_core; //1: lcore is used for conducting software eventdev operations
+	int is_wk_lcore; //1: lcore is used as worker lcore (running the openflow pipeline)
+	int is_rx_lcore; //1: lcore is used for conducting packet RX operations
+	int is_tx_lcore; //1: lcore is used for conducting packet TX operations
+	int is_ev_lcore; //1: lcore is used for conducting software eventdev operations
 } __rte_cache_aligned;
 
 /**
