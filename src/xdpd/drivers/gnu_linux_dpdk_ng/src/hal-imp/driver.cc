@@ -282,6 +282,10 @@ hal_result_t hal_driver_init(hal_extension_ops_t* extensions, const char* extra_
 		return HAL_FAILURE;
 	}
 
+	//Start processing
+	if(processing_run() != ROFL_SUCCESS)
+		return HAL_FAILURE;
+
 	//Initialize PKT_IN
 	if(pktin_dispatcher_init() != ROFL_SUCCESS)
 		return HAL_FAILURE;

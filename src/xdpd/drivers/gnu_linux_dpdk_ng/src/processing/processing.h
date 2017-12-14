@@ -104,6 +104,11 @@ rofl_result_t processing_init_eventdev(void);
 rofl_result_t processing_init(void);
 
 /**
+* Run processing lcores
+*/
+rofl_result_t processing_run(void);
+
+/**
 * Destroy data structures for processing to work 
 */
 rofl_result_t processing_destroy(void);
