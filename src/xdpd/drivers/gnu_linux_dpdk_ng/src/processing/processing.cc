@@ -56,11 +56,18 @@ rofl_result_t processing_init(void){
 	memset(processing_core_tasks, 0, sizeof(processing_core_tasks));
 	memset(port_list, 0, sizeof(port_list));
 
+	/*
+	 * set log level
+	 */
+
 	YAML::Node log_level_node = y_config_dpdk_ng["dpdk"]["log_level"];
 	if (log_level_node && log_level_node.IsScalar()) {
 		rte_log_set_global_level(log_level_node.as<uint32_t>());
 	}
 
+	/*
+	 * initialize eventdev device
+	 */
 	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: initializing eventdev devices\n");
 
 	YAML::Node eventdev_name_node = y_config_dpdk_ng["dpdk"]["eventdev"]["name"];
@@ -72,6 +79,7 @@ rofl_result_t processing_init(void){
 	if (eventdev_args_node && eventdev_args_node.IsScalar()) {
 		eventdev_args = eventdev_args_node.as<std::string>();
 	}
+
 	if ((ret = rte_vdev_init(eventdev_name.c_str(), eventdev_args.c_str())) < 0) {
 		switch (ret) {
 		case -EINVAL: {
