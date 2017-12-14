@@ -12,6 +12,7 @@ libxdpd_driver_gnu_linux_dpdk_ng_src_la_LIBADD = \
 		processing/libxdpd_driver_gnu_linux_dpdk_ng_src_processing.la\
 		util/libxdpd_driver_gnu_linux_dpdk_ng_src_util.la\
 		-lrte_eal\
+		-lrte_eventdev\
 		-lrte_ethdev\
 		-lrte_hash\
 		-lrte_kni\
