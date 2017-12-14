@@ -61,6 +61,7 @@ rofl_result_t processing_init(void){
 		rte_log_set_global_level(log_level_node.as<uint32_t>());
 	}
 
+	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: initializing eventdev devices\n");
 
 	YAML::Node eventdev_name_node = y_config_dpdk_ng["dpdk"]["eventdev"]["name"];
 	if (eventdev_name_node && eventdev_name_node.IsScalar()) {
