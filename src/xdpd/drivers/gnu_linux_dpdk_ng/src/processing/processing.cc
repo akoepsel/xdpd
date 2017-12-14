@@ -169,9 +169,10 @@ rofl_result_t processing_init_lcores(void){
 				s_task.assign("worker lcore");
 			}
 
-			XDPD_INFO(DRIVER_NAME" adding lcore: %u on socket: %u, task: %s, next lcore is: %u, #working lcores on this socket: %u\n",
+			XDPD_INFO(DRIVER_NAME" adding lcore: %u on socket: %u, enabled: %s, task: %s, next lcore is: %u, #working lcores on this socket: %u\n",
 					lcore_id,
 					socket_id,
+					(lcores[lcore_id].is_enabled) ? "yes" : "no",
 					s_task.c_str(),
 					lcores[lcore_id].next_lcore_id,
 					cores[socket_id].size());
