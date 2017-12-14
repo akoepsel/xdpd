@@ -284,6 +284,25 @@ rofl_result_t processing_init_eventdev(void){
 		return ROFL_FAILURE;
 	}
 
+	/* configure event queues */
+	for (unsigned int ev_queue_id = 0; ev_queue_id < eventdev_conf.nb_event_queues; ev_queue_id++) {
+		struct rte_event_queue_conf ev_queue_conf;
+		memset(&ev_queue_conf, 0, sizeof(ev_queue_conf));
+		ev_queue_conf.schedule_type = (y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["schedule_type"]) ?
+				y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["schedule_type"].as<uint8_t>() : RTE_SCHED_TYPE_ORDERED;
+		ev_queue_conf.priority = (y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["priority"]) ?
+				y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["priority"].as<uint8_t>() : RTE_EVENT_DEV_PRIORITY_NORMAL;
+		ev_queue_conf.nb_atomic_flows = (y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["nb_atomic_flows"]) ?
+				y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["nb_atomic_flows"].as<uint32_t>() : 1024; /* not used for RTE_SCHED_TYPE_ORDERED */
+		ev_queue_conf.nb_atomic_order_sequences = (y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["nb_atomic_order_sequences"]) ?
+				y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][ev_queue_id]["nb_atomic_order_sequences"].as<uint32_t>() : eventdev_conf.nb_event_queue_flows;
+
+		if (rte_event_queue_setup(eventdev_id, ev_queue_id, &ev_queue_conf) < 0) {
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_queue_setup() for queue_id: %u\n", eventdev_name.c_str(), ev_queue_id);
+			return ROFL_FAILURE;
+		}
+	}
+
 	return ROFL_SUCCESS;
 }
 
