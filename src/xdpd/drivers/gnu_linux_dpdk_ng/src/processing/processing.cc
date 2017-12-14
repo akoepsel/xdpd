@@ -41,8 +41,16 @@ static rte_rwlock_t port_list_rwlock;
 /*
  * eventdev related parameters
  */
+/* event device name */
 std::string eventdev_name("event_sw0");
+/* event device arguments */
 std::string eventdev_args("sched_quanta=64,credit_quanta=32");
+/* event device handle */
+uint8_t eventdev_id = 0;
+/* event device info structure */
+struct rte_event_dev_info eventdev_info;
+/* event device configuration */
+struct rte_event_dev_config eventdev_config;
 
 /*
 * Initialize data structures for processing to work
@@ -68,7 +76,7 @@ rofl_result_t processing_init(void){
 	/*
 	 * initialize eventdev device
 	 */
-	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: initializing eventdev devices\n");
+	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: initializing eventdev device\n");
 
 	YAML::Node eventdev_name_node = y_config_dpdk_ng["dpdk"]["eventdev"]["name"];
 	if (eventdev_name_node && eventdev_name_node.IsScalar()) {
@@ -97,7 +105,28 @@ rofl_result_t processing_init(void){
 		}
 	}
 	uint8_t nb_event_devs = rte_event_dev_count();
-	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: %u eventdev devices available\n", nb_event_devs);
+	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: %u eventdev device(s) available\n", nb_event_devs);
+
+	/* get eventdev id */
+	eventdev_id = rte_event_dev_get_dev_id(eventdev_name.c_str());
+
+	/* get eventdev info structure */
+	if ((ret = rte_event_dev_info_get(eventdev_id, &eventdev_info)) < 0) {
+		rte_exit(1, "unable to retrieve info struct for eventdev %s\n", eventdev_name.c_str());
+	}
+
+	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: max_event_ports: %u max_event_queues: %u\n", eventdev_info.max_event_ports, eventdev_info.max_event_queues);
+
+#if 0
+	eventdev_config = {
+			        .nb_event_queues = 3,
+			        .nb_event_ports = 6,
+			        .nb_events_limit  = 4096,
+			        .nb_event_queue_flows = 1024,
+			        .nb_event_port_dequeue_depth = 128,
+			        .nb_event_port_enqueue_depth = 128,
+			};
+#endif
 
 	//Initialize basics
 	max_cores = rte_lcore_count();
