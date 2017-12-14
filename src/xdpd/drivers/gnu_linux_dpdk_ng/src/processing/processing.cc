@@ -43,8 +43,14 @@ static rte_rwlock_t port_list_rwlock;
  */
 /* a set of available NUMA sockets (socket_id) */
 std::set<int> sockets;
-/* a map of available logical cores per NUMA socket (set of lcore_id) */
-std::map<unsigned int, std::set<unsigned int> > cores;
+/* a map of available worker logical cores per NUMA socket (set of lcore_id) */
+std::map<unsigned int, std::set<unsigned int> > wk_lcores;
+/* a map of available event logical cores per NUMA socket (set of lcore_id) */
+std::map<unsigned int, std::set<unsigned int> > ev_lcores;
+/* a map of available RX logical cores per NUMA socket (set of lcore_id) */
+std::map<unsigned int, std::set<unsigned int> > rx_lcores;
+/* a map of available TX logical cores per NUMA socket (set of lcore_id) */
+std::map<unsigned int, std::set<unsigned int> > tx_lcores;
 
 /* event lcore */
 static uint64_t ev_coremask = 0x0001; // lcore_id = 0
@@ -65,7 +71,7 @@ uint8_t eventdev_id = 0;
 /* event device info structure */
 struct rte_event_dev_info eventdev_info;
 /* event device configuration */
-struct rte_event_dev_config eventdev_config;
+struct rte_event_dev_config eventdev_conf;
 
 
 /*
@@ -85,7 +91,7 @@ rofl_result_t processing_init_lcores(void){
 		lcores[j].is_tx_lcore = 0;
 	}
 	sockets.clear();
-	cores.clear();
+	wk_lcores.clear();
 
 	//Get master lcore
 	unsigned int master_lcore_id = rte_get_master_lcore();
@@ -147,16 +153,22 @@ rofl_result_t processing_init_lcores(void){
 			//event lcore (=event scheduler)
 			if (ev_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_ev_lcore = 1;
+				//Increase number of event lcores for this socket
+				ev_lcores[socket_id].insert(lcore_id);
 				s_task.assign("event lcore");
 			} else
 			//rx lcore (=packet receiving lcore)
 			if (rx_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_rx_lcore = 1;
+				//Increase number of RX lcores for this socket
+				rx_lcores[socket_id].insert(lcore_id);
 				s_task.assign("RX lcore");
 			} else
 			//tx lcore (=packet transmitting lcore)
 			if (tx_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_tx_lcore = 1;
+				//Increase number of TX lcores for this socket
+				tx_lcores[socket_id].insert(lcore_id);
 				s_task.assign("TX lcore");
 			} else
 			//wk lcore (=worker running openflow pipeline)
@@ -165,7 +177,7 @@ rofl_result_t processing_init_lcores(void){
 				//Store socket_id in sockets
 				sockets.insert(socket_id);
 				//Increase number of worker lcores for this socket
-				cores[socket_id].insert(lcore_id);
+				wk_lcores[socket_id].insert(lcore_id);
 				s_task.assign("worker lcore");
 			}
 
@@ -175,7 +187,7 @@ rofl_result_t processing_init_lcores(void){
 					(lcores[lcore_id].is_enabled) ? "yes" : "no",
 					s_task.c_str(),
 					lcores[lcore_id].next_lcore_id,
-					cores[socket_id].size());
+					wk_lcores[socket_id].size());
 
 		} break;
 		default: {
@@ -243,18 +255,29 @@ rofl_result_t processing_init_eventdev(void){
 	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: eventdev: %s max_event_ports: %u max_event_queues: %u\n",
 			eventdev_name.c_str(), eventdev_info.max_event_ports, eventdev_info.max_event_queues);
 
-#if 0
-	eventdev_config = {
-			        .nb_event_queues = 3,
-			        .nb_event_ports = 6,
-			        .nb_events_limit  = 4096,
-			        .nb_event_queue_flows = 1024,
-			        .nb_event_port_dequeue_depth = 128,
-			        .nb_event_port_enqueue_depth = 128,
-			};
-#endif
+	/* configure event device */
+	memset(&eventdev_conf, 0, sizeof(eventdev_conf));
+	eventdev_conf.nb_event_queues = 2; /* RX =(queue)=> worker =(queue)=> TX */
+	eventdev_conf.nb_event_ports = 0;
+	for (auto it : tx_lcores) {
+		eventdev_conf.nb_event_ports += it.second.size(); /* number of all TX lcores on all NUMA sockets */
+	}
+	for (auto it : wk_lcores) {
+		eventdev_conf.nb_event_ports += it.second.size(); /* number of all worker lcores on all NUMA sockets */
+	}
+	if (eventdev_conf.nb_event_ports > eventdev_info.max_event_ports) {
+		XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, too many event ports required\n", eventdev_name.c_str());
+		return ROFL_FAILURE;
+	}
+	eventdev_conf.nb_events_limit = eventdev_info.max_num_events;
+	eventdev_conf.nb_event_queue_flows = eventdev_info.max_event_queue_flows;
+	eventdev_conf.nb_event_port_dequeue_depth = eventdev_info.max_event_port_dequeue_depth;
+	eventdev_conf.nb_event_port_enqueue_depth = eventdev_info.max_event_port_enqueue_depth;
 
-
+	if ((ret = rte_event_dev_configure(eventdev_id, &eventdev_conf)) < 0) {
+		XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_dev_configure()\n", eventdev_name.c_str());
+		return ROFL_FAILURE;
+	}
 
 	return ROFL_SUCCESS;
 }
