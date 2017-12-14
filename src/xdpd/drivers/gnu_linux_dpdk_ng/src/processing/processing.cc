@@ -145,17 +145,17 @@ rofl_result_t processing_init_lcores(void){
 				s_task.assign("master lcore");
 			} else
 			//event lcore (=event scheduler)
-			if (ev_coremask & (1 << lcore_id)) {
+			if (ev_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_ev_lcore = 1;
 				s_task.assign("event lcore");
 			} else
 			//rx lcore (=packet receiving lcore)
-			if (rx_coremask & (1 << lcore_id)) {
+			if (rx_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_rx_lcore = 1;
 				s_task.assign("RX lcore");
 			} else
 			//tx lcore (=packet transmitting lcore)
-			if (tx_coremask & (1 << lcore_id)) {
+			if (tx_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_tx_lcore = 1;
 				s_task.assign("TX lcore");
 			} else
