@@ -255,6 +255,7 @@ rofl_result_t processing_init_eventdev(void){
 	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: eventdev: %s max_event_ports: %u max_event_queues: %u\n",
 			eventdev_name.c_str(), eventdev_info.max_event_ports, eventdev_info.max_event_queues);
 
+
 	/* configure event device */
 	memset(&eventdev_conf, 0, sizeof(eventdev_conf));
 	eventdev_conf.nb_event_queues = 2; /* RX =(queue)=> worker =(queue)=> TX */
@@ -280,9 +281,10 @@ rofl_result_t processing_init_eventdev(void){
 			eventdev_conf.nb_event_port_dequeue_depth, eventdev_conf.nb_event_port_enqueue_depth);
 
 	if ((ret = rte_event_dev_configure(eventdev_id, &eventdev_conf)) < 0) {
-		XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_dev_configure()\n", eventdev_name.c_str());
+		XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_dev_configure() failed\n", eventdev_name.c_str());
 		return ROFL_FAILURE;
 	}
+
 
 	/* configure event queues */
 	for (unsigned int queue_id = 0; queue_id < eventdev_conf.nb_event_queues; queue_id++) {
@@ -322,10 +324,11 @@ rofl_result_t processing_init_eventdev(void){
 		}
 
 		if (rte_event_queue_setup(eventdev_id, queue_id, &queue_conf) < 0) {
-			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_queue_setup() for queue_id: %u\n", eventdev_name.c_str(), queue_id);
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_queue_setup() on queue_id: %u failed\n", eventdev_name.c_str(), queue_id);
 			return ROFL_FAILURE;
 		}
 	}
+
 
 	/* configure event ports for worker lcores */
 	for (unsigned int port_id = 0; port_id < wk_lcores.size(); port_id++) {
@@ -336,10 +339,18 @@ rofl_result_t processing_init_eventdev(void){
 		port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
 		if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
-			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_port_setup() for port_id: %u\n", eventdev_name.c_str(), port_id);
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+			return ROFL_FAILURE;
+		}
+
+		uint8_t queues[] = {0};
+
+		if (rte_event_port_link(eventdev_id, port_id, queues, NULL, sizeof(queues)) < 0) {
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
 			return ROFL_FAILURE;
 		}
 	}
+
 
 	/* configure event ports for TX lcores */
 	for (unsigned int port_id = wk_lcores.size(); port_id < (wk_lcores.size() + tx_lcores.size()); port_id++) {
@@ -350,12 +361,21 @@ rofl_result_t processing_init_eventdev(void){
 		port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
 		if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
-			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_port_setup() for port_id: %u\n", eventdev_name.c_str(), port_id);
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+			return ROFL_FAILURE;
+		}
+
+		uint8_t queues[] = {1};
+
+		if (rte_event_port_link(eventdev_id, port_id, queues, NULL, sizeof(queues)) < 0) {
+			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
 			return ROFL_FAILURE;
 		}
 	}
 
+
 	/* link up event ports and queues */
+
 
 	return ROFL_SUCCESS;
 }
