@@ -4,6 +4,8 @@
 #include <rte_cycles.h>
 #include <rte_spinlock.h>
 #include <rte_rwlock.h>
+#include <rte_eventdev.h>
+#include <rte_bus_vdev.h>
 #include <sstream>
 #include <iomanip>
 #include "assert.h"
@@ -50,6 +52,8 @@ rofl_result_t processing_init(void){
 	if (log_level_node && log_level_node.IsScalar()) {
 		rte_log_set_global_level(log_level_node.as<uint32_t>());
 	}
+
+	rte_vdev_init("event_sw0", NULL);
 
 	//Initialize basics
 	max_cores = rte_lcore_count();
