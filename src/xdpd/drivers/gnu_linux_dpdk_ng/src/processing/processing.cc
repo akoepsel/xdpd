@@ -274,6 +274,11 @@ rofl_result_t processing_init_eventdev(void){
 	eventdev_conf.nb_event_port_dequeue_depth = eventdev_info.max_event_port_dequeue_depth;
 	eventdev_conf.nb_event_port_enqueue_depth = eventdev_info.max_event_port_enqueue_depth;
 
+	XDPD_DEBUG(DRIVER_NAME"[processing] Processing init: configuring eventdev: %s, nb_event_queues: %u, nb_event_ports: %u, nb_events_limit: %u, nb_event_queue_flows: %u, nb_event_port_dequeue_depth: %u, nb_event_port_enqueue_depth: %u\n",
+			eventdev_name.c_str(), eventdev_conf.nb_event_queues, eventdev_conf.nb_event_ports,
+			eventdev_conf.nb_events_limit, eventdev_conf.nb_event_queue_flows,
+			eventdev_conf.nb_event_port_dequeue_depth, eventdev_conf.nb_event_port_enqueue_depth);
+
 	if ((ret = rte_event_dev_configure(eventdev_id, &eventdev_conf)) < 0) {
 		XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, rte_event_dev_configure()\n", eventdev_name.c_str());
 		return ROFL_FAILURE;
