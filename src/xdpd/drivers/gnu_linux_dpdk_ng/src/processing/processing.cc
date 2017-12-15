@@ -438,6 +438,11 @@ rofl_result_t processing_init_eventdev(void){
 	XDPD_DEBUG(DRIVER_NAME"[processing] service %s (%u) for eventdev %s, runstate: %u\n",
 							rte_service_get_name(service_id), service_id, eventdev_name.c_str(), rte_service_runstate_get(service_id));
 
+	rte_service_runstate_set(service_id, 1);
+
+	XDPD_DEBUG(DRIVER_NAME"[processing] service %s (%u) for eventdev %s, runstate: %u\n",
+							rte_service_get_name(service_id), service_id, eventdev_name.c_str(), rte_service_runstate_get(service_id));
+
 	return ROFL_SUCCESS;
 }
 
