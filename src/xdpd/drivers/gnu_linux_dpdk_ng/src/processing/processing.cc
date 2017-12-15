@@ -343,6 +343,7 @@ rofl_result_t processing_init_eventdev(void){
 			return ROFL_FAILURE;
 		}
 
+		/* link up event port and queues */
 		uint8_t queues[] = {0};
 
 		if (rte_event_port_link(eventdev_id, port_id, queues, NULL, sizeof(queues)) < 0) {
@@ -365,6 +366,7 @@ rofl_result_t processing_init_eventdev(void){
 			return ROFL_FAILURE;
 		}
 
+		/* link up event port and queues */
 		uint8_t queues[] = {1};
 
 		if (rte_event_port_link(eventdev_id, port_id, queues, NULL, sizeof(queues)) < 0) {
@@ -372,10 +374,6 @@ rofl_result_t processing_init_eventdev(void){
 			return ROFL_FAILURE;
 		}
 	}
-
-
-	/* link up event ports and queues */
-
 
 	return ROFL_SUCCESS;
 }
@@ -504,6 +502,12 @@ rofl_result_t processing_init(void){
 */
 rofl_result_t processing_run(void){
 
+	/* start event device */
+	if (rte_event_dev_start(eventdev_id) < 0) {
+		XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_dev_start() failed\n", eventdev_name.c_str());
+		return ROFL_FAILURE;
+	}
+
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 		// sanity check
 		if (lcore_id >= RTE_MAX_LCORE) {
@@ -565,7 +569,7 @@ rofl_result_t processing_run(void){
 /*
 * Destroy data structures for processing to work
 */
-rofl_result_t processing_destroy(void){
+rofl_result_t processing_shutdown(void){
 
 	XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down all active cores\n");
 
@@ -578,6 +582,20 @@ rofl_result_t processing_destroy(void){
 			rte_eal_wait_lcore(lcore_id);
 		}
 	}
+
+	XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down event device %s\n", eventdev_name.c_str());
+	if (rte_event_dev_stop(eventdev_id) < 0) {
+		XDPD_ERR(DRIVER_NAME"[processing][shutdown] unable to stop event device %s\n", eventdev_name.c_str());
+		return ROFL_FAILURE;
+	}
+
+	return ROFL_SUCCESS;
+}
+
+/*
+* Destroy data structures for processing to work
+*/
+rofl_result_t processing_destroy(void){
 	return ROFL_SUCCESS;
 }
 

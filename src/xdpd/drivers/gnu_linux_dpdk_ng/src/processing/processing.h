@@ -89,17 +89,17 @@ extern unsigned int running_hash;
 ROFL_BEGIN_DECLS
 
 /**
-* Initialize data structures for processing to work 
+* Initialize data structures for lcores
 */
 rofl_result_t processing_init_lcores(void);
 
 /**
-* Initialize data structures for processing to work
+* Initialize data structures for event device
 */
 rofl_result_t processing_init_eventdev(void);
 
 /**
-* Initialize data structures for processing to work
+* Initialize data structures for processing
 */
 rofl_result_t processing_init(void);
 
@@ -109,7 +109,12 @@ rofl_result_t processing_init(void);
 rofl_result_t processing_run(void);
 
 /**
-* Destroy data structures for processing to work 
+* Terminate processing lcores
+*/
+rofl_result_t processing_shutdown(void);
+
+/**
+* Deallocate data structures for processing
 */
 rofl_result_t processing_destroy(void);
 

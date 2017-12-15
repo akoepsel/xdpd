@@ -329,7 +329,7 @@ hal_result_t hal_driver_destroy(){
 	XDPD_INFO(DRIVER_NAME" Destroying...\n");
 	
 	//Cleanup processing. This must be the first thing to do
-	processing_destroy();
+	processing_shutdown();
 
 	//Initialize PKT_IN
 	pktin_dispatcher_destroy();
@@ -345,6 +345,9 @@ hal_result_t hal_driver_destroy(){
 	
 	//Shutdown ports
 	iface_manager_destroy();
+
+	//Release processing resources
+	processing_destroy();
 
 	return HAL_SUCCESS;
 }
