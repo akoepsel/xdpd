@@ -1517,7 +1517,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			while (not lcores[lcore_id_txqueue[socket_id]].is_tx_lcore) {
 				lcore_id_txqueue[socket_id] = (lcore_id_txqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_txqueue[socket_id] + 1 : 0;
 			}
-			uint16_t lcore_id = lcore_id_rxqueue[socket_id];
+			uint16_t lcore_id = lcore_id_txqueue[socket_id];
 
 			XDPD_INFO(DRIVER_NAME"[ifaces] port_id: %u, tx_queue_id: %u, lcore_id_txqueue[%u]: %u, phyports[%u].nb_tx_queues: %u\n",
 					port_id, tx_queue_id, socket_id, lcore_id_txqueue[socket_id], port_id, phyports[port_id].nb_tx_queues);
