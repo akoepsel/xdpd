@@ -1496,6 +1496,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		for (unsigned int rx_queue_id = 0; rx_queue_id < phyports[port_id].nb_rx_queues; ++rx_queue_id) {
 			uint16_t lcore_id = lcore_id_rxqueue[socket_id];
 			lcore_id_rxqueue[socket_id] = (lcore_id_rxqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_rxqueue[socket_id] + 1 : 0;
+			XDPD_INFO(DRIVER_NAME"[ifaces] port_id: %u, rx_queue_id: %u, lcore_id_rxqueue[%u]: %u\n",
+					port_id, rx_queue_id, socket_id, lcore_id_rxqueue[socket_id]);
 			if (lcore_id >= RTE_MAX_LCORE) {
 				continue;
 			}
@@ -1531,6 +1533,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		for (unsigned int tx_queue_id = 0; tx_queue_id < phyports[port_id].nb_tx_queues; ++tx_queue_id) {
 			uint16_t lcore_id = lcore_id_txqueue[socket_id];
 			lcore_id_txqueue[socket_id] = (lcore_id_txqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_txqueue[socket_id] + 1 : 0;
+			XDPD_INFO(DRIVER_NAME"[ifaces] port_id: %u, tx_queue_id: %u, lcore_id_txqueue[%u]: %u\n",
+					port_id, tx_queue_id, socket_id, lcore_id_txqueue[socket_id]);
 			if (lcore_id >= RTE_MAX_LCORE) {
 				continue;
 			}
