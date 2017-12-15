@@ -533,6 +533,25 @@ rofl_result_t processing_init(void){
 */
 rofl_result_t processing_run(void){
 
+	int ret;
+
+	/* start service cores */
+	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
+		if (not lcores[lcore_id].is_svc_lcore) {
+			continue;
+		}
+		if (rte_service_lcore_start(lcore_id) < 0) {
+			switch (ret) {
+			case -EALREADY: {
+				/* do nothing */
+			} break;
+			default: {
+				XDPD_ERR(DRIVER_NAME"[processing] start of service lcore %u failed\n", lcore_id);
+			} return ROFL_FAILURE;
+			}
+		}
+	}
+
 	/* start event device */
 	if (rte_event_dev_start(eventdev_id) < 0) {
 		XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_dev_start() failed\n", eventdev_name.c_str());
@@ -602,6 +621,8 @@ rofl_result_t processing_run(void){
 */
 rofl_result_t processing_shutdown(void){
 
+	int ret;
+
 	XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down all active cores\n");
 
 	//Stop all cores and wait for them to complete execution tasks
@@ -616,6 +637,23 @@ rofl_result_t processing_shutdown(void){
 
 	XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down event device %s\n", eventdev_name.c_str());
 	rte_event_dev_stop(eventdev_id);
+
+	/* stop service cores */
+	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
+		if (not lcores[lcore_id].is_svc_lcore) {
+			continue;
+		}
+		if (rte_service_lcore_stop(lcore_id) < 0) {
+			switch (ret) {
+			case -EALREADY: {
+				/* do nothing */
+			} break;
+			default: {
+				XDPD_ERR(DRIVER_NAME"[processing] stop of service lcore %u failed\n", lcore_id);
+			};
+			}
+		}
+	}
 
 	return ROFL_SUCCESS;
 }
