@@ -987,7 +987,6 @@ rofl_result_t processing_deschedule_port(switch_port_t* port){
 void processing_dump_core_states(void){
 
 	unsigned int i;
-	wk_core_task_t* core_task;
 	std::stringstream ss;
 	enum rte_lcore_role_t role;
 	enum rte_lcore_state_t state;
@@ -1007,7 +1006,7 @@ void processing_dump_core_states(void){
 			continue;
 		} else
 		if (lcores[i].is_svc_lcore){
-			ss << "  service lcore"<<std::endl;
+			ss << "  service lcore";
 		} else
 		if (lcores[i].is_rx_lcore){
 			ss << "  receive lcore";
