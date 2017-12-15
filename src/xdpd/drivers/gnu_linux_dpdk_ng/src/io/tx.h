@@ -32,7 +32,7 @@ namespace gnu_linux_dpdk_ng {
 // Packet TX
 //
 
-inline void transmit_port_queue_tx_burst(wk_core_task_t *task, uint8_t port_id)
+inline void transmit_port_queue_tx_burst(tx_core_task_t *task, uint8_t port_id)
 {
 	uint16_t ret;
 	struct rte_mbuf **m_table;
@@ -40,7 +40,7 @@ inline void transmit_port_queue_tx_burst(wk_core_task_t *task, uint8_t port_id)
 	uint16_t queue_id;
 	switch_port_t* port;
 
-	queue_id = task->tx_queue_id[port_id];
+	queue_id = task->tx_queues[port_id].queue_id;
 	m_table = (struct rte_mbuf **)task->tx_mbufs[port_id].burst;
 	len = task->tx_mbufs[port_id].len;
 	port = phy_port_mapping[port_id];
@@ -159,7 +159,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 	if (rte_lcore == 0xffffffff) rte_lcore=0;
 
 	//Recover core task
-	wk_core_task_t* tasks = &wk_core_tasks[rte_lcore];
+	tx_core_task_t* tasks = &tx_core_tasks[rte_lcore];
 
 	//Recover burst container (cache)
 	pkt_burst = &tasks->tx_mbufs[port_id];
@@ -291,7 +291,7 @@ tx_pkt_shmem_nf_port(switch_port_t* port, datapacket_t* pkt)
 * KNI
 */
 inline void
-transmit_kni_nf_port_burst(wk_core_task_t *task, uint8_t port_id)
+transmit_kni_nf_port_burst(tx_core_task_t *task, uint8_t port_id)
 {
 	uint16_t ret;
 	struct rte_mbuf **m_table;
@@ -374,10 +374,10 @@ tx_pkt_kni_nf_port(switch_port_t* port, datapacket_t* pkt)
 	assert(mbuf);
 
 	rte_lcore = rte_lcore_id();
-        if (rte_lcore == 0xffffffff) rte_lcore=0;
+	if (rte_lcore == 0xffffffff) rte_lcore=0;
 
-        //Recover core task
-        wk_core_task_t* tasks = &wk_core_tasks[rte_lcore];
+	//Recover core task
+	tx_core_task_t* tasks = &tx_core_tasks[rte_lcore];
 
 	//Recover burst container (cache)
 	pkt_burst = &tasks->tx_mbufs[port_id];
@@ -406,7 +406,7 @@ tx_pkt_kni_nf_port(switch_port_t* port, datapacket_t* pkt)
 
 #endif //GNU_LINUX_DPDK_ENABLE_NF
 
-inline void process_port_tx(wk_core_task_t *task, uint8_t port_id)
+inline void process_port_tx(tx_core_task_t *task, uint8_t port_id)
 {
 	switch_port_t* port;
 

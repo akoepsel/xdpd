@@ -24,10 +24,16 @@
 #define PROCESSING_MAX_PORTS_PER_CORE 32
 #define PROCESSING_MAX_PORTS 128 
 
-typedef struct rte_port_queue {
+typedef struct rx_port_queue {
+	/* all these elemens in rxqueues are enabled by default */
 	uint8_t port_id;
 	uint8_t queue_id;
-} __rte_cache_aligned rte_port_queue_t;
+} __rte_cache_aligned rx_port_queue_t;
+
+typedef struct tx_port_queue {
+	uint8_t enabled;
+	uint8_t queue_id;
+} __rte_cache_aligned tx_port_queue_t;
 
 // Burst definition(queue)
 struct mbuf_burst {
@@ -51,7 +57,7 @@ typedef struct rx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
 
-	rte_port_queue_t rx_queues[PROC_MAX_RX_QUEUES_PER_LCORE];  // (port_id, queue_id) = rx_queues[i] for i in (0...PROC_MAX_RX_QUEUES_PER_LCORE-1)
+	rx_port_queue_t rx_queues[PROC_MAX_RX_QUEUES_PER_LCORE];  // (port_id, queue_id) = rx_queues[i] for i in (0...PROC_MAX_RX_QUEUES_PER_LCORE-1)
 	uint16_t nb_rx_queues; // number of valid fields in rx_queues (0, nb_rx_queues-1)
 } __rte_cache_aligned rx_core_task_t;
 
@@ -62,8 +68,10 @@ typedef struct tx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
 
-	uint16_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id]
-	uint16_t nb_tx_queues;  // number of valid fields in tx_queues (0, nb_tx_queues-1)
+	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id]
+	//These are the TX-queues for ALL ports in the system; index is port_id
+	struct mbuf_burst tx_mbufs[RTE_MAX_ETHPORTS];
+
 } __rte_cache_aligned tx_core_task_t;
 
 /**
@@ -74,7 +82,7 @@ typedef struct wk_core_task {
 	bool active; // task is running
 	
 	uint16_t n_rx_queue;
-	rte_port_queue_t rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
+	rx_port_queue_t rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
 	uint16_t n_tx_port;
 	uint8_t tx_queue_id[RTE_MAX_ETHPORTS]; // tx_queue_id[port_id] = queue_id => transmission queue for outgoing packets
 	uint16_t tx_port_id[RTE_MAX_ETHPORTS];
