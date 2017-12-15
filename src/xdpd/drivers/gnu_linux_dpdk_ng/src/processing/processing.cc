@@ -540,7 +540,7 @@ rofl_result_t processing_run(void){
 		if (not lcores[lcore_id].is_svc_lcore) {
 			continue;
 		}
-		if (rte_service_lcore_start(lcore_id) < 0) {
+		if ((ret = rte_service_lcore_start(lcore_id)) < 0) {
 			switch (ret) {
 			case -EALREADY: {
 				/* do nothing */
@@ -643,7 +643,7 @@ rofl_result_t processing_shutdown(void){
 		if (not lcores[lcore_id].is_svc_lcore) {
 			continue;
 		}
-		if (rte_service_lcore_stop(lcore_id) < 0) {
+		if ((ret = rte_service_lcore_stop(lcore_id)) < 0) {
 			switch (ret) {
 			case -EALREADY: {
 				/* do nothing */
