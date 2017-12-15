@@ -998,7 +998,7 @@ void processing_dump_core_states(void){
 		//Print basic info
 		ss << "\t socket (" << rte_lcore_to_socket_id(i) << ")";
 
-		ss << " core (" << i << ")";
+		ss << " core (" << setw(3) << i << setw(0) << ")";
 
 		//TODO: rwlock (read)
 		if(lcores[i].is_master){
