@@ -1495,6 +1495,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		/* assign all rxqueues to lcores */
 		for (unsigned int rx_queue_id = 0; rx_queue_id < phyports[port_id].nb_rx_queues; ++rx_queue_id) {
 			uint16_t lcore_id = lcore_id_rxqueue[socket_id];
+			lcore_id_rxqueue[socket_id] = (lcore_id_rxqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_rxqueue[socket_id] + 1 : 0;
 			if (lcore_id >= RTE_MAX_LCORE) {
 				continue;
 			}
@@ -1522,7 +1523,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rx_core_tasks[lcore_id].nb_rx_queues++;
 			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, rx queue: %u on socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
 					port_id, rx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id), rx_core_tasks[lcore_id].nb_rx_queues);
-			lcore_id_rxqueue[socket_id] = (lcore_id_rxqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_rxqueue[socket_id] + 1 : 0;
 		}
 
 
@@ -1530,6 +1530,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		/* assign all txqueues to lcores */
 		for (unsigned int tx_queue_id = 0; tx_queue_id < phyports[port_id].nb_tx_queues; ++tx_queue_id) {
 			uint16_t lcore_id = lcore_id_txqueue[socket_id];
+			lcore_id_txqueue[socket_id] = (lcore_id_txqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_txqueue[socket_id] + 1 : 0;
 			if (lcore_id >= RTE_MAX_LCORE) {
 				continue;
 			}
@@ -1555,7 +1556,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			tx_core_tasks[lcore_id].nb_tx_queues++;
 			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, tx queue: %u on socket: %u to lcore: %u on socket: %u, nb_tx_queues: %u\n",
 					port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id), tx_core_tasks[lcore_id].nb_tx_queues);
-			lcore_id_txqueue[socket_id] = (lcore_id_txqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_txqueue[socket_id] + 1 : 0;
 		}
 
 
