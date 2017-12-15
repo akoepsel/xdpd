@@ -425,6 +425,8 @@ rofl_result_t processing_init_eventdev(void){
 			if (not lcores[lcore_id].is_svc_lcore) {
 				continue;
 			}
+			XDPD_DEBUG(DRIVER_NAME"[processing] mapping service %s (%u) for eventdev %s to service lcore %u\n",
+									rte_service_get_name(service_id), service_id, eventdev_name.c_str(), lcore_id);
 			if ((ret = rte_service_map_lcore_set(service_id, lcore_id, /*enable=*/1)) < 0) {
 				XDPD_ERR(DRIVER_NAME"[processing] mapping of service %s (%u) for eventdev %s to service lcore %u failed\n",
 						rte_service_get_name(service_id), service_id, eventdev_name.c_str(), lcore_id);
