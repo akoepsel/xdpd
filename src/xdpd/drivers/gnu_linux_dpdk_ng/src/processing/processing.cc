@@ -603,15 +603,15 @@ rofl_result_t processing_run(void){
 		if (not lcores[lcore_id].is_svc_lcore) {
 			continue;
 		}
-		XDPD_DEBUG(DRIVER_NAME"[processing] starting service lcore %u\n", lcore_id);
+		XDPD_DEBUG(DRIVER_NAME"[processing][run] starting service lcore %u\n", lcore_id);
 		if ((ret = rte_service_lcore_start(lcore_id)) < 0) {
 			switch (ret) {
 			case -EALREADY: {
-				XDPD_ERR(DRIVER_NAME"[processing] start of service lcore %u failed (EALREADY)\n", lcore_id);
+				XDPD_ERR(DRIVER_NAME"[processing][run] start of service lcore %u failed (EALREADY)\n", lcore_id);
 				/* do nothing */
 			} break;
 			default: {
-				XDPD_ERR(DRIVER_NAME"[processing] start of service lcore %u failed\n", lcore_id);
+				XDPD_ERR(DRIVER_NAME"[processing][run] start of service lcore %u failed\n", lcore_id);
 			} return ROFL_FAILURE;
 			}
 		}
@@ -619,7 +619,7 @@ rofl_result_t processing_run(void){
 
 	/* start event device */
 	if (rte_event_dev_start(eventdev_id) < 0) {
-		XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_dev_start() failed\n", eventdev_name.c_str());
+		XDPD_ERR(DRIVER_NAME"[processing][run] initialization of eventdev %s, rte_event_dev_start() failed\n", eventdev_name.c_str());
 		return ROFL_FAILURE;
 	}
 
@@ -640,12 +640,52 @@ rofl_result_t processing_run(void){
 
 		/* transmitting lcores */
 		if (lcores[lcore_id].is_tx_lcore) {
-			// TODO
+
+			// lcore already running?
+			if (processing_core_tasks[lcore_id].active == true) {
+				continue;
+			}
+#if 0
+			// lcore should be in state WAIT
+			if (rte_eal_get_lcore_state(lcore_id) != WAIT) {
+				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring core %u for launching, out of sync (task state != WAIT)\n", lcore_id);
+				continue;
+			}
+#endif
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting TX lcore %u (%u)\n", lcore_id, processing_core_tasks[lcore_id].n_rx_queue);
+#if 0
+			// launch processing task on lcore
+			if (rte_eal_remote_launch(&processing_core_process_packets, NULL, lcore_id)) {
+				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring lcore %u for starting, as it is not waiting for new task\n", lcore_id);
+				continue;
+			}
+#endif
+			processing_core_tasks[lcore_id].active = true;
 		}
 
 		/* receiving lcores */
 		if (lcores[lcore_id].is_rx_lcore) {
-			// TODO
+
+			// lcore already running?
+			if (processing_core_tasks[lcore_id].active == true) {
+				continue;
+			}
+#if 0
+			// lcore should be in state WAIT
+			if (rte_eal_get_lcore_state(lcore_id) != WAIT) {
+				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring core %u for launching, out of sync (task state != WAIT)\n", lcore_id);
+				continue;
+			}
+#endif
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting RX lcore %u (%u)\n", lcore_id, processing_core_tasks[lcore_id].n_rx_queue);
+#if 0
+			// launch processing task on lcore
+			if (rte_eal_remote_launch(&processing_core_process_packets, NULL, lcore_id)) {
+				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring lcore %u for starting, as it is not waiting for new task\n", lcore_id);
+				continue;
+			}
+#endif
+			processing_core_tasks[lcore_id].active = true;
 		}
 
 		/* worker lcores */
@@ -658,15 +698,15 @@ rofl_result_t processing_run(void){
 
 			// lcore should be in state WAIT
 			if (rte_eal_get_lcore_state(lcore_id) != WAIT) {
-				XDPD_ERR(DRIVER_NAME "[processing][init] ignoring core %u for launching, out of sync (task state != WAIT)\n", lcore_id);
+				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring core %u for launching, out of sync (task state != WAIT)\n", lcore_id);
 				continue;
 			}
 
-			XDPD_DEBUG(DRIVER_NAME "[processing][init] starting lcore %u (%u)\n", lcore_id, processing_core_tasks[lcore_id].n_rx_queue);
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting worker lcore %u (%u)\n", lcore_id, processing_core_tasks[lcore_id].n_rx_queue);
 
 			// launch processing task on lcore
 			if (rte_eal_remote_launch(&processing_core_process_packets, NULL, lcore_id)) {
-				XDPD_ERR(DRIVER_NAME "[processing][init] ignoring lcore %u for starting, as it is not waiting for new task\n", lcore_id);
+				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring lcore %u for starting, as it is not waiting for new task\n", lcore_id);
 				continue;
 			}
 
