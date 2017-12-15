@@ -993,7 +993,7 @@ void processing_dump_core_states(void){
 
 	ss << DRIVER_NAME"[processing] Core status:" << std::endl;
 
-	for(i=0;i<RTE_MAX_LCORE;++i){
+	for(i=0;i<rte_lcore_count();++i){
 
 		//Print basic info
 		ss << "\t socket (" << rte_lcore_to_socket_id(i) << ")";
