@@ -1007,20 +1007,20 @@ void processing_dump_core_states(void){
 
 		//TODO: rwlock (read)
 		if(lcores[i].is_master){
-			ss << " Master"<<std::endl;
+			ss << "   master lcore"<<std::endl;
 			continue;
 		} else
 		if (lcores[i].is_svc_lcore){
-			ss << " service lcore";
+			ss << "  service lcore"<<std::endl;
 		} else
 		if (lcores[i].is_rx_lcore){
-			ss << " receive lcore";
+			ss << "  receive lcore";
 		} else
 		if (lcores[i].is_tx_lcore){
 			ss << " transmit lcore";
 		} else
 		if (lcores[i].is_wk_lcore){
-			ss << " worker lcore";
+			ss << "   worker lcore";
 		}
 
 
