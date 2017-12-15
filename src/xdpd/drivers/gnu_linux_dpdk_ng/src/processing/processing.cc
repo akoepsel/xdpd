@@ -31,13 +31,23 @@ using namespace xdpd::gnu_linux_dpdk_ng;
 //
 static unsigned int max_cores;
 
-core_tasks_t processing_core_tasks[RTE_MAX_LCORE];
+
 static unsigned total_num_of_ports = 0;
 
 struct rte_mempool* direct_pools[NB_SOCKETS];
 
 switch_port_t* port_list[PROCESSING_MAX_PORTS];
 static rte_rwlock_t port_list_rwlock;
+
+/*
+ * lcore task structures
+ */
+/* tasks running on RX lcores */
+rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
+/* tasks running on TX lcores */
+tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
+/* tasks running on worker lcores */
+wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
 
 /*
  * lcore related parameters
@@ -57,12 +67,10 @@ std::map<unsigned int, std::set<unsigned int> > wk_lcores;
 
 /* service lcores */
 static uint64_t svc_coremask = 0x0001; // lcore_id = 0
-/* event lcores */
-static uint64_t ev_coremask = 0x0002;  // lcore_id = 1
 /* RX lcores */
-static uint64_t rx_coremask = 0x0004;  // lcore_id = 2
+static uint64_t rx_coremask  = 0x0002; // lcore_id = 1
 /* TX lcores */
-static uint64_t tx_coremask = 0x0008;  // lcore_id = 3
+static uint64_t tx_coremask  = 0x0004; // lcore_id = 2
 
 /*
  * eventdev related parameters
@@ -93,7 +101,6 @@ rofl_result_t processing_init_lcores(void){
 		lcores[j].is_enabled = 0;
 		lcores[j].next_lcore_id = -1;
 		lcores[j].is_wk_lcore = 0;
-		lcores[j].is_ev_lcore = 0;
 		lcores[j].is_rx_lcore = 0;
 		lcores[j].is_tx_lcore = 0;
 	}
@@ -107,12 +114,6 @@ rofl_result_t processing_init_lcores(void){
 	YAML::Node svc_coremask_node = y_config_dpdk_ng["dpdk"]["lcores"]["svc_coremask"];
 	if (svc_coremask_node && svc_coremask_node.IsScalar()) {
 		svc_coremask = svc_coremask_node.as<uint64_t>();
-	}
-
-	/* get ev coremask */
-	YAML::Node ev_coremask_node = y_config_dpdk_ng["dpdk"]["lcores"]["ev_coremask"];
-	if (ev_coremask_node && ev_coremask_node.IsScalar()) {
-		ev_coremask = ev_coremask_node.as<uint64_t>();
 	}
 
 	/* get rx coremask */
@@ -180,13 +181,6 @@ rofl_result_t processing_init_lcores(void){
 				//Increase number of service lcores for this socket
 				svc_lcores[socket_id].insert(lcore_id);
 				s_task.assign("service lcore");
-			} else
-			//event lcore (=event scheduler)
-			if (ev_coremask & ((uint64_t)1 << lcore_id)) {
-				lcores[lcore_id].is_ev_lcore = 1;
-				//Increase number of event lcores for this socket
-				ev_lcores[socket_id].insert(lcore_id);
-				s_task.assign("event lcore");
 			} else
 			//rx lcore (=packet receiving lcore)
 			if (rx_coremask & ((uint64_t)1 << lcore_id)) {
@@ -474,7 +468,9 @@ rofl_result_t processing_init(void){
 
 	//Cleanup
 	memset(direct_pools, 0, sizeof(direct_pools));
-	memset(processing_core_tasks, 0, sizeof(processing_core_tasks));
+	memset(rx_core_tasks, 0, sizeof(rx_core_tasks));
+	memset(tx_core_tasks, 0, sizeof(tx_core_tasks));
+	memset(wk_core_tasks, 0, sizeof(wk_core_tasks));
 	memset(port_list, 0, sizeof(port_list));
 
 	/*
@@ -530,7 +526,7 @@ rofl_result_t processing_init(void){
 				continue;
 			}
 
-			processing_core_tasks[lcore_id].available = true;
+			wk_core_tasks[lcore_id].available = true;
 			XDPD_DEBUG(DRIVER_NAME"[processing] Marking core %u as available\n", lcore_id);
 
 #if 0
@@ -631,66 +627,61 @@ rofl_result_t processing_run(void){
 			continue;
 		}
 
-		/* event scheduler lcores */
-		if (lcores[lcore_id].is_ev_lcore) {
-			// TODO
-		}
-
 		/* transmitting lcores */
 		if (lcores[lcore_id].is_tx_lcore) {
 
 			// lcore already running?
-			if (processing_core_tasks[lcore_id].active == true) {
+			if (wk_core_tasks[lcore_id].active == true) {
 				continue;
 			}
-#if 0
+
 			// lcore should be in state WAIT
 			if (rte_eal_get_lcore_state(lcore_id) != WAIT) {
 				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring core %u for launching, out of sync (task state != WAIT)\n", lcore_id);
 				continue;
 			}
-#endif
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting TX lcore %u (%u)\n", lcore_id, processing_core_tasks[lcore_id].n_rx_queue);
-#if 0
+
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting TX lcore %u (%u)\n", lcore_id, wk_core_tasks[lcore_id].n_rx_queue);
+
 			// launch processing task on lcore
-			if (rte_eal_remote_launch(&processing_core_process_packets, NULL, lcore_id)) {
+			if (rte_eal_remote_launch(&processing_packet_transmission, NULL, lcore_id)) {
 				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring lcore %u for starting, as it is not waiting for new task\n", lcore_id);
 				continue;
 			}
-#endif
-			processing_core_tasks[lcore_id].active = true;
+
+			wk_core_tasks[lcore_id].active = true;
 		}
 
 		/* receiving lcores */
 		if (lcores[lcore_id].is_rx_lcore) {
 
 			// lcore already running?
-			if (processing_core_tasks[lcore_id].active == true) {
+			if (wk_core_tasks[lcore_id].active == true) {
 				continue;
 			}
-#if 0
+
 			// lcore should be in state WAIT
 			if (rte_eal_get_lcore_state(lcore_id) != WAIT) {
 				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring core %u for launching, out of sync (task state != WAIT)\n", lcore_id);
 				continue;
 			}
-#endif
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting RX lcore %u (%u)\n", lcore_id, processing_core_tasks[lcore_id].n_rx_queue);
-#if 0
+
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting RX lcore %u (%u)\n", lcore_id, wk_core_tasks[lcore_id].n_rx_queue);
+
 			// launch processing task on lcore
-			if (rte_eal_remote_launch(&processing_core_process_packets, NULL, lcore_id)) {
+			if (rte_eal_remote_launch(&processing_packet_reception, NULL, lcore_id)) {
 				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring lcore %u for starting, as it is not waiting for new task\n", lcore_id);
 				continue;
 			}
-#endif
-			processing_core_tasks[lcore_id].active = true;
+
+			wk_core_tasks[lcore_id].active = true;
 		}
 
 		/* worker lcores */
 		if (lcores[lcore_id].is_wk_lcore) {
 
 			// lcore already running?
-			if (processing_core_tasks[lcore_id].active == true) {
+			if (wk_core_tasks[lcore_id].active == true) {
 				continue;
 			}
 
@@ -700,7 +691,7 @@ rofl_result_t processing_run(void){
 				continue;
 			}
 
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting worker lcore %u (%u)\n", lcore_id, processing_core_tasks[lcore_id].n_rx_queue);
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting worker lcore %u (%u)\n", lcore_id, wk_core_tasks[lcore_id].n_rx_queue);
 
 			// launch processing task on lcore
 			if (rte_eal_remote_launch(&processing_core_process_packets, NULL, lcore_id)) {
@@ -708,7 +699,7 @@ rofl_result_t processing_run(void){
 				continue;
 			}
 
-			processing_core_tasks[lcore_id].active = true;
+			wk_core_tasks[lcore_id].active = true;
 		}
 	}
 
@@ -730,9 +721,9 @@ rofl_result_t processing_shutdown(void){
 
 	//Stop all cores and wait for them to complete execution tasks
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
-		if(processing_core_tasks[lcore_id].available && processing_core_tasks[lcore_id].active){
+		if(wk_core_tasks[lcore_id].available && wk_core_tasks[lcore_id].active){
 			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down active lcore %u\n", lcore_id);
-			processing_core_tasks[lcore_id].active = false;
+			wk_core_tasks[lcore_id].active = false;
 			//Join core
 			rte_eal_wait_lcore(lcore_id);
 		}
@@ -777,6 +768,28 @@ rofl_result_t processing_destroy(void){
 }
 
 
+
+/**
+ * RX packet reception
+ */
+int processing_packet_reception(void* not_used){
+	while (true) {
+		rte_pause(); // TODO
+	}
+	return (int)ROFL_SUCCESS;
+}
+
+/**
+ * TX packet transmission
+ */
+int processing_packet_transmission(void* not_used){
+	while (true) {
+		rte_pause(); // TODO
+	}
+	return (int)ROFL_SUCCESS;
+}
+
+
 int processing_core_process_packets(void* not_used){
 
 	unsigned int i, l, lcore_id = rte_lcore_id();
@@ -787,7 +800,7 @@ int processing_core_process_packets(void* not_used){
 	//port_bursts_t* port_bursts;
     uint64_t diff_tsc, prev_tsc, cur_tsc;
 	struct rte_mbuf* pkt_burst[IO_IFACE_MAX_PKT_BURST]={0};
-	core_tasks_t* task = &processing_core_tasks[lcore_id];
+	wk_core_task_t* task = &wk_core_tasks[lcore_id];
 
 	//Time to drain in tics
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * IO_BURST_TX_DRAIN_US;
@@ -974,7 +987,7 @@ rofl_result_t processing_deschedule_port(switch_port_t* port){
 void processing_dump_core_states(void){
 
 	unsigned int i;
-	core_tasks_t* core_task;
+	wk_core_task_t* core_task;
 	std::stringstream ss;
 	enum rte_lcore_role_t role;
 	enum rte_lcore_state_t state;
@@ -982,7 +995,7 @@ void processing_dump_core_states(void){
 	ss << DRIVER_NAME"[processing] Core status:" << std::endl;
 
 	for(i=0;i<RTE_MAX_LCORE;++i){
-		core_task = &processing_core_tasks[i];
+		core_task = &wk_core_tasks[i];
 
 		if(i && !core_task->available)
 			continue;

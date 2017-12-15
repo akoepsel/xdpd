@@ -29,7 +29,6 @@ struct lcore {
 	int is_wk_lcore; //1: lcore is used as worker lcore (running the openflow pipeline)
 	int is_rx_lcore; //1: lcore is used for conducting packet RX operations
 	int is_tx_lcore; //1: lcore is used for conducting packet TX operations
-	int is_ev_lcore; //1: lcore is used for conducting software eventdev operations
 	int is_svc_lcore; //1: lcore is service core
 } __rte_cache_aligned;
 

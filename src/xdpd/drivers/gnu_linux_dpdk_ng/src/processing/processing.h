@@ -24,10 +24,10 @@
 #define PROCESSING_MAX_PORTS_PER_CORE 32
 #define PROCESSING_MAX_PORTS 128 
 
-struct lcore_rx_queue {
+typedef struct rte_port_queue {
 	uint8_t port_id;
 	uint8_t queue_id;
-} __rte_cache_aligned;
+} __rte_cache_aligned rte_port_queue_t;
 
 // Burst definition(queue)
 struct mbuf_burst {
@@ -45,26 +45,50 @@ typedef struct port_bursts{
 #endif
 
 /**
-* Core task list
-*/
-typedef struct core_tasks{
-	bool available;
-	bool active;
+ * RX lcore task
+ */
+typedef struct rx_core_task {
+	bool available; // task is runnable on lcore
+	bool active; // task is running
+
+	rte_port_queue_t rx_queues[PROC_MAX_RX_QUEUES_PER_LCORE];  // (port_id, queue_id) = rx_queues[i] for i in (0...PROC_MAX_RX_QUEUES_PER_LCORE-1)
+	uint16_t nb_rx_queues; // number of valid fields in rx_queues (0, nb_rx_queues-1)
+} __rte_cache_aligned rx_core_task_t;
+
+/**
+ * TX lcore task
+ */
+typedef struct tx_core_task {
+	bool available; // task is runnable on lcore
+	bool active; // task is running
+
+	uint16_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id]
+	uint16_t nb_tx_queues;  // number of valid fields in tx_queues (0, nb_tx_queues-1)
+} __rte_cache_aligned tx_core_task_t;
+
+/**
+ * worker lcore task
+ */
+typedef struct wk_core_task {
+	bool available; // task is runnable on lcore
+	bool active; // task is running
 	
 	uint16_t n_rx_queue;
-	struct lcore_rx_queue rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
+	rte_port_queue_t rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
 	uint16_t n_tx_port;
 	uint8_t tx_queue_id[RTE_MAX_ETHPORTS]; // tx_queue_id[port_id] = queue_id => transmission queue for outgoing packets
 	uint16_t tx_port_id[RTE_MAX_ETHPORTS];
 
 	//This are the TX-queues for ALL ports in the system; index is port_id
 	struct mbuf_burst tx_mbufs[RTE_MAX_ETHPORTS];
-} __rte_cache_aligned core_tasks_t;
+} __rte_cache_aligned wk_core_task_t;
 
 /**
 * Processig core tasks 
 */
-extern core_tasks_t processing_core_tasks[RTE_MAX_LCORE];
+extern rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
+extern tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
+extern wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
 extern struct rte_mempool* direct_pools[NB_SOCKETS];
 extern switch_port_t* port_list[PROCESSING_MAX_PORTS];
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
@@ -144,6 +168,16 @@ rofl_result_t processing_deschedule_nf_port(switch_port_t* port);
 * Packet processing routine for cores 
 */
 int processing_core_process_packets(void*);
+
+/**
+ * RX packet reception
+ */
+int processing_packet_reception(void*);
+
+/**
+ * TX packet transmission
+ */
+int processing_packet_transmission(void*);
 
 /**
 * Dump core state

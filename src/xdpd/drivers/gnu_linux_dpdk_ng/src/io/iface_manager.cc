@@ -588,19 +588,19 @@ init_lcore_rx_queues(void)
 
         for (i = 0; i < nb_lcore_params; ++i) {
                 lcore = lcore_params[i].lcore_id;
-                nb_rx_queue = processing_core_tasks[lcore].n_rx_queue;
+                nb_rx_queue = wk_core_tasks[lcore].n_rx_queue;
                 if (nb_rx_queue >= MAX_RX_QUEUE_PER_LCORE) {
                         XDPD_ERR("error: too many queues (%u) for lcore: %u\n",
                                 (unsigned)nb_rx_queue + 1, (unsigned)lcore);
                         return -1;
                 } else {
-                        processing_core_tasks[lcore].rx_queue_list[nb_rx_queue].port_id =
+                        wk_core_tasks[lcore].rx_queue_list[nb_rx_queue].port_id =
                                 lcore_params[i].port_id; // XXX(toanju) this is currently pretty static wrt. port_id
-                        processing_core_tasks[lcore].rx_queue_list[nb_rx_queue].queue_id =
+                        wk_core_tasks[lcore].rx_queue_list[nb_rx_queue].queue_id =
                                 lcore_params[i].queue_id;
-                        processing_core_tasks[lcore].n_rx_queue++; 
+                        wk_core_tasks[lcore].n_rx_queue++;
                 }
-		XDPD_INFO("init_lcore_rx_queue i=%d lcore=%d #lcore_queues=%d\n", i, lcore, processing_core_tasks[lcore].n_rx_queue);
+		XDPD_INFO("init_lcore_rx_queue i=%d lcore=%d #lcore_queues=%d\n", i, lcore, wk_core_tasks[lcore].n_rx_queue);
         }
         return 0;
 }
@@ -928,7 +928,7 @@ switch_port_t *configure_port(uint8_t port_id)
 					       "port=%d\n",
 				 ret, port_id);
 #if 0
-		qconf = &processing_core_tasks[lcore_id];
+		qconf = &wk_core_tasks[lcore_id];
 		qconf->tx_queue_id[port_id] = queueid;
 		queueid++;
 
@@ -986,7 +986,7 @@ switch_port_t *configure_port(uint8_t port_id)
 	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
 		if (rte_lcore_is_enabled(lcore_id) == 0)
 			continue;
-		qconf = &processing_core_tasks[lcore_id];
+		qconf = &wk_core_tasks[lcore_id];
 		printf("\nInitializing rx queues on lcore %u ... ", lcore_id);
 		fflush(stdout);
 		/* init RX queues */
@@ -1020,7 +1020,7 @@ switch_port_t *configure_port(uint8_t port_id)
 	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
 		if (rte_lcore_is_enabled(lcore_id) == 0)
 			continue;
-		qconf = &processing_core_tasks[lcore_id];
+		qconf = &wk_core_tasks[lcore_id];
 
 		XDPD_INFO("\nInitializing rx queues on lcore %u ... ", lcore_id);
 		/* init RX queues */
@@ -1448,7 +1448,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		rte_eth_dev_fw_version_get(port_id, s_fw_version, sizeof(s_fw_version));
 
 		if ((ret = rte_eth_dev_reset(port_id)) < 0) {
-			XDPD_INFO(DRIVER_NAME"[ifaces] skipping physical port: %u (device reset failed) on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
+			XDPD_INFO(DRIVER_NAME"[ifaces] warning on physical port: %u (device reset failed) on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
 			//continue;
 		}
@@ -1501,15 +1501,15 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			unsigned int lcore_id = lcore_id_rxqueue[socket_id];
 
-			uint16_t nb_rx_queue = processing_core_tasks[lcore_id].n_rx_queue;
+			uint16_t nb_rx_queue = wk_core_tasks[lcore_id].n_rx_queue;
 			if (nb_rx_queue >= MAX_RX_QUEUE_PER_LCORE) {
 					XDPD_ERR(DRIVER_NAME"[ifaces] error: too many rx queues (%u) for lcore: %u\n",
 							(unsigned)nb_rx_queue + 1, (unsigned)lcore_id);
 					return ROFL_FAILURE;
 			} else {
-					processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].port_id = port_id;
-					processing_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = rx_queue_id;
-					processing_core_tasks[lcore_id].n_rx_queue++;
+					wk_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].port_id = port_id;
+					wk_core_tasks[lcore_id].rx_queue_list[nb_rx_queue].queue_id = rx_queue_id;
+					wk_core_tasks[lcore_id].n_rx_queue++;
 					XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, rx queue: %u on socket: %u to lcore: %u on socket: %u\n",
 							port_id, rx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
 			}
@@ -1526,9 +1526,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			unsigned int lcore_id = lcore_id_txqueue[socket_id];
 
-			processing_core_tasks[lcore_id].tx_queue_id[port_id] = tx_queue_id;
-			processing_core_tasks[lcore_id].tx_port_id[processing_core_tasks[lcore_id].n_tx_port] = port_id;
-			processing_core_tasks[lcore_id].n_tx_port++;
+			wk_core_tasks[lcore_id].tx_queue_id[port_id] = tx_queue_id;
+			wk_core_tasks[lcore_id].tx_port_id[wk_core_tasks[lcore_id].n_tx_port] = port_id;
+			wk_core_tasks[lcore_id].n_tx_port++;
 			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, tx queue: %u on socket: %u to lcore: %u on socket: %u\n",
 					port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
 		}

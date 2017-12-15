@@ -51,6 +51,11 @@
 #define IO_IFACE_MAX_PKT_BURST 32
 #define IO_MAX_PACKET_SIZE 1518
 
+/* new defines */
+#define PROC_MAX_RX_QUEUES_PER_LCORE 128
+#define PROC_MAX_TX_QUEUES_PER_LCORE 128
+/* end of new defines */
+
 //Bufferpool reservoir(PKT_INs); ideally at least X*max_num_lsis
 #define IO_BUFFERPOOL_RESERVOIR 2048
 
