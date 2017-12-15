@@ -407,7 +407,7 @@ rofl_result_t processing_init_eventdev(void){
 	}
 
 	/* get event device service_id for service core */
-	uint32_t service_id = 0;
+	uint32_t service_id = 0xffffffff;
 	if ((ret = rte_event_dev_service_id_get(eventdev_id, &service_id)) < 0) {
 		switch (ret) {
 		case -ESRCH: {
