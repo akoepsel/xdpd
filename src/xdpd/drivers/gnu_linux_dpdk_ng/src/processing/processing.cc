@@ -529,7 +529,7 @@ rofl_result_t processing_init(void){
 			wk_core_tasks[lcore_id].available = true;
 			XDPD_DEBUG(DRIVER_NAME"[processing] Marking core %u as available\n", lcore_id);
 
-#if 0
+#if 1
 			//Recover CPU socket for the lcore
 			unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
 
