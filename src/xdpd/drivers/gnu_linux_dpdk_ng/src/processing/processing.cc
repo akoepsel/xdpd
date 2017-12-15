@@ -406,6 +406,33 @@ rofl_result_t processing_init_eventdev(void){
 		}
 	}
 
+	/* get event device service_id for service core */
+	uint32_t service_id = 0;
+	if ((ret = rte_event_dev_service_id_get(eventdev_id, &service_id)) < 0) {
+		switch (ret) {
+		case -ESRCH: {
+			/* do nothing: event adapter is not using a service function */
+		} break;
+		default: {
+			/* should never happen */
+		};
+		}
+	} else {
+		for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
+			if (lcore_id >= RTE_MAX_LCORE) {
+				continue;
+			}
+			if (not lcores[lcore_id].is_svc_lcore) {
+				continue;
+			}
+			if ((ret = rte_service_map_lcore_set(service_id, lcore_id, /*enable=*/1)) < 0) {
+				XDPD_ERR(DRIVER_NAME"[processing] mapping of service %s (%u) for eventdev %s to service lcore %u failed\n",
+						rte_service_get_name(service_id), service_id, eventdev_name.c_str(), lcore_id);
+				return ROFL_FAILURE;
+			}
+		}
+	}
+
 	return ROFL_SUCCESS;
 }
 
