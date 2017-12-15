@@ -291,11 +291,15 @@ rofl_result_t processing_init_eventdev(void){
 	memset(&eventdev_conf, 0, sizeof(eventdev_conf));
 	eventdev_conf.nb_event_queues = 2; /* RX =(queue)=> worker =(queue)=> TX */
 	eventdev_conf.nb_event_ports = 0;
+	unsigned int nb_wk_lcores = 0;
+	unsigned int nb_tx_lcores = 0;
 	for (auto it : tx_lcores) {
 		eventdev_conf.nb_event_ports += it.second.size(); /* number of all TX lcores on all NUMA sockets */
+		nb_tx_lcores += it.second.size();
 	}
 	for (auto it : wk_lcores) {
 		eventdev_conf.nb_event_ports += it.second.size(); /* number of all worker lcores on all NUMA sockets */
+		nb_wk_lcores += it.second.size();
 	}
 	if (eventdev_conf.nb_event_ports > eventdev_info.max_event_ports) {
 		XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s failed, too many event ports required\n", eventdev_name.c_str());
@@ -362,7 +366,7 @@ rofl_result_t processing_init_eventdev(void){
 
 
 	/* configure event ports for worker lcores */
-	for (unsigned int port_id = 0; port_id < wk_lcores.size(); port_id++) {
+	for (unsigned int port_id = 0; port_id < nb_wk_lcores; port_id++) {
 		struct rte_event_port_conf port_conf;
 		memset(&port_conf, 0, sizeof(port_conf));
 		port_conf.dequeue_depth = eventdev_conf.nb_event_port_dequeue_depth;
@@ -389,7 +393,7 @@ rofl_result_t processing_init_eventdev(void){
 
 
 	/* configure event ports for TX lcores */
-	for (unsigned int port_id = wk_lcores.size(); port_id < (wk_lcores.size() + tx_lcores.size()); port_id++) {
+	for (unsigned int port_id = nb_wk_lcores; port_id < (nb_wk_lcores + nb_tx_lcores); port_id++) {
 		struct rte_event_port_conf port_conf;
 		memset(&port_conf, 0, sizeof(port_conf));
 		port_conf.dequeue_depth = eventdev_conf.nb_event_port_dequeue_depth;
