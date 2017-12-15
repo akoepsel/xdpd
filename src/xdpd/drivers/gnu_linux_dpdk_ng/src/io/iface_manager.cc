@@ -1504,9 +1504,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 			uint16_t lcore_id = lcore_id_rxqueue[socket_id];
 
-			XDPD_INFO(DRIVER_NAME"[ifaces] port_id: %u, rx_queue_id: %u, lcore_id_rxqueue[%u]: %u, phyports[%u].nb_rx_queues: %u\n",
-					port_id, rx_queue_id, socket_id, lcore_id_rxqueue[socket_id], port_id, phyports[port_id].nb_rx_queues);
-
 			uint16_t index = rx_core_tasks[lcore_id].nb_rx_queues;
 			rx_core_tasks[lcore_id].rx_queues[index].port_id = port_id;
 			rx_core_tasks[lcore_id].rx_queues[index].queue_id = rx_queue_id;
@@ -1529,9 +1526,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				return ROFL_FAILURE;
 			}
 			uint16_t lcore_id = lcore_id_txqueue[socket_id];
-
-			XDPD_INFO(DRIVER_NAME"[ifaces] port_id: %u, tx_queue_id: %u, lcore_id_txqueue[%u]: %u, phyports[%u].nb_tx_queues: %u\n",
-					port_id, tx_queue_id, socket_id, lcore_id_txqueue[socket_id], port_id, phyports[port_id].nb_tx_queues);
 
 			tx_core_tasks[lcore_id].tx_queues[port_id] = tx_queue_id;
 			tx_core_tasks[lcore_id].nb_tx_queues++;
