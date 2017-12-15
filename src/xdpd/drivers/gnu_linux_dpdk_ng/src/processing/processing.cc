@@ -1031,7 +1031,7 @@ void processing_dump_core_states(void){
 				ss << "OFF";
 				break;
 			case ROLE_SERVICE:
-				ss << "SERVICE";
+				ss << "SVC";
 				break;
 			default:
 				assert(0);
