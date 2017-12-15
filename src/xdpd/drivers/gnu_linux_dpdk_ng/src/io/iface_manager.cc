@@ -65,10 +65,21 @@ uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 
 //a set of available NUMA sockets (socket_id)
 static std::set<int> sockets;
+#if 0
 //a map of available logical cores per NUMA socket (set of lcore_id)
 static std::map<unsigned int, std::set<unsigned int> > cores;
-//a set of virtual functions
-static std::set<uint16_t> vfs;
+#endif
+
+/* a map of available event logical cores per NUMA socket (set of lcore_id) */
+extern std::map<unsigned int, std::set<unsigned int> > svc_lcores;
+/* a map of available event logical cores per NUMA socket (set of lcore_id) */
+extern std::map<unsigned int, std::set<unsigned int> > ev_lcores;
+/* a map of available RX logical cores per NUMA socket (set of lcore_id) */
+extern std::map<unsigned int, std::set<unsigned int> > rx_lcores;
+/* a map of available TX logical cores per NUMA socket (set of lcore_id) */
+extern std::map<unsigned int, std::set<unsigned int> > tx_lcores;
+/* a map of available worker logical cores per NUMA socket (set of lcore_id) */
+extern std::map<unsigned int, std::set<unsigned int> > wk_lcores;
 
 // XXX(toanju) these values need a proper configuration
 int port_vf_id[RTE_MAX_ETHPORTS] = {-1, 0, 1, -1, 0, 1, -1, 0, 1};
@@ -1228,7 +1239,7 @@ template<typename T> T iface_manager_get_port_setting_as(const std::string& pci_
 * Discovers logical cores.
 */
 rofl_result_t iface_manager_discover_logical_cores(void){
-
+#if 0
 	//Initialize logical core structure: all lcores disabled
 	for (int j = 0; j < RTE_MAX_LCORE; j++) {
 		lcores[j].socket_id = -1;
@@ -1238,7 +1249,6 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 	}
 	sockets.clear();
 	cores.clear();
-	vfs.clear();
 
 	//Get master lcore
 	unsigned int master_lcore_id = rte_get_master_lcore();
@@ -1279,7 +1289,7 @@ rofl_result_t iface_manager_discover_logical_cores(void){
 				lcores[lcore_id].next_lcore_id,
 				cores[socket_id].size());
 	}
-
+#endif
 	return ROFL_SUCCESS;
 }
 
@@ -1366,7 +1376,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	unsigned int lcore_id_txqueue[RTE_MAX_NUMA_NODES];
 
 	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
-		nb_mbuf[socket_id] = rte_eth_dev_count() * cores.size() * IO_IFACE_MAX_PKT_BURST + cores.size() * MEMPOOL_CACHE_SIZE;
+		nb_mbuf[socket_id] = rte_eth_dev_count() * rx_lcores.size() * IO_IFACE_MAX_PKT_BURST + rx_lcores.size() * MEMPOOL_CACHE_SIZE;
 		lcore_id_rxqueue[socket_id] = -1;
 		lcore_id_txqueue[socket_id] = -1;
 	}
@@ -1406,7 +1416,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		int socket_id = rte_eth_dev_socket_id(port_id);
-		unsigned int nb_rx_queues = cores[socket_id].size() < dev_info.max_rx_queues ? cores[socket_id].size() : dev_info.max_rx_queues;
+		unsigned int nb_rx_queues = rx_lcores[socket_id].size() < dev_info.max_rx_queues ? rx_lcores[socket_id].size() : dev_info.max_rx_queues;
 
 		nb_mbuf[socket_id] += /*rx*/nb_rx_queues * dev_info.rx_desc_lim.nb_max + /*tx*/nb_rx_queues * dev_info.tx_desc_lim.nb_max;
 	}
@@ -1464,22 +1474,21 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			phyports[port_id].is_vf = 1;
 			phyports[port_id].parent_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"));
 			phyports[port_id].vf_id = phyports[phyports[port_id].parent_port_id].nb_vfs++;
-			vfs.insert(port_id);
 			if (phyports[port_id].parent_port_id == port_id) {
 				XDPD_ERR(DRIVER_NAME"[ifaces] unlikely configuration detected: parent port_id == port_id (%u), probably a misconfiguration?\n", port_id);
 			}
 		}
 
 		//number of configured RX queues on device should not exceed number of worker lcores on socket
-		unsigned int nb_rx_queues = cores[socket_id].size() < dev_info.max_rx_queues ? cores[socket_id].size() : dev_info.max_rx_queues;
+		unsigned int nb_rx_queues = rx_lcores[socket_id].size() < dev_info.max_rx_queues ? rx_lcores[socket_id].size() : dev_info.max_rx_queues;
 		//number of configured TX queues on device should not exceed number of worker lcores on socket
-		unsigned int nb_tx_queues = cores[socket_id].size() < dev_info.max_tx_queues ? cores[socket_id].size() : dev_info.max_tx_queues;
+		unsigned int nb_tx_queues = tx_lcores[socket_id].size() < dev_info.max_tx_queues ? tx_lcores[socket_id].size() : dev_info.max_tx_queues;
 
 		phyports[port_id].nb_rx_queues = nb_rx_queues;
 		phyports[port_id].nb_tx_queues = nb_tx_queues;
 
-		XDPD_INFO(DRIVER_NAME"[ifaces] adding physical port: %u on socket: %u with max_rx_queues: %u, rx_queues in use: %u, max_tx_queues: %u, tx_queues in use: %u, available #worker-lcores: %u, driver: %s, firmware: %s, PCI address: %s\n",
-				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, dev_info.max_tx_queues, nb_tx_queues, cores[socket_id].size(), dev_info.driver_name, s_fw_version, s_pci_addr);
+		XDPD_INFO(DRIVER_NAME"[ifaces] adding physical port: %u on socket: %u with max_rx_queues: %u, rx_queues in use: %u, max_tx_queues: %u, tx_queues in use: %u, driver: %s, firmware: %s, PCI address: %s\n",
+				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, dev_info.max_tx_queues, nb_tx_queues, dev_info.driver_name, s_fw_version, s_pci_addr);
 
 		//assign a lcore to all rxqueues
 		for (unsigned int rx_queue_id = 0; rx_queue_id < phyports[port_id].nb_rx_queues; ++rx_queue_id) {
