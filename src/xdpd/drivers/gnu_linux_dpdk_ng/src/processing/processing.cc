@@ -435,6 +435,9 @@ rofl_result_t processing_init_eventdev(void){
 		}
 	}
 
+	XDPD_DEBUG(DRIVER_NAME"[processing] service %s (%u) for eventdev %s, runstate: %u\n",
+							rte_service_get_name(service_id), service_id, eventdev_name.c_str(), rte_service_runstate_get(service_id));
+
 	return ROFL_SUCCESS;
 }
 
@@ -494,7 +497,10 @@ rofl_result_t processing_init(void){
 		enum rte_lcore_role_t role = rte_eal_lcore_role(lcore_id);
 		if(role == ROLE_RTE){
 
-			if(lcore_id == rte_get_master_lcore()){
+			if (lcores[lcore_id].is_master){
+				continue;
+			}
+			if (lcores[lcore_id].is_svc_lcore) {
 				continue;
 			}
 
