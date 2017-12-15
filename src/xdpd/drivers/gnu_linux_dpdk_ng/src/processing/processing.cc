@@ -438,7 +438,18 @@ rofl_result_t processing_init_eventdev(void){
 	XDPD_DEBUG(DRIVER_NAME"[processing] service %s (%u) for eventdev %s, runstate: %u\n",
 							rte_service_get_name(service_id), service_id, eventdev_name.c_str(), rte_service_runstate_get(service_id));
 
-	rte_service_runstate_set(service_id, 1);
+	if ((ret = rte_service_runstate_set(service_id, 1)) < 0) {
+		switch (ret) {
+		case -EINVAL: {
+			XDPD_ERR(DRIVER_NAME"[processing] service %s (%u) for eventdev %s, setting runstate to true failed (EINVAL)\n",
+									rte_service_get_name(service_id), service_id, eventdev_name.c_str());
+		} break;
+		default: {
+			XDPD_ERR(DRIVER_NAME"[processing] service %s (%u) for eventdev %s, setting runstate to true failed\n",
+									rte_service_get_name(service_id), service_id, eventdev_name.c_str());
+		};
+		}
+	}
 
 	XDPD_DEBUG(DRIVER_NAME"[processing] service %s (%u) for eventdev %s, runstate: %u\n",
 							rte_service_get_name(service_id), service_id, eventdev_name.c_str(), rte_service_runstate_get(service_id));
