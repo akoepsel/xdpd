@@ -995,10 +995,6 @@ void processing_dump_core_states(void){
 	ss << DRIVER_NAME"[processing] Core status:" << std::endl;
 
 	for(i=0;i<RTE_MAX_LCORE;++i){
-		core_task = &wk_core_tasks[i];
-
-		if(i && !core_task->available)
-			continue;
 
 		//Print basic info
 		ss << "\t socket (" << rte_lcore_to_socket_id(i) << ")";
