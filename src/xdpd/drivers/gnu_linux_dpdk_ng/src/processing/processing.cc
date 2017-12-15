@@ -369,6 +369,8 @@ rofl_result_t processing_init_eventdev(void){
 		port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
 		port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
+		XDPD_DEBUG(DRIVER_NAME"[processing] initialization of eventdev %s, set up event port %u\n", eventdev_name.c_str(), port_id);
+
 		if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
 			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
 			return ROFL_FAILURE;
@@ -376,6 +378,8 @@ rofl_result_t processing_init_eventdev(void){
 
 		/* link up event port and queues */
 		uint8_t queues[] = {0};
+
+		XDPD_DEBUG(DRIVER_NAME"[processing] initialization of eventdev %s, link event port %u to queue 0\n", eventdev_name.c_str(), port_id);
 
 		if (rte_event_port_link(eventdev_id, port_id, queues, NULL, sizeof(queues)) < 0) {
 			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
@@ -392,6 +396,8 @@ rofl_result_t processing_init_eventdev(void){
 		port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
 		port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
+		XDPD_DEBUG(DRIVER_NAME"[processing] initialization of eventdev %s, set up event port %u\n", eventdev_name.c_str(), port_id);
+
 		if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
 			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
 			return ROFL_FAILURE;
@@ -399,6 +405,8 @@ rofl_result_t processing_init_eventdev(void){
 
 		/* link up event port and queues */
 		uint8_t queues[] = {1};
+
+		XDPD_DEBUG(DRIVER_NAME"[processing] initialization of eventdev %s, link event port %u to queue 1\n", eventdev_name.c_str(), port_id);
 
 		if (rte_event_port_link(eventdev_id, port_id, queues, NULL, sizeof(queues)) < 0) {
 			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
