@@ -584,10 +584,7 @@ rofl_result_t processing_shutdown(void){
 	}
 
 	XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down event device %s\n", eventdev_name.c_str());
-	if (rte_event_dev_stop(eventdev_id) < 0) {
-		XDPD_ERR(DRIVER_NAME"[processing][shutdown] unable to stop event device %s\n", eventdev_name.c_str());
-		return ROFL_FAILURE;
-	}
+	rte_event_dev_stop(eventdev_id);
 
 	return ROFL_SUCCESS;
 }
@@ -596,6 +593,11 @@ rofl_result_t processing_shutdown(void){
 * Destroy data structures for processing to work
 */
 rofl_result_t processing_destroy(void){
+
+	/* release event device */
+	rte_event_dev_close(eventdev_id);
+	eventdev_id = 0;
+
 	return ROFL_SUCCESS;
 }
 
