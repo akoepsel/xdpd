@@ -6,6 +6,7 @@
 #include <rte_rwlock.h>
 #include <rte_eventdev.h>
 #include <rte_bus_vdev.h>
+#include <rte_service.h>
 #include <sstream>
 #include <iomanip>
 #include "assert.h"
@@ -43,21 +44,25 @@ static rte_rwlock_t port_list_rwlock;
  */
 /* a set of available NUMA sockets (socket_id) */
 std::set<int> sockets;
-/* a map of available worker logical cores per NUMA socket (set of lcore_id) */
-std::map<unsigned int, std::set<unsigned int> > wk_lcores;
+/* a map of available event logical cores per NUMA socket (set of lcore_id) */
+std::map<unsigned int, std::set<unsigned int> > svc_lcores;
 /* a map of available event logical cores per NUMA socket (set of lcore_id) */
 std::map<unsigned int, std::set<unsigned int> > ev_lcores;
 /* a map of available RX logical cores per NUMA socket (set of lcore_id) */
 std::map<unsigned int, std::set<unsigned int> > rx_lcores;
 /* a map of available TX logical cores per NUMA socket (set of lcore_id) */
 std::map<unsigned int, std::set<unsigned int> > tx_lcores;
+/* a map of available worker logical cores per NUMA socket (set of lcore_id) */
+std::map<unsigned int, std::set<unsigned int> > wk_lcores;
 
-/* event lcore */
-static uint64_t ev_coremask = 0x0001; // lcore_id = 0
-/* RX lcore */
-static uint64_t rx_coremask = 0x0002; // lcore_id = 1
-/* TX lcore */
-static uint64_t tx_coremask = 0x0004; // lcore_id = 2
+/* service lcores */
+static uint64_t svc_coremask = 0x0001; // lcore_id = 0
+/* event lcores */
+static uint64_t ev_coremask = 0x0002;  // lcore_id = 1
+/* RX lcores */
+static uint64_t rx_coremask = 0x0004;  // lcore_id = 2
+/* TX lcores */
+static uint64_t tx_coremask = 0x0008;  // lcore_id = 3
 
 /*
  * eventdev related parameters
@@ -79,6 +84,8 @@ struct rte_event_dev_config eventdev_conf;
 */
 rofl_result_t processing_init_lcores(void){
 
+	int ret;
+
 	//Initialize logical core structure: all lcores disabled
 	for (int j = 0; j < RTE_MAX_LCORE; j++) {
 		lcores[j].socket_id = -1;
@@ -95,6 +102,12 @@ rofl_result_t processing_init_lcores(void){
 
 	//Get master lcore
 	unsigned int master_lcore_id = rte_get_master_lcore();
+
+	/* get svc coremask */
+	YAML::Node svc_coremask_node = y_config_dpdk_ng["dpdk"]["lcores"]["svc_coremask"];
+	if (svc_coremask_node && svc_coremask_node.IsScalar()) {
+		svc_coremask = svc_coremask_node.as<uint64_t>();
+	}
 
 	/* get ev coremask */
 	YAML::Node ev_coremask_node = y_config_dpdk_ng["dpdk"]["lcores"]["ev_coremask"];
@@ -135,11 +148,11 @@ rofl_result_t processing_init_lcores(void){
 		switch (role) {
 		case ROLE_OFF: {
 			/* skip node, i.e.: do nothing */
-			XDPD_INFO(DRIVER_NAME" skipping lcore: %u on socket: %u, role: OFF\n", lcore_id, socket_id);
+			XDPD_INFO(DRIVER_NAME"[processing] skipping lcore: %u on socket: %u, role: OFF\n", lcore_id, socket_id);
 		} break;
 		case ROLE_SERVICE: {
 			/* skip node, i.e.: do nothing */
-			XDPD_INFO(DRIVER_NAME" skipping lcore: %u on socket: %u, role: SERVICE\n", lcore_id, socket_id);
+			XDPD_INFO(DRIVER_NAME"[processing] skipping lcore: %u on socket: %u, role: SERVICE\n", lcore_id, socket_id);
 		} break;
 		case ROLE_RTE: {
 
@@ -149,6 +162,24 @@ rofl_result_t processing_init_lcores(void){
 			if (lcore_id == master_lcore_id) {
 				lcores[lcore_id].is_master = 1;
 				s_task.assign("master lcore");
+			} else
+			//service lcore (=service cores)
+			if (svc_coremask & ((uint64_t)1 << lcore_id)) {
+				if ((ret = rte_service_lcore_add(lcore_id)) < 0) {
+					switch (ret) {
+					case -EALREADY: {
+						/* do nothing */
+					} break;
+					default: {
+						XDPD_ERR(DRIVER_NAME"[processing] adding lcore %u to service cores failed\n", lcore_id);
+						return ROFL_FAILURE;
+					};
+					}
+				}
+				lcores[lcore_id].is_svc_lcore = 1;
+				//Increase number of service lcores for this socket
+				svc_lcores[socket_id].insert(lcore_id);
+				s_task.assign("service lcore");
 			} else
 			//event lcore (=event scheduler)
 			if (ev_coremask & ((uint64_t)1 << lcore_id)) {
@@ -230,7 +261,7 @@ rofl_result_t processing_init_eventdev(void){
 			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s with args \"%s\" failed (EINVAL)\n", eventdev_name.c_str(), eventdev_args.c_str());
 		} break;
 		case -EEXIST: {
-			XDPD_ERR(DRIVER_NAME"[processing] Processing init: initializing eventdev %s failed (EXIST)\n", eventdev_name.c_str());
+			XDPD_ERR(DRIVER_NAME"[processing] Processing init: initializing eventdev %s failed (EEXIST)\n", eventdev_name.c_str());
 		} break;
 		case -ENOMEM: {
 			XDPD_ERR(DRIVER_NAME"[processing] initialization of eventdev %s with args \"%s\" failed (ENOMEM)\n", eventdev_name.c_str(), eventdev_args.c_str());
@@ -595,7 +626,10 @@ rofl_result_t processing_shutdown(void){
 rofl_result_t processing_destroy(void){
 
 	/* release event device */
-	rte_event_dev_close(eventdev_id);
+	if (rte_event_dev_close(eventdev_id) < 0) {
+		XDPD_ERR(DRIVER_NAME"[processing][shutdown] Unable to stop event device %s\n", eventdev_name.c_str());
+		return ROFL_FAILURE;
+	}
 	eventdev_id = 0;
 
 	return ROFL_SUCCESS;
