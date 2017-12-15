@@ -591,9 +591,11 @@ rofl_result_t processing_run(void){
 		if (not lcores[lcore_id].is_svc_lcore) {
 			continue;
 		}
+		XDPD_DEBUG(DRIVER_NAME"[processing] starting service lcore %u\n", lcore_id);
 		if ((ret = rte_service_lcore_start(lcore_id)) < 0) {
 			switch (ret) {
 			case -EALREADY: {
+				XDPD_ERR(DRIVER_NAME"[processing] start of service lcore %u failed (EALREADY)\n", lcore_id);
 				/* do nothing */
 			} break;
 			default: {
