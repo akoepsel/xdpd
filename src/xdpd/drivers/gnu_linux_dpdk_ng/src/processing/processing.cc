@@ -447,7 +447,7 @@ rofl_result_t processing_init_eventdev(void){
 		}
 	}
 
-	/* enable event device service */
+	/* enable event device service on service lcore */
 	if ((ret = rte_service_runstate_set(service_id, 1)) < 0) {
 		switch (ret) {
 		case -EINVAL: {

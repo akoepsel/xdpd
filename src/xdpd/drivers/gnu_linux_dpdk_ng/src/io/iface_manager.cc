@@ -1438,21 +1438,21 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		rte_eth_dev_fw_version_get(port_id, s_fw_version, sizeof(s_fw_version));
 
 		if ((ret = rte_eth_dev_reset(port_id)) < 0) {
-			XDPD_INFO(DRIVER_NAME" skipping physical port: %u (device reset failed) on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
+			XDPD_INFO(DRIVER_NAME"[ifaces] skipping physical port: %u (device reset failed) on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
 			//continue;
 		}
 
 		// port not specified in configuration file
 		if (not iface_manager_port_exists(s_pci_addr)) {
-			XDPD_INFO(DRIVER_NAME" skipping physical port: %u (not found in configuration, assuming state \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
+			XDPD_INFO(DRIVER_NAME"[ifaces] skipping physical port: %u (not found in configuration, assuming state \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
 			continue;
 		}
 
 		// port disabled in configuration file?
 		if (not iface_manager_get_port_setting_as<bool>(s_pci_addr, "enabled")) {
-			XDPD_INFO(DRIVER_NAME" skipping physical port: %u (port explicitly \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
+			XDPD_INFO(DRIVER_NAME"[ifaces] skipping physical port: %u (port explicitly \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
 			continue;
 		}
@@ -1555,7 +1555,21 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.txmode.offloads = dev_info.tx_offload_capa;
 
 		//configure port
-		if (rte_eth_dev_configure(port_id, nb_rx_queues, nb_tx_queues, &eth_conf) < 0) {
+		if ((ret = rte_eth_dev_configure(port_id, nb_rx_queues, nb_tx_queues, &eth_conf)) < 0) {
+			switch (ret) {
+			case -EINVAL: {
+				XDPD_ERR(DRIVER_NAME"[ifaces] failed to configure port %u: rte_eth_dev_configure() (EINVAL)\n", port_id);
+			} break;
+			case -ENOTSUP: {
+				XDPD_ERR(DRIVER_NAME"[ifaces] failed to configure port %u: rte_eth_dev_configure() (ENOTSUP)\n", port_id);
+			} break;
+			case -EBUSY: {
+				XDPD_ERR(DRIVER_NAME"[ifaces] failed to configure port %u: rte_eth_dev_configure() (EBUSY)\n", port_id);
+			} break;
+			default: {
+				XDPD_ERR(DRIVER_NAME"[ifaces] failed to configure port %u: rte_eth_dev_configure()\n", port_id);
+			};
+			}
 			XDPD_ERR(DRIVER_NAME" failed to configure port: %u, aborting\n", port_id);
 			return ROFL_FAILURE;
 		}
