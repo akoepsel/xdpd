@@ -1048,7 +1048,6 @@ int processing_core_process_packets(void* not_used){
 
 	unsigned int i, lcore_id = rte_lcore_id();
 	uint16_t ev_port_id;
-	uint16_t ev_queue_id;
 	//bool own_port = true;
 	switch_port_t* port;
 	wk_core_task_t* task = &wk_core_tasks[lcore_id];
