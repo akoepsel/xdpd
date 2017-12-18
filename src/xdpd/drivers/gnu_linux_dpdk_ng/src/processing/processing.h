@@ -97,7 +97,8 @@ typedef struct wk_core_task {
 extern rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
 extern tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
 extern wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
-extern struct rte_mempool* direct_pools[NB_SOCKETS];
+extern struct rte_mempool* direct_pools[RTE_MAX_NUMA_NODES];
+extern struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
 extern switch_port_t* port_list[PROCESSING_MAX_PORTS];
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
 

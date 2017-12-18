@@ -34,7 +34,8 @@ static unsigned int max_cores;
 
 static unsigned total_num_of_ports = 0;
 
-struct rte_mempool* direct_pools[NB_SOCKETS];
+struct rte_mempool* direct_pools[RTE_MAX_NUMA_NODES];
+struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
 
 switch_port_t* port_list[PROCESSING_MAX_PORTS];
 static rte_rwlock_t port_list_rwlock;
@@ -53,7 +54,7 @@ wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
  * lcore related parameters
  */
 /* a set of available NUMA sockets (socket_id) */
-std::set<int> sockets;
+std::set<int> numa_nodes;
 /* a map of available event logical cores per NUMA socket (set of lcore_id) */
 std::map<unsigned int, std::set<unsigned int> > svc_lcores;
 /* a map of available event logical cores per NUMA socket (set of lcore_id) */
@@ -85,6 +86,15 @@ uint8_t eventdev_id = 0;
 struct rte_event_dev_info eventdev_info;
 /* event device configuration */
 struct rte_event_dev_config eventdev_conf;
+/* maximum number of event queues per NUMA node: queue[0]=used by workers, queue[1]=used by TX lcores */
+enum event_queue_t {
+	EVENT_QUEUE_WORKERS = 0,
+	EVENT_QUEUE_TXCORES = 1,
+	EVENT_QUEUE_MAX = 2, /* max number of event queues per NUMA node */
+};
+/* event queues on all NUMA nodes */
+#define MAX_NB_EVENT_QUEUES 1
+uint8_t event_queues[RTE_MAX_NUMA_NODES][EVENT_QUEUE_MAX][MAX_NB_EVENT_QUEUES];
 
 
 /*
@@ -104,7 +114,7 @@ rofl_result_t processing_init_lcores(void){
 		lcores[j].is_rx_lcore = 0;
 		lcores[j].is_tx_lcore = 0;
 	}
-	sockets.clear();
+	numa_nodes.clear();
 	wk_lcores.clear();
 
 	//Get master lcore
@@ -134,6 +144,8 @@ rofl_result_t processing_init_lcores(void){
 			continue;
 		}
 		unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
+
+		numa_nodes.insert(socket_id);
 
 		lcores[lcore_id].socket_id = socket_id;
 		lcores[lcore_id].is_enabled = rte_lcore_is_enabled(lcore_id);
@@ -199,8 +211,6 @@ rofl_result_t processing_init_lcores(void){
 			//wk lcore (=worker running openflow pipeline)
 			{
 				lcores[lcore_id].is_wk_lcore = 1;
-				//Store socket_id in sockets
-				sockets.insert(socket_id);
 				//Increase number of worker lcores for this socket
 				wk_lcores[socket_id].insert(lcore_id);
 				s_task.assign("worker lcore");
@@ -283,7 +293,7 @@ rofl_result_t processing_init_eventdev(void){
 
 	/* configure event device */
 	memset(&eventdev_conf, 0, sizeof(eventdev_conf));
-	eventdev_conf.nb_event_queues = 2; /* RX =(queue)=> worker =(queue)=> TX */
+	eventdev_conf.nb_event_queues = 2 * numa_nodes.size(); /* RX(s) =(single queue)=> workers =(single queue)=> TX(s) : 2 queues per NUMA node */
 	eventdev_conf.nb_event_ports = 0;
 	unsigned int nb_wk_lcores = 0;
 	unsigned int nb_tx_lcores = 0;
@@ -310,7 +320,7 @@ rofl_result_t processing_init_eventdev(void){
 			eventdev_conf.nb_event_port_dequeue_depth, eventdev_conf.nb_event_port_enqueue_depth);
 
 	if ((ret = rte_event_dev_configure(eventdev_id, &eventdev_conf)) < 0) {
-		XDPD_ERR(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s, rte_event_dev_configure() failed\n", eventdev_name.c_str());
+		XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_dev_configure() failed\n", eventdev_name.c_str());
 		return ROFL_FAILURE;
 	}
 
@@ -352,63 +362,77 @@ rofl_result_t processing_init_eventdev(void){
 			queue_conf.nb_atomic_order_sequences = eventdev_conf.nb_event_queue_flows;
 		}
 
+		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, queue_id: %u, schedule-type: %u, priority: %u, nb-atomic-flows: %u, nb-atomic-order-sequences: %u\n",
+				eventdev_name.c_str(), queue_id, queue_conf.schedule_type, queue_conf.priority, queue_conf.nb_atomic_flows, queue_conf.nb_atomic_order_sequences);
 		if (rte_event_queue_setup(eventdev_id, queue_id, &queue_conf) < 0) {
-			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s, rte_event_queue_setup() on queue_id: %u failed\n", eventdev_name.c_str(), queue_id);
+			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_queue_setup() on queue_id: %u failed\n", eventdev_name.c_str(), queue_id);
 			return ROFL_FAILURE;
 		}
 	}
 
+	uint8_t queue_id = 0;
+	unsigned int index = 0;
+	/* configure event ports on all active NUMA nodes */
+	for (auto socket_id : numa_nodes) {
 
-	/* configure event ports for worker lcores */
-	for (unsigned int port_id = 0; port_id < nb_wk_lcores; port_id++) {
-		struct rte_event_port_conf port_conf;
-		memset(&port_conf, 0, sizeof(port_conf));
-		port_conf.dequeue_depth = eventdev_conf.nb_event_port_dequeue_depth;
-		port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
-		port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
+		event_queues[socket_id][EVENT_QUEUE_WORKERS][index] = queue_id++;
+		event_queues[socket_id][EVENT_QUEUE_TXCORES][index] = queue_id++;
+		index++;
 
-		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s, set up event port %u\n", eventdev_name.c_str(), port_id);
-
-		if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
-			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+		if (queue_id >= eventdev_conf.nb_event_queues) {
+			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, queue_id %u not valid\n", eventdev_name.c_str(), queue_id);
 			return ROFL_FAILURE;
 		}
 
-		/* link up event port and queues */
-		uint8_t queues[] = {0};
+		/* configure event ports for worker lcores */
+		for (unsigned int port_id = 0; port_id < nb_wk_lcores; port_id++) {
+			struct rte_event_port_conf port_conf;
+			memset(&port_conf, 0, sizeof(port_conf));
+			port_conf.dequeue_depth = eventdev_conf.nb_event_port_dequeue_depth;
+			port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
+			port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
-		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s, link event port %u to queue 0\n", eventdev_name.c_str(), port_id);
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, set up event port %u\n", eventdev_name.c_str(), port_id);
 
-		if (rte_event_port_link(eventdev_id, port_id, queues, NULL, sizeof(queues)) < 0) {
-			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
-			return ROFL_FAILURE;
-		}
-	}
+			if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
+				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+				return ROFL_FAILURE;
+			}
 
+			/* link up event port and queues */
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, link event port %u to queue %u for worker lcores\n",
+					eventdev_name.c_str(), port_id, event_queues[socket_id][EVENT_QUEUE_WORKERS][0]);
 
-	/* configure event ports for TX lcores */
-	for (unsigned int port_id = nb_wk_lcores; port_id < (nb_wk_lcores + nb_tx_lcores); port_id++) {
-		struct rte_event_port_conf port_conf;
-		memset(&port_conf, 0, sizeof(port_conf));
-		port_conf.dequeue_depth = eventdev_conf.nb_event_port_dequeue_depth;
-		port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
-		port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
-
-		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s, set up event port %u\n", eventdev_name.c_str(), port_id);
-
-		if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
-			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
-			return ROFL_FAILURE;
+			if (rte_event_port_link(eventdev_id, port_id, event_queues[socket_id][EVENT_QUEUE_WORKERS], NULL, sizeof(event_queues[socket_id][EVENT_QUEUE_WORKERS])) < 0) {
+				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+				return ROFL_FAILURE;
+			}
 		}
 
-		/* link up event port and queues */
-		uint8_t queues[] = {1};
 
-		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s, link event port %u to queue 1\n", eventdev_name.c_str(), port_id);
+		/* configure event ports for TX lcores */
+		for (unsigned int port_id = nb_wk_lcores; port_id < (nb_wk_lcores + nb_tx_lcores); port_id++) {
+			struct rte_event_port_conf port_conf;
+			memset(&port_conf, 0, sizeof(port_conf));
+			port_conf.dequeue_depth = eventdev_conf.nb_event_port_dequeue_depth;
+			port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
+			port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
-		if (rte_event_port_link(eventdev_id, port_id, queues, NULL, sizeof(queues)) < 0) {
-			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
-			return ROFL_FAILURE;
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, set up event port %u\n", eventdev_name.c_str(), port_id);
+
+			if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
+				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+				return ROFL_FAILURE;
+			}
+
+			/* link up event port and queues */
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev]eventdev %s, link event port %u to queue %u for TX lcores\n",
+					eventdev_name.c_str(), port_id, event_queues[socket_id][EVENT_QUEUE_TXCORES][0]);
+
+			if (rte_event_port_link(eventdev_id, port_id, event_queues[socket_id][EVENT_QUEUE_TXCORES], NULL, sizeof(event_queues[socket_id][EVENT_QUEUE_TXCORES])) < 0) {
+				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+				return ROFL_FAILURE;
+			}
 		}
 	}
 
@@ -468,6 +492,7 @@ rofl_result_t processing_init(void){
 
 	//Cleanup
 	memset(direct_pools, 0, sizeof(direct_pools));
+	memset(indirect_pools, 0, sizeof(indirect_pools));
 	memset(rx_core_tasks, 0, sizeof(rx_core_tasks));
 	memset(tx_core_tasks, 0, sizeof(tx_core_tasks));
 	memset(wk_core_tasks, 0, sizeof(wk_core_tasks));
@@ -531,10 +556,14 @@ rofl_result_t processing_init(void){
 			wk_core_tasks[lcore_id].available = true;
 			XDPD_DEBUG(DRIVER_NAME"[processing][init] marking core %u as available\n", lcore_id);
 
-#if 1
 			//Recover CPU socket for the lcore
 			unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
 
+			/*
+			 * Initialize memory for NUMA socket (socket_id)
+			 */
+
+			/* direct mbufs */
 			if(direct_pools[socket_id] == NULL){
 
 				/**
@@ -553,35 +582,34 @@ rofl_result_t processing_init(void){
 						socket_id);
 
 				if (direct_pools[socket_id] == NULL) {
-					XDPD_INFO(DRIVER_NAME"[processing][init] unable to allocate mempool %s due to error \"%s\"\n", pool_name, rte_strerror(rte_errno));
-					switch (rte_errno) {
-					case E_RTE_NO_CONFIG: {
-
-					} break;
-					case E_RTE_SECONDARY: {
-
-					} break;
-					case EINVAL: {
-
-					} break;
-					case ENOSPC: {
-
-					} break;
-					case EEXIST: {
-
-					} break;
-					case ENOMEM: {
-
-					} break;
-					default: {
-
-					};
-					}
-
-					rte_panic("Cannot init direct mbuf pool for CPU socket: %u\n", socket_id);
+					XDPD_INFO(DRIVER_NAME"[processing][init] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
+					rte_panic("Cannot initialize direct mbuf pool for CPU socket: %u\n", socket_id);
 				}
 			}
-#endif
+
+			/* indirect mbufs */
+			if(indirect_pools[socket_id] == NULL){
+
+				/**
+				*  create the mbuf pool for that socket id
+				*/
+				char pool_name[RTE_MEMPOOL_NAMESIZE];
+				snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_indirect_%u", socket_id);
+				XDPD_INFO(DRIVER_NAME"[processing][init] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
+
+				indirect_pools[socket_id] = rte_pktmbuf_pool_create(
+						pool_name,
+						/*number of elements in pool=*/mbuf_elems_in_pool,
+						/*cache_size=*/0,
+						/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
+						/*data_room_size=*/mbuf_data_room_size,
+						socket_id);
+
+				if (indirect_pools[socket_id] == NULL) {
+					XDPD_INFO(DRIVER_NAME"[processing][init] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
+					rte_panic("Cannot initialize indirect mbuf pool for CPU socket: %u\n", socket_id);
+				}
+			}
 		}
 	}
 	return ROFL_SUCCESS;
