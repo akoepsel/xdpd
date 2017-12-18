@@ -111,7 +111,8 @@ typedef struct wk_core_task {
 	unsigned int socket_id; /* NUMA node socket-id */
 	uint8_t ev_port_id; /* event port-id */
 	uint8_t rx_ev_queue_id; /* event queue-id for receiving events */
-	uint8_t tx_ev_queue_id[RTE_MAX_NUMA_NODES]; /* event queue-id for sending events to the appropriare TX lcore event queue */
+	uint8_t tx_ev_queue_id[RTE_MAX_NUMA_NODES]; /* event queue-id for sending events to the appropriate TX lcore event queue */
+
 
 
 	uint16_t n_rx_queue;

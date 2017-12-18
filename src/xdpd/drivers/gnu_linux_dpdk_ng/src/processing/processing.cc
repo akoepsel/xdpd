@@ -468,6 +468,9 @@ rofl_result_t processing_init_eventdev(void){
 			wk_core_tasks[lcore_id].socket_id = socket_id;
 			wk_core_tasks[lcore_id].ev_port_id = port_id;
 			wk_core_tasks[lcore_id].rx_ev_queue_id = event_queues[socket_id][EVENT_QUEUE_WORKERS];
+			for (auto i : numa_nodes) {
+				wk_core_tasks[lcore_id].tx_ev_queue_id[i] = event_queues[i][EVENT_QUEUE_TXCORES];
+			}
 
 			struct rte_event_port_conf port_conf;
 			memset(&port_conf, 0, sizeof(port_conf));
@@ -495,6 +498,7 @@ rofl_result_t processing_init_eventdev(void){
 		}
 		port_id++;
 	}
+
 
 
 	/* get event device service_id for service core */
@@ -890,7 +894,7 @@ int processing_packet_reception(void* not_used){
 
 	RTE_LOG(INFO, USER1, "run RX task on lcore_id %u\n", lcore_id);
 
-	while (true) {
+	while(likely(task->active)) {
 
 		for (unsigned int index = 0; index < task->nb_rx_queues; ++index) {
 
@@ -966,7 +970,7 @@ int processing_packet_transmission(void* not_used){
 
 	RTE_LOG(INFO, USER1, "run TX task on lcore_id %u\n", lcore_id);
 
-	while (true) {
+	while(likely(task->active)) {
 
 		/* write event to evdev queue "ev-queue-id" via port "ev-port-id" */
 		ev_port_id = task->ev_port_id;
@@ -1036,6 +1040,94 @@ int processing_packet_transmission(void* not_used){
 }
 
 
+int processing_core_process_packets(void* not_used){
+
+	unsigned int i, lcore_id = rte_lcore_id();
+	uint16_t ev_port_id;
+	uint16_t ev_queue_id;
+	//bool own_port = true;
+	switch_port_t* port;
+	wk_core_task_t* task = &wk_core_tasks[lcore_id];
+
+
+	//Parsing and pipeline extra state
+	datapacket_t pkt;
+	datapacket_dpdk_t* pkt_state = create_datapacket_dpdk(&pkt);
+
+	//Init values and assign
+	pkt.platform_state = (platform_datapacket_state_t*)pkt_state;
+	pkt_state->mbuf = NULL;
+
+	//Set flag to active
+	task->active = true;
+
+
+
+	RTE_LOG(INFO, USER1, "run worker task on lcore_id=%d\n", lcore_id);
+
+	while(likely(task->active)) {
+
+		/* write event to evdev queue "ev-queue-id" via port "ev-port-id" */
+		ev_port_id = task->ev_port_id;
+		ev_queue_id = task->rx_ev_queue_id;
+
+		(void)ev_queue_id;
+
+		int timeout = 0;
+		struct rte_event rx_events[PROC_ETH_TX_BURST_SIZE];
+		struct rte_event tx_events[PROC_ETH_TX_BURST_SIZE];
+		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, rx_events, PROC_ETH_TX_BURST_SIZE, timeout);
+
+		for (i = 0; i < nb_rx; i++) {
+			dpdk_port_state_t *ps;
+
+			rte_rwlock_read_lock(&port_list_rwlock);
+			if ((port = port_list[i]) == NULL) {
+				rte_rwlock_read_unlock(&port_list_rwlock);
+				continue;
+			}
+
+			ps = (dpdk_port_state_t *)port->platform_port_state;
+			(void)ps; // just to make gcc happy for now
+
+			int socket_id = rte_eth_dev_socket_id(ps->port_id);
+
+			rte_rwlock_read_unlock(&port_list_rwlock);
+
+			/* TODO: inject into openflow pipeline */
+
+			tx_events[i].flow_id = rx_events[i].mbuf->hash.rss;
+			tx_events[i].op = RTE_EVENT_OP_NEW;
+			tx_events[i].sched_type = RTE_SCHED_TYPE_ATOMIC;
+			tx_events[i].queue_id = task->tx_ev_queue_id[socket_id]; /* use queue-id for outgoing port's NUMA socket */
+			tx_events[i].event_type = RTE_EVENT_TYPE_CPU;
+			tx_events[i].sub_event_type = 0;
+			tx_events[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
+			tx_events[i].mbuf = rx_events[i].mbuf;
+
+			rx_events[i].mbuf->udata64 = 0x0000000000000002; // outgoing port (for testing)
+		}
+
+		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
+		if (nb_tx) {
+			RTE_LOG(INFO, USER1, "%u events enqueued on ev-queue %u via ev-port %u\n", nb_tx, ev_queue_id, ev_port_id);
+		}
+		/* release mbufs not queued in event device */
+		if (nb_tx != nb_rx) {
+			for(i = nb_tx; i < nb_rx; i++) {
+				RTE_LOG(WARNING, USER1, "RX task %u: dropping mbuf[%u] on port %u, queue %u\n", lcore_id, i, ev_port_id, ev_queue_id);
+				rte_pktmbuf_free(tx_events[i].mbuf);
+			}
+		}
+	}
+
+	destroy_datapacket_dpdk(pkt_state);
+
+	return (int)ROFL_SUCCESS;
+}
+
+
+#if 0
 int processing_core_process_packets(void* not_used){
 
 	unsigned int i, l, lcore_id = rte_lcore_id();
@@ -1146,7 +1238,7 @@ int processing_core_process_packets(void* not_used){
 
 	return (int)ROFL_SUCCESS;
 }
-
+#endif
 
 //
 //Port scheduling
