@@ -55,6 +55,7 @@
 #define PROC_MAX_RX_QUEUES_PER_LCORE 128
 #define PROC_MAX_TX_QUEUES_PER_LCORE 128
 #define PROC_ETH_RX_BURST_SIZE 128
+#define PROC_ETH_TX_BURST_SIZE 128
 /* end of new defines */
 
 //Bufferpool reservoir(PKT_INs); ideally at least X*max_num_lsis

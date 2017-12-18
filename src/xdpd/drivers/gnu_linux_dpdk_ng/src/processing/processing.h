@@ -50,6 +50,8 @@ typedef struct port_bursts{
 }port_bursts_t;
 #endif
 
+
+
 /**
  * RX lcore task
  */
@@ -57,10 +59,16 @@ typedef struct rx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
 
-	/* NUMA node socket-id */
-	unsigned int socket_id;
+	/*
+	 * enqueuing on event device
+	 */
+	unsigned int socket_id; /* NUMA node socket-id */
+	uint8_t ev_port_id; /* event port-id */
+	uint8_t tx_ev_queue_id; /* event queue-id for transmitting events to worker cores */
 
-
+	/*
+	 * receiving from ethdevs
+	 */
 	rx_port_queue_t rx_queues[PROC_MAX_RX_QUEUES_PER_LCORE];  // (port_id, queue_id) = rx_queues[i] for i in (0...PROC_MAX_RX_QUEUES_PER_LCORE-1)
 	uint16_t nb_rx_queues; // number of valid fields in rx_queues (0, nb_rx_queues-1)
 } __rte_cache_aligned rx_core_task_t;
@@ -72,14 +80,16 @@ typedef struct tx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
 
-	/* NUMA node socket-id */
-	unsigned int socket_id;
-	/* event queue-id */
-	uint8_t queue_id;
-	/* event port-id */
-	uint8_t port_id;
+	/*
+	 * dequeuing from event device
+	 */
+	unsigned int socket_id; /* NUMA node socket-id */
+	uint8_t ev_port_id; /* event port-id */
+	uint8_t rx_ev_queue_id; /* event queue-id for receiving events */
 
-
+	/*
+	 * transmitting to ethdevs
+	 */
 	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id]
 	//These are the TX-queues for ALL ports in the system; index is port_id
 	struct mbuf_burst tx_mbufs[RTE_MAX_ETHPORTS];
@@ -93,12 +103,10 @@ typedef struct wk_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
 	
-	/* NUMA node socket-id */
-	unsigned int socket_id;
-	/* event queue-id */
-	uint8_t queue_id;
-	/* event port-id */
-	uint8_t port_id;
+	unsigned int socket_id; /* NUMA node socket-id */
+	uint8_t ev_port_id; /* event port-id */
+	uint8_t rx_ev_queue_id; /* event queue-id for receiving events */
+	uint8_t tx_ev_queue_id[RTE_MAX_NUMA_NODES]; /* event queue-id for sending events to the appropriare TX lcore event queue */
 
 
 	uint16_t n_rx_queue;
