@@ -161,11 +161,11 @@ rofl_result_t processing_init_lcores(void){
 		switch (role) {
 		case ROLE_OFF: {
 			/* skip node, i.e.: do nothing */
-			XDPD_INFO(DRIVER_NAME"[processing][init][lcores] skipping lcore: %u on socket: %u, role: OFF\n", lcore_id, socket_id);
+			XDPD_INFO(DRIVER_NAME"[processing][init][lcores] skipping lcore: %3u on socket: %2u, role: OFF\n", lcore_id, socket_id);
 		} break;
 		case ROLE_SERVICE: {
 			/* skip node, i.e.: do nothing */
-			XDPD_INFO(DRIVER_NAME"[processing][init][lcores] skipping lcore: %u on socket: %u, role: SERVICE\n", lcore_id, socket_id);
+			XDPD_INFO(DRIVER_NAME"[processing][init][lcores] skipping lcore: %3u on socket: %2u, role: SERVICE\n", lcore_id, socket_id);
 		} break;
 		case ROLE_RTE: {
 
@@ -184,7 +184,7 @@ rofl_result_t processing_init_lcores(void){
 						/* do nothing */
 					} break;
 					default: {
-						XDPD_ERR(DRIVER_NAME"[processing][init][lcores] adding lcore %u to service cores failed\n", lcore_id);
+						XDPD_ERR(DRIVER_NAME"[processing][init][lcores] adding lcore %3u to service cores failed\n", lcore_id);
 						return ROFL_FAILURE;
 					};
 					}
@@ -216,7 +216,7 @@ rofl_result_t processing_init_lcores(void){
 				s_task.assign("worker lcore");
 			}
 
-			XDPD_INFO(DRIVER_NAME"[processing][init][lcores] adding lcore: %u on socket: %u, enabled: %s, task: %s, next lcore is: %u, #working lcores on this socket: %u\n",
+			XDPD_INFO(DRIVER_NAME"[processing][init][lcores] adding lcore: %3u on socket: %2u, enabled: %s, task: %s, next lcore is: %3u, #working lcores on this socket: %u\n",
 					lcore_id,
 					socket_id,
 					(lcores[lcore_id].is_enabled) ? "yes" : "no",
