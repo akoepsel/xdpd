@@ -222,6 +222,9 @@ rofl_result_t processing_init_lcores(void){
 				//Increase number of worker lcores for this socket
 				wk_lcores[socket_id].insert(lcore_id);
 				s_task.assign("worker lcore");
+			} else
+			{
+				s_task.assign("unused lcore");
 			}
 
 			XDPD_INFO(DRIVER_NAME"[processing][init][lcores] adding lcore: %3u on socket: %2u, enabled: %s, task: %s, next lcore is: %3u, #working lcores on socket(%u): %u\n",
