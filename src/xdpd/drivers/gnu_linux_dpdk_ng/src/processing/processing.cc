@@ -377,7 +377,7 @@ rofl_result_t processing_init_eventdev(void){
 		event_queues[socket_id][EVENT_QUEUE_WORKERS][0] = queue_id++;
 		event_queues[socket_id][EVENT_QUEUE_TXCORES][0] = queue_id++;
 
-		if (queue_id >= eventdev_conf.nb_event_queues) {
+		if (queue_id > eventdev_conf.nb_event_queues) {
 			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, queue_id %u not valid\n", eventdev_name.c_str(), queue_id);
 			return ROFL_FAILURE;
 		}
