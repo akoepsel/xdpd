@@ -943,8 +943,6 @@ int processing_packet_reception(void* not_used){
 							rte_pktmbuf_free(mbufs[i]);
 						}
 					}
-				} else {
-					rte_pause();
 				}
 			}
 			rte_rwlock_read_unlock(&port_list_rwlock);
@@ -1083,6 +1081,11 @@ int processing_core_process_packets(void* not_used){
 		struct rte_event rx_events[PROC_ETH_TX_BURST_SIZE];
 		struct rte_event tx_events[PROC_ETH_TX_BURST_SIZE];
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, rx_events, PROC_ETH_TX_BURST_SIZE, timeout);
+
+		if (nb_rx == 0) {
+			rte_pause();
+			continue;
+		}
 
 		for (i = 0; i < nb_rx; i++) {
 
