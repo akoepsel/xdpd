@@ -57,6 +57,10 @@ typedef struct rx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
 
+	/* NUMA node socket-id */
+	unsigned int socket_id;
+
+
 	rx_port_queue_t rx_queues[PROC_MAX_RX_QUEUES_PER_LCORE];  // (port_id, queue_id) = rx_queues[i] for i in (0...PROC_MAX_RX_QUEUES_PER_LCORE-1)
 	uint16_t nb_rx_queues; // number of valid fields in rx_queues (0, nb_rx_queues-1)
 } __rte_cache_aligned rx_core_task_t;

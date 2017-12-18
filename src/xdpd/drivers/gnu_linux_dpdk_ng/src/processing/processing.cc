@@ -407,6 +407,7 @@ rofl_result_t processing_init_eventdev(void){
 		} else
 		if (lcores[lcore_id].is_rx_lcore) {
 			/* RX core(s) do not receive from an event queue */
+			rx_core_tasks[lcore_id].socket_id = socket_id;
 			continue;
 		} else
 		if (lcores[lcore_id].is_tx_lcore) {
@@ -709,7 +710,7 @@ rofl_result_t processing_run(void){
 				continue;
 			}
 
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting TX lcore %u (%u)\n", lcore_id, wk_core_tasks[lcore_id].n_rx_queue);
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting TX lcore %u on socket (%u)\n", lcore_id, tx_core_tasks[lcore_id].socket_id);
 
 			// launch processing task on lcore
 			if (rte_eal_remote_launch(&processing_packet_transmission, NULL, lcore_id)) {
@@ -734,7 +735,7 @@ rofl_result_t processing_run(void){
 				continue;
 			}
 
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting RX lcore %u (%u)\n", lcore_id, wk_core_tasks[lcore_id].n_rx_queue);
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting RX lcore %u on socket %u\n", lcore_id, rx_core_tasks[lcore_id].socket_id);
 
 			// launch processing task on lcore
 			if (rte_eal_remote_launch(&processing_packet_reception, NULL, lcore_id)) {
@@ -759,7 +760,7 @@ rofl_result_t processing_run(void){
 				continue;
 			}
 
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting worker lcore %u (%u)\n", lcore_id, wk_core_tasks[lcore_id].n_rx_queue);
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting worker lcore %u on socket %u\n", lcore_id, wk_core_tasks[lcore_id].socket_id);
 
 			// launch processing task on lcore
 			if (rte_eal_remote_launch(&processing_core_process_packets, NULL, lcore_id)) {
