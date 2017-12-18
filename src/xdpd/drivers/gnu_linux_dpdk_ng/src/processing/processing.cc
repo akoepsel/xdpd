@@ -1079,6 +1079,11 @@ int processing_core_process_packets(void* not_used){
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, rx_events, PROC_ETH_TX_BURST_SIZE, timeout);
 
 		for (i = 0; i < nb_rx; i++) {
+
+			if (rx_events[i].mbuf == NULL) {
+				continue;
+			}
+
 			dpdk_port_state_t *ps;
 
 			rte_rwlock_read_lock(&port_list_rwlock);
