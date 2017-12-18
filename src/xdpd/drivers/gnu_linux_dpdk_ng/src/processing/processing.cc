@@ -935,7 +935,7 @@ int processing_packet_reception(void* not_used){
 
 				const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
 				if (nb_tx) {
-					RTE_LOG(INFO, USER1, "%u events enqueued on ev-queue %u via ev-port %u\n", nb_tx, ev_queue_id, ev_port_id);
+					RTE_LOG(INFO, USER1, "RX task => %u events enqueued on ev-queue %u via ev-port %u\n", nb_tx, ev_queue_id, ev_port_id);
 				}
 				/* release mbufs not queued in event device */
 				if (nb_tx != nb_rx) {
@@ -981,6 +981,10 @@ int processing_packet_transmission(void* not_used){
 		int timeout = 0;
 		struct rte_event events[PROC_ETH_TX_BURST_SIZE];
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
+
+		if (nb_rx) {
+			RTE_LOG(INFO, USER1, "TX task => %u packets received from ev-port %u, ev-queue %u\n", nb_rx, ev_port_id, ev_queue_id);
+		}
 
 		for (i = 0; i < nb_rx; i++) {
 			switch_port_t* port;
@@ -1115,7 +1119,7 @@ int processing_core_process_packets(void* not_used){
 
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
 		if (nb_tx) {
-			RTE_LOG(INFO, USER1, "%u events enqueued on ev-queue %u via ev-port %u\n", nb_tx, ev_queue_id, ev_port_id);
+			RTE_LOG(INFO, USER1, "worker task => %u events enqueued on ev-queue %u via ev-port %u\n", nb_tx, ev_queue_id, ev_port_id);
 		}
 		/* release mbufs not queued in event device */
 		if (nb_tx != nb_rx) {
