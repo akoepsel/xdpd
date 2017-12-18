@@ -224,12 +224,13 @@ rofl_result_t processing_init_lcores(void){
 				s_task.assign("worker lcore");
 			}
 
-			XDPD_INFO(DRIVER_NAME"[processing][init][lcores] adding lcore: %3u on socket: %2u, enabled: %s, task: %s, next lcore is: %3u, #working lcores on this socket: %u\n",
+			XDPD_INFO(DRIVER_NAME"[processing][init][lcores] adding lcore: %3u on socket: %2u, enabled: %s, task: %s, next lcore is: %3u, #working lcores on socket(%u): %u\n",
 					lcore_id,
 					socket_id,
 					(lcores[lcore_id].is_enabled) ? "yes" : "no",
 					s_task.c_str(),
 					lcores[lcore_id].next_lcore_id,
+					socket_id,
 					wk_lcores[socket_id].size());
 
 		} break;
@@ -402,7 +403,7 @@ rofl_result_t processing_init_eventdev(void){
 	uint8_t port_id = 0;
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 		if (port_id >= eventdev_conf.nb_event_ports) {
-			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, port_id %u not valid\n", eventdev_name.c_str(), port_id);
+			//XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, port_id %u not valid\n", eventdev_name.c_str(), port_id);
 			continue;
 		}
 		if (lcore_id >= RTE_MAX_LCORE) {
