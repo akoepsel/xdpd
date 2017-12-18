@@ -68,6 +68,14 @@ typedef struct tx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
 
+	/* NUMA node socket-id */
+	unsigned int socket_id;
+	/* event queue-id */
+	uint8_t queue_id;
+	/* event port-id */
+	uint8_t port_id;
+
+
 	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id]
 	//These are the TX-queues for ALL ports in the system; index is port_id
 	struct mbuf_burst tx_mbufs[RTE_MAX_ETHPORTS];
@@ -81,6 +89,14 @@ typedef struct wk_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
 	
+	/* NUMA node socket-id */
+	unsigned int socket_id;
+	/* event queue-id */
+	uint8_t queue_id;
+	/* event port-id */
+	uint8_t port_id;
+
+
 	uint16_t n_rx_queue;
 	rx_port_queue_t rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
 	uint16_t n_tx_port;
