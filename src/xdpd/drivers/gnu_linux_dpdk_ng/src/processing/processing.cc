@@ -370,8 +370,9 @@ rofl_result_t processing_init_eventdev(void){
 		}
 	}
 
+
+	/* map event queues for TX/worker lcores on active NUMA nodes */
 	uint8_t queue_id = 0;
-	/* configure event ports on all active NUMA nodes */
 	for (auto socket_id : numa_nodes) {
 
 		event_queues[socket_id][EVENT_QUEUE_WORKERS][0] = queue_id++;
@@ -383,8 +384,9 @@ rofl_result_t processing_init_eventdev(void){
 		}
 	}
 
+
+	/* map event ports for TX/worker lcores on active NUMA nodes */
 	uint8_t port_id = 0;
-	/* detect all lcores and their state */
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 		if (port_id > eventdev_conf.nb_event_ports) {
 			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, port_id %u not valid\n", eventdev_name.c_str(), port_id);
@@ -396,15 +398,19 @@ rofl_result_t processing_init_eventdev(void){
 		unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
 
 		if (lcores[lcore_id].is_master) {
+			/* master core */
 			continue;
 		} else
 		if (lcores[lcore_id].is_svc_lcore) {
+			/* service core(s) */
 			continue;
 		} else
 		if (lcores[lcore_id].is_rx_lcore) {
+			/* RX core(s) do not receive from an event queue */
 			continue;
 		} else
 		if (lcores[lcore_id].is_tx_lcore) {
+			/* TX core(s) read from the associated event queue on their respective NUMA node */
 			tx_core_tasks[lcore_id].socket_id = socket_id;
 			tx_core_tasks[lcore_id].queue_id = event_queues[socket_id][EVENT_QUEUE_TXCORES][0];
 			tx_core_tasks[lcore_id].port_id = port_id;
@@ -423,7 +429,7 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* link up event port and queues */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev]eventdev %s, link event port %u to queue %u for TX lcore %u\n",
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, link event port %u to queue %u for TX lcore %u\n",
 					eventdev_name.c_str(), tx_core_tasks[lcore_id].port_id, tx_core_tasks[lcore_id].queue_id, lcore_id);
 
 			uint8_t queues[] = { tx_core_tasks[lcore_id].queue_id };
@@ -435,6 +441,7 @@ rofl_result_t processing_init_eventdev(void){
 
 		} else
 		if (lcores[lcore_id].is_wk_lcore) {
+			/* worker core(s) read from the associated event queue on their respective NUMA node */
 			wk_core_tasks[lcore_id].socket_id = socket_id;
 			wk_core_tasks[lcore_id].queue_id = event_queues[socket_id][EVENT_QUEUE_WORKERS][0];
 			wk_core_tasks[lcore_id].port_id = port_id;
@@ -465,6 +472,7 @@ rofl_result_t processing_init_eventdev(void){
 		}
 		port_id++;
 	}
+
 
 	/* get event device service_id for service core */
 	uint32_t service_id = 0xffffffff;
