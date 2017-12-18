@@ -481,7 +481,7 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* link up event worker core port and associated queue */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %2u, worker lcore %u, linked to queue_id: %u\n",
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %2u, WK lcore %u, linked to queue_id: %u\n",
 					eventdev_name.c_str(), port_id, lcore_id, wk_core_tasks[lcore_id].rx_ev_queue_id);
 
 			uint8_t queues[] = { wk_core_tasks[lcore_id].rx_ev_queue_id };
