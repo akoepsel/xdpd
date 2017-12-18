@@ -73,6 +73,8 @@ static uint64_t svc_coremask = 0x0001; // lcore_id = 0
 static uint64_t rx_coremask  = 0x0002; // lcore_id = 1
 /* TX lcores */
 static uint64_t tx_coremask  = 0x0004; // lcore_id = 2
+/* WK lcores */
+static uint64_t wk_coremask  = 0x0008; // lcore_id = 4
 
 /*
  * eventdev related parameters
@@ -136,6 +138,12 @@ rofl_result_t processing_init_lcores(void){
 	YAML::Node tx_coremask_node = y_config_dpdk_ng["dpdk"]["lcores"]["tx_coremask"];
 	if (tx_coremask_node && tx_coremask_node.IsScalar()) {
 		tx_coremask = tx_coremask_node.as<uint64_t>();
+	}
+
+	/* get wk coremask */
+	YAML::Node wk_coremask_node = y_config_dpdk_ng["dpdk"]["lcores"]["wk_coremask"];
+	if (wk_coremask_node && wk_coremask_node.IsScalar()) {
+		wk_coremask = wk_coremask_node.as<uint64_t>();
 	}
 
 	/* detect all lcores and their state */
@@ -209,7 +217,7 @@ rofl_result_t processing_init_lcores(void){
 				s_task.assign("TX lcore");
 			} else
 			//wk lcore (=worker running openflow pipeline)
-			{
+			if (wk_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_wk_lcore = 1;
 				//Increase number of worker lcores for this socket
 				wk_lcores[socket_id].insert(lcore_id);
