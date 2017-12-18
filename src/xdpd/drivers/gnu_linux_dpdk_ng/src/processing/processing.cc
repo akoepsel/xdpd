@@ -423,8 +423,8 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* link up event port and queues */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev]eventdev %s, link event port %u to queue %u for TX lcores\n",
-					eventdev_name.c_str(), tx_core_tasks[lcore_id].port_id, tx_core_tasks[lcore_id].queue_id);
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev]eventdev %s, link event port %u to queue %u for TX lcore %u\n",
+					eventdev_name.c_str(), tx_core_tasks[lcore_id].port_id, tx_core_tasks[lcore_id].queue_id, lcore_id);
 
 			uint8_t queues[] = { tx_core_tasks[lcore_id].queue_id };
 
@@ -453,8 +453,8 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* link up event port and queues */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, link event port %u to queue %u for worker lcores\n",
-					eventdev_name.c_str(), wk_core_tasks[lcore_id].port_id, wk_core_tasks[lcore_id].queue_id);
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, link event port %u to queue %u for worker lcore %u\n",
+					eventdev_name.c_str(), wk_core_tasks[lcore_id].port_id, wk_core_tasks[lcore_id].queue_id, lcore_id);
 
 			uint8_t queues[] = { wk_core_tasks[lcore_id].queue_id };
 
