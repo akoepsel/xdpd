@@ -422,7 +422,7 @@ rofl_result_t processing_init_eventdev(void){
 			port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
 			port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, set up event port %u\n", eventdev_name.c_str(), port_id);
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, set up event port %u for RX lcore %u\n", eventdev_name.c_str(), port_id, lcore_id);
 
 			if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
 				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
@@ -444,7 +444,7 @@ rofl_result_t processing_init_eventdev(void){
 			port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
 			port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, set up event port %u\n", eventdev_name.c_str(), port_id);
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, set up event port %u for TX lcore %u\n", eventdev_name.c_str(), port_id, lcore_id);
 
 			if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
 				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
@@ -475,7 +475,7 @@ rofl_result_t processing_init_eventdev(void){
 			port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
 			port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, set up event port %u\n", eventdev_name.c_str(), port_id);
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, set up event port %u for WK lcore %u\n", eventdev_name.c_str(), port_id, lcore_id);
 
 			if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
 				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
@@ -935,7 +935,7 @@ int processing_packet_reception(void* not_used){
 				/* release mbufs not queued in event device */
 				if (nb_tx != nb_rx) {
 					for(i = nb_tx; i < nb_rx; i++) {
-						RTE_LOG(WARNING, EVENTDEV, "RX task %u: dropping mbuf[%u] on port %u, queue %u\n", lcore_id, i, port_id, queue_id);
+						RTE_LOG(WARNING, EVENTDEV, "RX task %u: dropping mbuf[%u] on port %u, queue %u\n", lcore_id, i, ev_port_id, ev_queue_id);
 						rte_pktmbuf_free(mbufs[i]);
 					}
 				}
