@@ -390,7 +390,7 @@ rofl_result_t processing_init_eventdev(void){
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 		if (port_id > eventdev_conf.nb_event_ports) {
 			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, port_id %u not valid\n", eventdev_name.c_str(), port_id);
-			return ROFL_FAILURE;
+			continue;
 		}
 		if (lcore_id >= RTE_MAX_LCORE) {
 			continue;
@@ -479,7 +479,7 @@ rofl_result_t processing_init_eventdev(void){
 
 			/* link up event worker core port and associated queue */
 			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, link event port %u to queue %u for worker lcore %u\n",
-					eventdev_name.c_str(), wk_core_tasks[lcore_id].ev_port_id, wk_core_tasks[lcore_id].tx_ev_queue_id, lcore_id);
+					eventdev_name.c_str(), wk_core_tasks[lcore_id].ev_port_id, wk_core_tasks[lcore_id].rx_ev_queue_id, lcore_id);
 
 			uint8_t queues[] = { wk_core_tasks[lcore_id].rx_ev_queue_id };
 
