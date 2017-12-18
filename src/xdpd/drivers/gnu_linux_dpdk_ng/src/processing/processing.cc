@@ -367,7 +367,7 @@ rofl_result_t processing_init_eventdev(void){
 			queue_conf.nb_atomic_order_sequences = eventdev_conf.nb_event_queue_flows;
 		}
 
-		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, queue_id: %02u, schedule-type: %u, priority: %u, nb-atomic-flows: %u, nb-atomic-order-sequences: %u\n",
+		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, queue_id: %2u, schedule-type: %u, priority: %u, nb-atomic-flows: %u, nb-atomic-order-sequences: %u\n",
 				eventdev_name.c_str(), queue_id, queue_conf.schedule_type, queue_conf.priority, queue_conf.nb_atomic_flows, queue_conf.nb_atomic_order_sequences);
 		if (rte_event_queue_setup(eventdev_id, queue_id, &queue_conf) < 0) {
 			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_queue_setup() on queue_id: %u failed\n", eventdev_name.c_str(), queue_id);
@@ -428,7 +428,7 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* no event queue/port linking for RX cores */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %02u, RX lcore %u\n", eventdev_name.c_str(), port_id, lcore_id);
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %2u, RX lcore %u\n", eventdev_name.c_str(), port_id, lcore_id);
 
 		} else
 		if (lcores[lcore_id].is_tx_lcore) {
@@ -449,7 +449,7 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* link up event TX core port and associated queue */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %02u, linked to queue_id: %u, TX lcore %u\n",
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %2u, linked to queue_id: %u, TX lcore %u\n",
 					eventdev_name.c_str(), port_id, tx_core_tasks[lcore_id].rx_ev_queue_id, lcore_id);
 
 			uint8_t queues[] = { tx_core_tasks[lcore_id].rx_ev_queue_id };
@@ -481,7 +481,7 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* link up event worker core port and associated queue */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %02u, linked to queue_id: %u, worker lcore %u\n",
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %2u, linked to queue_id: %u, worker lcore %u\n",
 					eventdev_name.c_str(), port_id, wk_core_tasks[lcore_id].rx_ev_queue_id, lcore_id);
 
 			uint8_t queues[] = { wk_core_tasks[lcore_id].rx_ev_queue_id };
