@@ -874,7 +874,7 @@ int processing_packet_reception(void* not_used){
 	rx_core_task_t* task = &rx_core_tasks[lcore_id];
 
 	if (task->nb_rx_queues == 0) {
-		RTE_LOG(INFO, XDPD, "lcore %u has no rx-queues assigned, terminating\n", lcore_id);
+		RTE_LOG(INFO, EVENTDEV, "lcore %u has no rx-queues assigned, terminating\n", lcore_id);
 		return ROFL_SUCCESS;
 	}
 
@@ -884,10 +884,10 @@ int processing_packet_reception(void* not_used){
 	for (i = 0; i < task->nb_rx_queues; i++) {
 		port_id = task->rx_queues[i].port_id;
 		queue_id = task->rx_queues[i].queue_id;
-		RTE_LOG(INFO, XDPD, " -- RX lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
+		RTE_LOG(INFO, EVENTDEV, " -- RX lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
 	}
 
-	RTE_LOG(INFO, XDPD, "run RX task on lcore_id %u\n", lcore_id);
+	RTE_LOG(INFO, EVENTDEV, "run RX task on lcore_id %u\n", lcore_id);
 
 	while (true) {
 
@@ -913,7 +913,7 @@ int processing_packet_reception(void* not_used){
 
 				const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, PROC_ETH_RX_BURST_SIZE);
 
-				RTE_LOG(INFO, XDPD, "%u packets received from port %u, queue %u\n", nb_rx, port_id, queue_id);
+				RTE_LOG(INFO, EVENTDEV, "%u packets received from port %u, queue %u\n", nb_rx, port_id, queue_id);
 
 				for (i = 0; i < nb_rx; i++) {
 					event[i].flow_id = mbufs[i]->hash.rss;
@@ -930,7 +930,7 @@ int processing_packet_reception(void* not_used){
 				/* release mbufs not queued in event device */
 				if (nb_tx != nb_rx) {
 					for(i = nb_tx; i < nb_rx; i++) {
-						RTE_LOG(WARNING, XDPD, "RX task %u: dropping mbuf[%u] on port %u, queue %u\n", lcore_id, i, port_id, queue_id);
+						RTE_LOG(WARNING, EVENTDEV, "RX task %u: dropping mbuf[%u] on port %u, queue %u\n", lcore_id, i, port_id, queue_id);
 						rte_pktmbuf_free(mbufs[i]);
 					}
 				}
@@ -958,7 +958,7 @@ int processing_packet_transmission(void* not_used){
 	//Set flag to active
 	task->active = true;
 
-	RTE_LOG(INFO, XDPD, "run TX task on lcore_id %u\n", lcore_id);
+	RTE_LOG(INFO, EVENTDEV, "run TX task on lcore_id %u\n", lcore_id);
 
 	while (true) {
 
@@ -991,7 +991,7 @@ int processing_packet_transmission(void* not_used){
 			assert(out_port_id == ps->port_id);
 
 			if (phyports[out_port_id].socket_id != socket_id) {
-				RTE_LOG(WARNING, XDPD, "TX task %u on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
+				RTE_LOG(WARNING, EVENTDEV, "TX task %u on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
 						lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
 				rte_rwlock_read_unlock(&port_list_rwlock);
 				rte_pktmbuf_free(mbuf);
@@ -1058,7 +1058,7 @@ int processing_core_process_packets(void* not_used){
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * IO_BURST_TX_DRAIN_US;
 
 	if (task->n_rx_queue == 0) {
-		RTE_LOG(INFO, XDPD, "lcore %u has nothing to do\n", lcore_id);
+		RTE_LOG(INFO, EVENTDEV, "lcore %u has nothing to do\n", lcore_id);
 		//return 0;
 	}
 
@@ -1079,7 +1079,7 @@ int processing_core_process_packets(void* not_used){
 	for (i = 0; i < task->n_rx_queue; i++) {
 		port_id = task->rx_queue_list[i].port_id;
 		queue_id = task->rx_queue_list[i].queue_id;
-		RTE_LOG(INFO, XDPD, " -- lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
+		RTE_LOG(INFO, EVENTDEV, " -- lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
 	}
 
 	RTE_LOG(INFO, XDPD, "run task on lcore_id=%d\n", lcore_id);
@@ -1115,7 +1115,7 @@ int processing_core_process_packets(void* not_used){
 					continue;
 				}
 
-				RTE_LOG(INFO, XDPD, "handle tx of core_id=%d, i=%d, ps->port_id=%d, port->name=%s\n", lcore_id, i, ps->port_id, port->name);
+				RTE_LOG(INFO, EVENTDEV, "handle tx of core_id=%d, i=%d, ps->port_id=%d, port->name=%s\n", lcore_id, i, ps->port_id, port->name);
 				// port_bursts = &task->ports[i];
 				//process_port_tx(task, i);
 				rte_pause();
@@ -1168,7 +1168,7 @@ rofl_result_t processing_schedule_port(switch_port_t* port){
 	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
 
 	if (iface_manager_start_port(port) != ROFL_SUCCESS) {
-		XDPD_DEBUG(DRIVER_NAME"[processing][port] Starting port %u (%s)\n", ps->port_id, port->name);
+		XDPD_DEBUG(DRIVER_NAME"[processing][port] Starting port %u (%s) failed\n", ps->port_id, port->name);
 		assert(0);
 		return ROFL_FAILURE;
 	}
