@@ -442,6 +442,7 @@ rofl_result_t processing_init_eventdev(void){
 			/* no event queue/port linking for RX cores */
 			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %2u, rx lcore %u\n", eventdev_name.c_str(), port_id, lcore_id);
 
+			port_id++;
 		} else
 		if (lcores[lcore_id].is_tx_lcore) {
 			/* TX core(s) read from the associated event queue on their respective NUMA node */
@@ -471,6 +472,7 @@ rofl_result_t processing_init_eventdev(void){
 				return ROFL_FAILURE;
 			}
 
+			port_id++;
 		} else
 		if (lcores[lcore_id].is_wk_lcore) {
 			/* worker core(s) read from the associated event queue on their respective NUMA node */
@@ -502,8 +504,9 @@ rofl_result_t processing_init_eventdev(void){
 				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
 				return ROFL_FAILURE;
 			}
+
+			port_id++;
 		}
-		port_id++;
 	}
 
 
