@@ -565,6 +565,7 @@ rofl_result_t processing_init(void){
 	YAML::Node log_level_node = y_config_dpdk_ng["dpdk"]["log_level"];
 	if (log_level_node && log_level_node.IsScalar()) {
 		rte_log_set_global_level(log_level_node.as<uint32_t>());
+		rte_log_set_level(RTE_LOGTYPE_USER1, log_level_node.as<uint32_t>());
 	}
 
 	/*
