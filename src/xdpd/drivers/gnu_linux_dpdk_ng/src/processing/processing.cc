@@ -207,21 +207,21 @@ rofl_result_t processing_init_lcores(void){
 				lcores[lcore_id].is_rx_lcore = 1;
 				//Increase number of RX lcores for this socket
 				rx_lcores[socket_id].insert(lcore_id);
-				s_task.assign("RX lcore");
+				s_task.assign("rx lcore");
 			} else
 			//tx lcore (=packet transmitting lcore)
 			if (tx_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_tx_lcore = 1;
 				//Increase number of TX lcores for this socket
 				tx_lcores[socket_id].insert(lcore_id);
-				s_task.assign("TX lcore");
+				s_task.assign("tx lcore");
 			} else
 			//wk lcore (=worker running openflow pipeline)
 			if (wk_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_wk_lcore = 1;
 				//Increase number of worker lcores for this socket
 				wk_lcores[socket_id].insert(lcore_id);
-				s_task.assign("worker lcore");
+				s_task.assign("wk lcore");
 			} else
 			{
 				s_task.assign("unused lcore");
@@ -405,9 +405,9 @@ rofl_result_t processing_init_eventdev(void){
 	/* map event ports for TX/worker lcores on active NUMA nodes */
 	uint8_t port_id = 0;
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
-		if (port_id >= eventdev_conf.nb_event_ports) {
-			//XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, port_id %u not valid\n", eventdev_name.c_str(), port_id);
-			continue;
+		if (port_id > eventdev_conf.nb_event_ports) {
+			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, port_id %u not valid\n", eventdev_name.c_str(), port_id);
+			break;
 		}
 		if (lcore_id >= RTE_MAX_LCORE) {
 			continue;
