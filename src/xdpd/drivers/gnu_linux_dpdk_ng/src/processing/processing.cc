@@ -919,7 +919,7 @@ int processing_packet_reception(void* not_used){
 				const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, PROC_ETH_RX_BURST_SIZE);
 
 				if (nb_rx) {
-					RTE_LOG(INFO, USER1, "RX task => %u packets received from eth-port %u, eth-queue %u\n", nb_rx, port_id, queue_id);
+					RTE_LOG(INFO, USER1, "RX task %u => %u packets received from eth-port %u, eth-queue %u\n", lcore_id, nb_rx, port_id, queue_id);
 
 					for (i = 0; i < nb_rx; i++) {
 						event[i].flow_id = mbufs[i]->hash.rss;
@@ -934,7 +934,7 @@ int processing_packet_reception(void* not_used){
 
 					const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
 					if (nb_tx) {
-						RTE_LOG(INFO, USER1, "RX task => %u events enqueued on ev-queue %u via ev-port %u\n", nb_tx, ev_queue_id, ev_port_id);
+						RTE_LOG(INFO, USER1, "RX task %u => %u events enqueued on ev-queue %u via ev-port %u\n", lcore_id, nb_tx, ev_queue_id, ev_port_id);
 					}
 					/* release mbufs not queued in event device */
 					if (nb_tx != nb_rx) {
@@ -1073,9 +1073,6 @@ int processing_core_process_packets(void* not_used){
 
 		/* write event to evdev queue "ev-queue-id" via port "ev-port-id" */
 		ev_port_id = task->ev_port_id;
-		ev_queue_id = task->rx_ev_queue_id;
-
-		(void)ev_queue_id;
 
 		int timeout = 0;
 		struct rte_event rx_events[PROC_ETH_TX_BURST_SIZE];
@@ -1086,6 +1083,8 @@ int processing_core_process_packets(void* not_used){
 			rte_pause();
 			continue;
 		}
+
+		RTE_LOG(INFO, USER1, "worker task %u => %u packets received from ev-port %u\n", lcore_id, nb_rx, ev_port_id);
 
 		for (i = 0; i < nb_rx; i++) {
 
@@ -1124,12 +1123,12 @@ int processing_core_process_packets(void* not_used){
 
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
 		if (nb_tx) {
-			RTE_LOG(INFO, USER1, "worker task => %u events enqueued on ev-queue %u via ev-port %u\n", nb_tx, ev_queue_id, ev_port_id);
+			RTE_LOG(INFO, USER1, "worker task %u => %u events enqueued via ev-port %u\n", lcore_id, nb_tx, ev_port_id);
 		}
 		/* release mbufs not queued in event device */
 		if (nb_tx != nb_rx) {
 			for(i = nb_tx; i < nb_rx; i++) {
-				RTE_LOG(WARNING, USER1, "RX task %u: dropping mbuf[%u] on port %u, queue %u\n", lcore_id, i, ev_port_id, ev_queue_id);
+				RTE_LOG(WARNING, USER1, "worker task %u => dropping mbuf[%u] via ev-port %u to ev-queue %u\n", lcore_id, i, ev_port_id, tx_events[i].queue_id);
 				rte_pktmbuf_free(tx_events[i].mbuf);
 			}
 		}
