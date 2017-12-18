@@ -913,6 +913,8 @@ int processing_packet_reception(void* not_used){
 
 				const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, PROC_ETH_RX_BURST_SIZE);
 
+				RTE_LOG(INFO, XDPD, "%u packets received from port %u, queue %u\n", nb_rx, port_id, queue_id);
+
 				for (i = 0; i < nb_rx; i++) {
 					event[i].flow_id = mbufs[i]->hash.rss;
 					event[i].op = RTE_EVENT_OP_NEW;
