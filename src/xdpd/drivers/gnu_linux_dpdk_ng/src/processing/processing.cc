@@ -929,6 +929,9 @@ int processing_packet_reception(void* not_used){
 				}
 
 				const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
+				if (nb_tx) {
+					RTE_LOG(INFO, EVENTDEV, "%u events enqueued on ev-queue %u via ev-port %u\n", nb_tx, ev_queue_id, ev_port_id);
+				}
 				/* release mbufs not queued in event device */
 				if (nb_tx != nb_rx) {
 					for(i = nb_tx; i < nb_rx; i++) {
