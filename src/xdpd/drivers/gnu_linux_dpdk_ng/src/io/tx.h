@@ -34,6 +34,7 @@ namespace gnu_linux_dpdk_ng {
 
 inline void transmit_port_queue_tx_burst(tx_core_task_t *task, uint8_t port_id)
 {
+#if 0
 	uint16_t ret;
 	struct rte_mbuf **m_table;
 	unsigned len;
@@ -69,6 +70,7 @@ inline void transmit_port_queue_tx_burst(tx_core_task_t *task, uint8_t port_id)
 			rte_pktmbuf_free(m_table[ret]);
 		} while (++ret < len);
 	}
+#endif
 }
 
 #if 0
@@ -145,7 +147,7 @@ inline void send_single_packet(struct rte_mbuf *m, uint8_t port)
 
 inline void
 tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
-
+#if 0
 	struct rte_mbuf* mbuf;
 	struct mbuf_burst* pkt_burst;
 	unsigned int port_id, len, rte_lcore;
@@ -181,6 +183,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 	pkt_burst->len = len;
 
 	return;
+#endif
 }
 
 
@@ -194,7 +197,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 */
 void inline
 flush_shmem_nf_port(switch_port_t* port, rte_ring* queue, struct mbuf_burst* burst){
-
+#if 0
 	unsigned ret;
 #ifdef ENABLE_DPDK_SECONDARY_SEMAPHORE
 	uint32_t tmp, next_tmp;
@@ -245,11 +248,13 @@ flush_shmem_nf_port(switch_port_t* port, rte_ring* queue, struct mbuf_burst* bur
 
 	//Reset queue size
 	burst->len = 0;
+#endif
 }
 
 inline void
 tx_pkt_shmem_nf_port(switch_port_t* port, datapacket_t* pkt)
 {
+#if 0
 	struct mbuf_burst* pkt_burst;
 	unsigned int len, rte_lcore;
 
@@ -285,6 +290,7 @@ tx_pkt_shmem_nf_port(switch_port_t* port, datapacket_t* pkt)
 	}
 
 	pkt_burst->len = len;
+#endif
 }
 
 /**
@@ -293,6 +299,7 @@ tx_pkt_shmem_nf_port(switch_port_t* port, datapacket_t* pkt)
 inline void
 transmit_kni_nf_port_burst(tx_core_task_t *task, uint8_t port_id)
 {
+#if 0
 	uint16_t ret;
 	struct rte_mbuf **m_table;
 	unsigned len;
@@ -326,11 +333,13 @@ transmit_kni_nf_port_burst(tx_core_task_t *task, uint8_t port_id)
 			rte_pktmbuf_free(m_table[ret]);
 		} while (++ret < len);
 	}
+#endif
 }
 
 inline void
 flush_kni_nf_port_burst(switch_port_t* port, unsigned int port_id, struct mbuf_burst* queue)
 {
+#if 0
 	unsigned ret;
 
 	if( queue->len == 0 || unlikely((port->up == false)) ){
@@ -358,11 +367,13 @@ flush_kni_nf_port_burst(switch_port_t* port, unsigned int port_id, struct mbuf_b
 
 	//Reset queue size
 	queue->len = 0;
+#endif
 }
 
 inline void
 tx_pkt_kni_nf_port(switch_port_t* port, datapacket_t* pkt)
 {
+#if 0
 	struct rte_mbuf* mbuf;
 	struct mbuf_burst* pkt_burst;
 	unsigned int port_id, len, rte_lcore;
@@ -402,6 +413,7 @@ tx_pkt_kni_nf_port(switch_port_t* port, datapacket_t* pkt)
 	pkt_burst->len = len;
 
 	return;
+#endif
 }
 
 #endif //GNU_LINUX_DPDK_ENABLE_NF

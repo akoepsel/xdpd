@@ -33,13 +33,17 @@ typedef struct rx_port_queue {
 typedef struct tx_port_queue {
 	uint8_t enabled;
 	uint8_t queue_id;
+	struct rte_mbuf *tx_pkts[PROC_ETH_TX_BURST_SIZE];
+	unsigned int nb_tx_pkts;
 } __rte_cache_aligned tx_port_queue_t;
 
+#if 0
 // Burst definition(queue)
 struct mbuf_burst {
 	unsigned len;
 	struct rte_mbuf *burst[IO_IFACE_MAX_PKT_BURST];
 };
+#endif
 
 #if 0 /* XXX(toanju) disable queues for now */
 // Port queues
@@ -90,10 +94,11 @@ typedef struct tx_core_task {
 	/*
 	 * transmitting to ethdevs
 	 */
-	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id]
+	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id] => for all ports in the system
+#if 0
 	//These are the TX-queues for ALL ports in the system; index is port_id
 	struct mbuf_burst tx_mbufs[RTE_MAX_ETHPORTS];
-
+#endif
 } __rte_cache_aligned tx_core_task_t;
 
 /**
@@ -115,8 +120,10 @@ typedef struct wk_core_task {
 	uint8_t tx_queue_id[RTE_MAX_ETHPORTS]; // tx_queue_id[port_id] = queue_id => transmission queue for outgoing packets
 	uint16_t tx_port_id[RTE_MAX_ETHPORTS];
 
+#if 0
 	//This are the TX-queues for ALL ports in the system; index is port_id
 	struct mbuf_burst tx_mbufs[RTE_MAX_ETHPORTS];
+#endif
 } __rte_cache_aligned wk_core_task_t;
 
 /**

@@ -975,7 +975,6 @@ int processing_packet_transmission(void* not_used){
 		(void)ev_queue_id;
 
 		int timeout = 0;
-		struct rte_mbuf* mbufs[PROC_ETH_TX_BURST_SIZE];
 		struct rte_event events[PROC_ETH_TX_BURST_SIZE];
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
 
@@ -984,8 +983,7 @@ int processing_packet_transmission(void* not_used){
 			dpdk_port_state_t *ps;
 
 			/* process mbuf using events[i].queue_id as pipeline stage */
-			struct rte_mbuf *mbuf = events[i].mbuf;
-			out_port_id = (uint32_t)(mbuf->udata64 & 0x00000000ffffffff);
+			out_port_id = (uint32_t)(events[i].mbuf->udata64 & 0x00000000ffffffff);
 
 			rte_rwlock_read_lock(&port_list_rwlock);
 			if ((port = port_list[out_port_id]) == NULL) {
@@ -997,58 +995,41 @@ int processing_packet_transmission(void* not_used){
 
 			assert(out_port_id == ps->port_id);
 
+			rte_rwlock_read_unlock(&port_list_rwlock);
+
 			if (phyports[out_port_id].socket_id != socket_id) {
 				RTE_LOG(WARNING, USER1, "TX task %u on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
 						lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
-				rte_rwlock_read_unlock(&port_list_rwlock);
-				rte_pktmbuf_free(mbuf);
-				continue;
-			}
-
-			mbufs[0] = mbuf;
-
-			uint16_t nb_tx = rte_eth_tx_burst(ps->port_id, task->tx_queues[ps->port_id].queue_id, &mbufs[0], 1);
-			if (nb_tx != 1) {
-				RTE_LOG(WARNING, USER1, "TX task %u: dropping events[%u].mbuf on port %u, queue %u\n", lcore_id, i, ev_port_id, ev_queue_id);
 				rte_pktmbuf_free(events[i].mbuf);
+				continue;
 			}
+
+			if (unlikely(not task->tx_queues[out_port_id].enabled)) {
+				rte_pktmbuf_free(events[i].mbuf);
+				continue;
+			}
+
+			unsigned int nb_tx_pkts = task->tx_queues[out_port_id].nb_tx_pkts;
+			task->tx_queues[out_port_id].tx_pkts[nb_tx_pkts] = events[i].mbuf;
+			task->tx_queues[out_port_id].nb_tx_pkts++;
+			assert(task->tx_queues[out_port_id].nb_tx_pkts <= PROC_ETH_TX_BURST_SIZE);
 		}
-#if 0
-		//Handle physical ports
-		for (i = 0, l = 0; l < total_num_of_ports && likely(i < PROCESSING_MAX_PORTS); ++i) {
 
-			switch_port_t *port;
-			dpdk_port_state_t *ps;
-
-			rte_rwlock_read_lock(&port_list_rwlock);
-			if ((port = port_list[i]) == NULL) {
-				rte_rwlock_read_unlock(&port_list_rwlock);
+		for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id) {
+			if ((not task->tx_queues[port_id].enabled) || (task->tx_queues[port_id].nb_tx_pkts == 0)) {
 				continue;
 			}
 
-			l++;
-			ps = (dpdk_port_state_t *)port->platform_port_state;
-
-			assert(i == ps->port_id);
-
-			if (task->tx_mbufs[i].len == 0) {
-				rte_rwlock_read_unlock(&port_list_rwlock);
-				continue;
+			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, task->tx_queues[port_id].tx_pkts, task->tx_queues[port_id].nb_tx_pkts);
+			if (nb_tx != task->tx_queues[port_id].nb_tx_pkts) {
+				for(i = nb_tx; i < task->tx_queues[port_id].nb_tx_pkts; i++) {
+					RTE_LOG(WARNING, USER1, "TX task %u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
+							lcore_id, port_id, i, port_id, task->tx_queues[port_id].queue_id);
+					rte_pktmbuf_free(task->tx_queues[port_id].tx_pkts[i]);
+				}
 			}
-
-			if (unlikely(task->tx_queues[ps->port_id].enabled == 0)) {
-				/* TODO: drop packet */
-				rte_rwlock_read_unlock(&port_list_rwlock);
-				continue;
-			}
-
-			RTE_LOG(INFO, XDPD, "handle tx of core_id=%d, i=%d, ps->port_id=%d, port->name=%s\n", lcore_id, i, ps->port_id, port->name);
-			// port_bursts = &task->ports[i];
-			process_port_tx(task, i);
-			task->tx_mbufs[i].len = 0;
-			rte_rwlock_read_unlock(&port_list_rwlock);
+			task->tx_queues[port_id].nb_tx_pkts = 0;
 		}
-#endif
 	}
 
 	return (int)ROFL_SUCCESS;
@@ -1095,7 +1076,7 @@ int processing_core_process_packets(void* not_used){
 		RTE_LOG(INFO, USER1, " -- lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
 	}
 
-	RTE_LOG(INFO, XDPD, "run task on lcore_id=%d\n", lcore_id);
+	RTE_LOG(INFO, USER1, "run task on lcore_id=%d\n", lcore_id);
 
 	while(likely(task->active)){
 
@@ -1122,17 +1103,19 @@ int processing_core_process_packets(void* not_used){
 				ps = (dpdk_port_state_t *)port->platform_port_state;
 
 				assert(i == ps->port_id);
-
+#if 0
 				if (task->tx_mbufs[i].len == 0) {
 					rte_rwlock_read_unlock(&port_list_rwlock);
 					continue;
 				}
-
+#endif
 				RTE_LOG(INFO, USER1, "handle tx of core_id=%d, i=%d, ps->port_id=%d, port->name=%s\n", lcore_id, i, ps->port_id, port->name);
 				// port_bursts = &task->ports[i];
 				//process_port_tx(task, i);
 				rte_pause();
+#if 0
 				task->tx_mbufs[i].len = 0;
+#endif
 				rte_rwlock_read_unlock(&port_list_rwlock);
 			}
 
