@@ -130,7 +130,7 @@ typedef struct wk_core_task {
 } __rte_cache_aligned wk_core_task_t;
 
 /**
-* Processig core tasks 
+* Processing tasks: receive, transmit, worker
 */
 extern rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
 extern tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
@@ -141,6 +141,13 @@ extern switch_port_t* port_list[PROCESSING_MAX_PORTS];
 extern rte_rwlock_t port_list_rwlock;
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
 extern uint8_t eventdev_id;
+/* maximum number of event queues per NUMA node: queue[0]=used by workers, queue[1]=used by TX lcores */
+enum event_queue_t {
+	EVENT_QUEUE_WORKERS = 0,
+	EVENT_QUEUE_TXCORES = 1,
+	EVENT_QUEUE_MAX = 2, /* max number of event queues per NUMA node */
+};
+extern uint8_t event_queues[RTE_MAX_NUMA_NODES][EVENT_QUEUE_MAX];
 
 /**
 * Total number of physical ports (scheduled, so usable by the I/O)

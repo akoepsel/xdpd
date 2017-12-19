@@ -275,11 +275,16 @@ static inline void output_single_packet(datapacket_t* pkt, datapacket_dpdk_t* pa
 		rte_pktmbuf_free(((datapacket_dpdk_t*)pkt->platform_state)->mbuf);
 	}
 
-
 	if( ((datapacket_dpdk_t*)pkt->platform_state)->packet_in_bufferpool ){
 		//Release buffer only if the packet is stored there
 		xdpd::gnu_linux::bufferpool::release_buffer(pkt);
 	}
+
+#if 0 // ???
+	if( ((datapacket_dpdk_t*)pkt->platform_state) ){
+		destroy_datapacket_dpdk((datapacket_dpdk_t*)pkt->platform_state);
+	}
+#endif
 }
 
 /**

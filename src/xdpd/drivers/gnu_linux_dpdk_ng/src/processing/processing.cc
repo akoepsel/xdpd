@@ -89,12 +89,7 @@ uint8_t eventdev_id = 0;
 struct rte_event_dev_info eventdev_info;
 /* event device configuration */
 struct rte_event_dev_config eventdev_conf;
-/* maximum number of event queues per NUMA node: queue[0]=used by workers, queue[1]=used by TX lcores */
-enum event_queue_t {
-	EVENT_QUEUE_WORKERS = 0,
-	EVENT_QUEUE_TXCORES = 1,
-	EVENT_QUEUE_MAX = 2, /* max number of event queues per NUMA node */
-};
+
 /* event queues on all NUMA nodes */
 uint8_t event_queues[RTE_MAX_NUMA_NODES][EVENT_QUEUE_MAX];
 
