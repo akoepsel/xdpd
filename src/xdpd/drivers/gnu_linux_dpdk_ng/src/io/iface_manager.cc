@@ -1481,8 +1481,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		//number of configured RX queues on device should not exceed number of worker lcores on socket
 		unsigned int nb_rx_queues = rx_lcores[socket_id].size() < dev_info.max_rx_queues ? rx_lcores[socket_id].size() : dev_info.max_rx_queues;
+
 		//number of configured TX queues on device should not exceed number of worker lcores on socket
-		unsigned int nb_tx_queues = tx_lcores[socket_id].size() < dev_info.max_tx_queues ? tx_lcores[socket_id].size() : dev_info.max_tx_queues;
+		unsigned int nb_tx_lcores = 0;
+		for (auto it : tx_lcores) {
+			nb_tx_lcores += it.second.size();
+		}
+		unsigned int nb_tx_queues = nb_tx_lcores < dev_info.max_tx_queues ? nb_tx_lcores : dev_info.max_tx_queues;
+
 
 		phyports[port_id].nb_rx_queues = nb_rx_queues;
 		phyports[port_id].nb_tx_queues = nb_tx_queues;

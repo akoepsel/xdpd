@@ -1012,7 +1012,6 @@ int processing_core_process_packets(void* not_used){
 
 	while(likely(task->active)) {
 
-
 		int timeout = 0;
 		struct rte_event rx_events[PROC_ETH_TX_BURST_SIZE];
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, rx_events, PROC_ETH_TX_BURST_SIZE, timeout);
@@ -1044,8 +1043,6 @@ int processing_core_process_packets(void* not_used){
 
 			/* inject packet into openflow pipeline */
 			process_pipeline_rx(lcore_id, port, rx_events[i].mbuf, &pkt, pkt_state);
-
-
 		}
 	}
 
