@@ -18,6 +18,7 @@
 #include <rte_ethdev.h>
 #include <rte_ring.h>
 #include <rte_launch.h>
+#include <rte_eventdev.h>
 
 #include "../io/dpdk_datapacket.h"
 
@@ -136,6 +137,7 @@ extern wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
 extern struct rte_mempool* direct_pools[RTE_MAX_NUMA_NODES];
 extern struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
 extern switch_port_t* port_list[PROCESSING_MAX_PORTS];
+extern rte_rwlock_t port_list_rwlock;
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
 
 /**

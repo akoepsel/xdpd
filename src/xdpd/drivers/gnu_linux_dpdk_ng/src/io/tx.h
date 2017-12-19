@@ -14,6 +14,7 @@
 #include <rte_eal.h>
 #include <rte_mbuf.h>
 #include <rte_ethdev.h>
+#include <rte_lcore.h>
 
 #include <assert.h>
 #include "bufferpool.h"
@@ -147,7 +148,80 @@ inline void send_single_packet(struct rte_mbuf *m, uint8_t port)
 
 inline void
 tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
+
+	struct rte_mbuf* mbuf;
+	dpdk_port_state_t* ps;
+	unsigned int port_id, lcore_id;
+	struct rte_event tx_events[PROC_ETH_TX_BURST_SIZE];
+
+	//Get mbuf pointer
+	mbuf = ((datapacket_dpdk_t*)pkt->platform_state)->mbuf;
+	assert(mbuf);
+	port_id = ((dpdk_port_state_t*)port->platform_port_state)->port_id;
+
+	if (LCORE_ID_ANY == (lcore_id = rte_lcore_id())) {
+		lcore_id = rte_get_master_lcore();
+	}
+
+	//Recover worker task
+	wk_core_task_t* task = &wk_core_tasks[lcore_id];
+
+	if (unlikely(not task->available) || unlikely(not task->active)) {
+		rte_pktmbuf_free(mbuf);
+		return;
+	}
+
+	/* use out_port_id from pipeline */
+	rte_rwlock_read_lock(&port_list_rwlock);
+	if ((port = port_list[port_id]) == NULL) {
+		rte_rwlock_read_unlock(&port_list_rwlock);
+		rte_pktmbuf_free(mbuf);
+		return;
+	}
+
+	ps = (dpdk_port_state_t *)port->platform_port_state;
+
+	int socket_id = rte_eth_dev_socket_id(ps->port_id);
+
+	tx_events[0].flow_id = mbuf->hash.rss;
+	tx_events[0].op = RTE_EVENT_OP_NEW;
+	tx_events[0].sched_type = RTE_SCHED_TYPE_ATOMIC;
+	tx_events[0].queue_id = task->tx_ev_queue_id[socket_id]; /* use queue-id for outgoing port's NUMA socket */
+	tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
+	tx_events[0].sub_event_type = 0;
+	tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
+	tx_events[0].mbuf = mbuf;
+
+	tx_events[0].mbuf->udata64 = (uint64_t)port_id;
+
+	RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
+			lcore_id, task->ev_port_id, task->tx_ev_queue_id[socket_id], 0);
+
+	int i = 0, nb_rx = 1;
+	const int nb_tx = rte_event_enqueue_burst(eventdev_id, task->ev_port_id, tx_events, 1);
+	if (nb_tx) {
+		RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, packets enqueued: %u\n",
+				lcore_id, task->ev_port_id, nb_tx);
+	}
+	/* release mbufs not queued in event device */
+	if (nb_tx != nb_rx) {
+		for(i = nb_tx; i < nb_rx; i++) {
+			RTE_LOG(WARNING, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
+					lcore_id, task->ev_port_id, tx_events[i].queue_id, i);
+			rte_pktmbuf_free(tx_events[i].mbuf);
+		}
+	}
+
+	//XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io] Adding packet %p to queue %p (id: %u)\n", pkt, pkt_burst, lcore_id);
+
+	return;
+
+}
+
 #if 0
+inline void
+tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
+
 	struct rte_mbuf* mbuf;
 	struct mbuf_burst* pkt_burst;
 	unsigned int port_id, len, rte_lcore;
@@ -183,9 +257,9 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 	pkt_burst->len = len;
 
 	return;
-#endif
-}
 
+}
+#endif
 
 //
 // Specific NF port functions

@@ -236,6 +236,7 @@ static inline void output_single_packet(datapacket_t* pkt, datapacket_dpdk_t* pa
 		
 		XDPD_DEBUG("[%s] OUTPUT packet(%p)\n", port->name, pkt);
 
+#if 0
 		if(port->type == PORT_TYPE_VIRTUAL){
 			/*
 			* Virtual link
@@ -264,11 +265,16 @@ static inline void output_single_packet(datapacket_t* pkt, datapacket_dpdk_t* pa
 		else{
 			xdpd::gnu_linux_dpdk_ng::tx_pkt(port, pack->output_queue, pkt);
 		}
+#endif
+
+		xdpd::gnu_linux_dpdk_ng::tx_pkt(port, pack->output_queue, pkt);
+
 	}else{
 		//Since tx_pkt is not called, we release the mbuf here
 		//pkt will be returned only in case it is in_bufferpool
 		rte_pktmbuf_free(((datapacket_dpdk_t*)pkt->platform_state)->mbuf);
 	}
+
 
 	if( ((datapacket_dpdk_t*)pkt->platform_state)->packet_in_bufferpool ){
 		//Release buffer only if the packet is stored there
@@ -323,7 +329,7 @@ STATIC_PACKET_INLINE__ void platform_packet_output(datapacket_t* pkt, switch_por
 
 			port_it = sw->logical_ports[i].port;
 
-			//Check port is not incomming port, exists, and is up 
+			//Check that: outgoing port does not equal incoming port, outgoing port exists, and is up
 			if( (i == pack->clas_state.port_in) || !port_it || port_it->no_flood)
 				continue;
 

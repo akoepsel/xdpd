@@ -39,7 +39,7 @@ struct rte_mempool* direct_pools[RTE_MAX_NUMA_NODES];
 struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
 
 switch_port_t* port_list[PROCESSING_MAX_PORTS];
-static rte_rwlock_t port_list_rwlock;
+rte_rwlock_t port_list_rwlock;
 
 /*
  * lcore task structures
@@ -1020,7 +1020,6 @@ int processing_core_process_packets(void* not_used){
 
 		int timeout = 0;
 		struct rte_event rx_events[PROC_ETH_TX_BURST_SIZE];
-		struct rte_event tx_events[PROC_ETH_TX_BURST_SIZE];
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, rx_events, PROC_ETH_TX_BURST_SIZE, timeout);
 
 		if (nb_rx == 0) {
@@ -1054,7 +1053,7 @@ int processing_core_process_packets(void* not_used){
 			process_pipeline_rx(lcore_id, port, rx_events[i].mbuf, &pkt, pkt_state);
 
 
-
+#if 0
 			/* TODO: fill in out_port_id from pipeline */
 			uint32_t out_port_id = 2; // outgoing port (for testing)
 
@@ -1083,8 +1082,9 @@ int processing_core_process_packets(void* not_used){
 
 			RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
 					lcore_id, ev_port_id, task->tx_ev_queue_id[socket_id], i);
+#endif
 		}
-
+#if 0
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
 		if (nb_tx) {
 			RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, packets enqueued: %u\n",
@@ -1098,10 +1098,11 @@ int processing_core_process_packets(void* not_used){
 				rte_pktmbuf_free(tx_events[i].mbuf);
 			}
 		}
+#endif
 	}
-
+#if 0
 	destroy_datapacket_dpdk(pkt_state);
-
+#endif
 	return (int)ROFL_SUCCESS;
 }
 
