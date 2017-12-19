@@ -932,7 +932,7 @@ int processing_packet_reception(void* not_used){
 				const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, PROC_ETH_RX_BURST_SIZE);
 
 				if (nb_rx) {
-					RTE_LOG(INFO, USER1, "RX task %u => %u packets received from eth-port %u, eth-queue %u\n", lcore_id, nb_rx, port_id, queue_id);
+					RTE_LOG(INFO, USER1, "RX task %2u => %u packets received from eth-port %u, eth-queue %u\n", lcore_id, nb_rx, port_id, queue_id);
 
 					for (i = 0; i < nb_rx; i++) {
 						event[i].flow_id = mbufs[i]->hash.rss;
@@ -943,12 +943,12 @@ int processing_packet_reception(void* not_used){
 						event[i].sub_event_type = 0;
 						event[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
 						event[i].mbuf = mbufs[i];
-						RTE_LOG(INFO, USER1, "RX task %u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, ev_queue_id, ev_port_id);
+						RTE_LOG(INFO, USER1, "RX task %2u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, ev_queue_id, ev_port_id);
 					}
 
 					const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
 					if (nb_tx) {
-						RTE_LOG(INFO, USER1, "RX task %u => %u events enqueued on ev-queue %u via ev-port %u\n", lcore_id, nb_tx, ev_queue_id, ev_port_id);
+						RTE_LOG(INFO, USER1, "RX task %2u => %u events enqueued on ev-queue %u via ev-port %u\n", lcore_id, nb_tx, ev_queue_id, ev_port_id);
 					}
 					/* release mbufs not queued in event device */
 					if (nb_tx != nb_rx) {
@@ -1005,7 +1005,7 @@ int processing_core_process_packets(void* not_used){
 			continue;
 		}
 
-		RTE_LOG(INFO, USER1, "worker task %u => %u packets received from ev-port %u\n", lcore_id, nb_rx, ev_port_id);
+		RTE_LOG(INFO, USER1, "worker task %2u => %u packets received from ev-port %u\n", lcore_id, nb_rx, ev_port_id);
 
 		for (i = 0; i < nb_rx; i++) {
 
@@ -1041,17 +1041,17 @@ int processing_core_process_packets(void* not_used){
 
 			rx_events[i].mbuf->udata64 = 0x0000000000000002; // outgoing port (for testing)
 
-			RTE_LOG(INFO, USER1, "worker task %u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, task->tx_ev_queue_id[socket_id], ev_port_id);
+			RTE_LOG(INFO, USER1, "worker task %2u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, task->tx_ev_queue_id[socket_id], ev_port_id);
 		}
 
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
 		if (nb_tx) {
-			RTE_LOG(INFO, USER1, "worker task %u => %u events enqueued via ev-port %u\n", lcore_id, nb_tx, ev_port_id);
+			RTE_LOG(INFO, USER1, "worker task %2u => %u events enqueued via ev-port %u\n", lcore_id, nb_tx, ev_port_id);
 		}
 		/* release mbufs not queued in event device */
 		if (nb_tx != nb_rx) {
 			for(i = nb_tx; i < nb_rx; i++) {
-				RTE_LOG(WARNING, USER1, "worker task %u => dropping mbuf[%u] via ev-port %u to ev-queue %u\n", lcore_id, i, ev_port_id, tx_events[i].queue_id);
+				RTE_LOG(WARNING, USER1, "worker task %2u => dropping mbuf[%u] via ev-port %u to ev-queue %u\n", lcore_id, i, ev_port_id, tx_events[i].queue_id);
 				rte_pktmbuf_free(tx_events[i].mbuf);
 			}
 		}
@@ -1095,7 +1095,7 @@ int processing_packet_transmission(void* not_used){
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
 
 		if (nb_rx) {
-			RTE_LOG(INFO, USER1, "TX task => %u packets received from ev-port %u, ev-queue %u\n", nb_rx, ev_port_id, ev_queue_id);
+			RTE_LOG(INFO, USER1, "TX task %2u => %u packets received from ev-port %u, ev-queue %u\n", lcore_id, nb_rx, ev_port_id, ev_queue_id);
 		}
 
 		for (i = 0; i < nb_rx; i++) {
@@ -1118,7 +1118,7 @@ int processing_packet_transmission(void* not_used){
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
 			if (phyports[out_port_id].socket_id != socket_id) {
-				RTE_LOG(WARNING, USER1, "TX task %u on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
+				RTE_LOG(WARNING, USER1, "TX task %2u => on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
 						lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
 				rte_pktmbuf_free(events[i].mbuf);
 				continue;
