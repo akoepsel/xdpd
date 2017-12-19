@@ -18,6 +18,7 @@
 #include <rte_ethdev.h>
 #include <rte_ring.h>
 #include <rte_launch.h>
+#include <rte_rwlock.h>
 #include <rte_eventdev.h>
 
 #include "../io/dpdk_datapacket.h"
@@ -139,6 +140,7 @@ extern struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
 extern switch_port_t* port_list[PROCESSING_MAX_PORTS];
 extern rte_rwlock_t port_list_rwlock;
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
+extern uint8_t eventdev_id;
 
 /**
 * Total number of physical ports (scheduled, so usable by the I/O)

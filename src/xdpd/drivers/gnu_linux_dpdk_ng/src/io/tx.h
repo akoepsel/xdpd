@@ -212,6 +212,8 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		}
 	}
 
+	//destroy_datapacket_dpdk(pkt_state);
+
 	//XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io] Adding packet %p to queue %p (id: %u)\n", pkt, pkt_burst, lcore_id);
 
 	return;

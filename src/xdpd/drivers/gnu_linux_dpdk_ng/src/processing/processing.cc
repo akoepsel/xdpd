@@ -1038,8 +1038,6 @@ int processing_core_process_packets(void* not_used){
 
 			uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
 
-			dpdk_port_state_t *ps;
-
 			rte_rwlock_read_lock(&port_list_rwlock);
 			if ((port = port_list[in_port_id]) == NULL) {
 				rte_rwlock_read_unlock(&port_list_rwlock);
