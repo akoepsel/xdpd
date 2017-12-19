@@ -395,8 +395,10 @@ rofl_result_t processing_init_eventdev(void){
 		event_queues[socket_id][EVENT_QUEUE_WORKERS] = queue_id++;
 		event_queues[socket_id][EVENT_QUEUE_TXCORES] = queue_id++;
 
-		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, event_queues[%u][%u] = %u (WORKERS)\n", socket_id, EVENT_QUEUE_WORKERS, event_queues[socket_id][EVENT_QUEUE_WORKERS]);
-		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, event_queues[%u][%u] = %u (TXCORES)\n", socket_id, EVENT_QUEUE_WORKERS, event_queues[socket_id][EVENT_QUEUE_TXCORES]);
+		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, event_queues[%u][%u] = %u (WORKERS)\n",
+				eventdev_name.c_str(), socket_id, EVENT_QUEUE_WORKERS, event_queues[socket_id][EVENT_QUEUE_WORKERS]);
+		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, event_queues[%u][%u] = %u (TXCORES)\n",
+				eventdev_name.c_str(), socket_id, EVENT_QUEUE_WORKERS, event_queues[socket_id][EVENT_QUEUE_TXCORES]);
 
 		if (queue_id > eventdev_conf.nb_event_queues) {
 			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, queue_id %u not valid\n", eventdev_name.c_str(), queue_id);
