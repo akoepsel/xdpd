@@ -639,6 +639,14 @@ rofl_result_t processing_init(void){
 				wk_core_tasks[lcore_id].available = true;
 				continue;
 			}
+			if (lcores[lcore_id].is_tx_lcore) {
+				tx_core_tasks[lcore_id].available = true;
+				continue;
+			}
+			if (lcores[lcore_id].is_rx_lcore) {
+				rx_core_tasks[lcore_id].available = true;
+				continue;
+			}
 
 			//XDPD_DEBUG(DRIVER_NAME"[processing][init] marking core %u as available\n", lcore_id);
 
@@ -1117,7 +1125,7 @@ int processing_packet_transmission(void* not_used){
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
 
 		if (nb_rx) {
-			RTE_LOG(INFO, USER1, "TX task %2u => %u packets received from ev-port %u, ev-queue %u\n", lcore_id, nb_rx, ev_port_id, ev_queue_id);
+			RTE_LOG(INFO, USER1, "TX task %2u => %u packets received from ev-queue %u via ev-port %u\n", lcore_id, nb_rx, ev_queue_id, ev_port_id);
 		}
 
 		for (i = 0; i < nb_rx; i++) {
@@ -1147,6 +1155,8 @@ int processing_packet_transmission(void* not_used){
 			}
 
 			if (unlikely(not task->tx_queues[out_port_id].enabled)) {
+				RTE_LOG(WARNING, USER1, "TX task %2u => task->tx_queues[%u].enabled = %u, ignoring event[%u]\n",
+						lcore_id, out_port_id, task->tx_queues[out_port_id].enabled, i);
 				rte_pktmbuf_free(events[i].mbuf);
 				continue;
 			}
@@ -1154,6 +1164,10 @@ int processing_packet_transmission(void* not_used){
 			unsigned int nb_tx_pkts = task->tx_queues[out_port_id].nb_tx_pkts;
 			task->tx_queues[out_port_id].tx_pkts[nb_tx_pkts] = events[i].mbuf;
 			task->tx_queues[out_port_id].nb_tx_pkts++;
+
+			RTE_LOG(WARNING, USER1, "TX task %2u => task->tx_queues[%u].nb_tx_pkts = %u on event %u\n",
+					lcore_id, out_port_id, nb_tx_pkts, i);
+
 			assert(task->tx_queues[out_port_id].nb_tx_pkts <= PROC_ETH_TX_BURST_SIZE);
 		}
 
