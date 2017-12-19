@@ -947,7 +947,8 @@ int processing_packet_reception(void* not_used){
 				const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, PROC_ETH_RX_BURST_SIZE);
 
 				if (nb_rx) {
-					RTE_LOG(INFO, USER1, "RX task %2u => %u packets received from eth-port %u, eth-queue %u\n", lcore_id, nb_rx, port_id, queue_id);
+					RTE_LOG(DEBUG, USER1, "rx task %2u => eth-port: %u, eth-queue: %u, packets rcvd: %u\n",
+							lcore_id, port_id, queue_id, nb_rx);
 
 					for (i = 0; i < nb_rx; i++) {
 						event[i].flow_id = mbufs[i]->hash.rss;
@@ -959,17 +960,20 @@ int processing_packet_reception(void* not_used){
 						event[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
 						event[i].mbuf = mbufs[i];
 						mbufs[i]->udata64 = (uint64_t)port_id;
-						RTE_LOG(INFO, USER1, "RX task %2u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, ev_queue_id, ev_port_id);
+						RTE_LOG(INFO, USER1, "rx task %2u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
+								lcore_id, ev_port_id, ev_queue_id, i);
 					}
 
 					const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
 					if (nb_tx) {
-						RTE_LOG(INFO, USER1, "RX task %2u => %u events enqueued on ev-queue %u via ev-port %u\n", lcore_id, nb_tx, ev_queue_id, ev_port_id);
+						RTE_LOG(INFO, USER1, "rx task %2u => event-port-id: %u, packets enqueued: %u\n",
+								lcore_id, ev_port_id, nb_tx);
 					}
 					/* release mbufs not queued in event device */
 					if (nb_tx != nb_rx) {
 						for(i = nb_tx; i < nb_rx; i++) {
-							RTE_LOG(WARNING, USER1, "RX task %u: dropping mbuf[%u] on port %u, queue %u\n", lcore_id, i, ev_port_id, ev_queue_id);
+							RTE_LOG(WARNING, USER1, "rx task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
+									lcore_id, ev_port_id, event[i].queue_id, i);
 							rte_pktmbuf_free(mbufs[i]);
 						}
 					}
@@ -1186,7 +1190,7 @@ int processing_packet_transmission(void* not_used){
 
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, task->tx_queues[port_id].tx_pkts, task->tx_queues[port_id].nb_tx_pkts);
 
-			RTE_LOG(DEBUG, USER1, "TX task %2u => eth-port: %u, eth-queue: %u, packets sent: %u\n",
+			RTE_LOG(DEBUG, USER1, "tx task %2u => eth-port: %u, eth-queue: %u, packets sent: %u\n",
 					lcore_id, port_id, task->tx_queues[port_id].queue_id, nb_tx);
 
 			if (nb_tx != task->tx_queues[port_id].nb_tx_pkts) {
