@@ -943,6 +943,7 @@ int processing_packet_reception(void* not_used){
 						event[i].sub_event_type = 0;
 						event[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
 						event[i].mbuf = mbufs[i];
+						RTE_LOG(INFO, USER1, "RX task %u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, ev_queue_id, ev_port_id);
 					}
 
 					const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
@@ -1039,6 +1040,8 @@ int processing_core_process_packets(void* not_used){
 			tx_events[i].mbuf = rx_events[i].mbuf;
 
 			rx_events[i].mbuf->udata64 = 0x0000000000000002; // outgoing port (for testing)
+
+			RTE_LOG(INFO, USER1, "worker task %u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, task->tx_ev_queue_id[socket_id], ev_port_id);
 		}
 
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
