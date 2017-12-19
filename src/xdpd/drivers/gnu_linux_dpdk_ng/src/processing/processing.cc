@@ -986,6 +986,7 @@ int processing_core_process_packets(void* not_used){
 
 	unsigned int i, lcore_id = rte_lcore_id();
 	uint16_t ev_port_id;
+	uint16_t ev_queue_id;
 	//bool own_port = true;
 	switch_port_t* port;
 	wk_core_task_t* task = &wk_core_tasks[lcore_id];
@@ -1002,14 +1003,16 @@ int processing_core_process_packets(void* not_used){
 	//Set flag to active
 	task->active = true;
 
+	/* write event to evdev queue "ev-queue-id" via port "ev-port-id" */
+
+	ev_port_id = task->ev_port_id;
+	ev_queue_id = task->rx_ev_queue_id;
 
 
 	RTE_LOG(INFO, USER1, "run worker task on lcore_id=%d\n", lcore_id);
 
 	while(likely(task->active)) {
 
-		/* write event to evdev queue "ev-queue-id" via port "ev-port-id" */
-		ev_port_id = task->ev_port_id;
 
 		int timeout = 0;
 		struct rte_event rx_events[PROC_ETH_TX_BURST_SIZE];
@@ -1021,7 +1024,8 @@ int processing_core_process_packets(void* not_used){
 			continue;
 		}
 
-		RTE_LOG(INFO, USER1, "worker task %2u => %u packets received from ev-port %u\n", lcore_id, nb_rx, ev_port_id);
+		RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, packets received: %u\n",
+				lcore_id, ev_port_id, ev_queue_id, nb_rx);
 
 		for (i = 0; i < nb_rx; i++) {
 
@@ -1071,17 +1075,20 @@ int processing_core_process_packets(void* not_used){
 
 			rx_events[i].mbuf->udata64 = (uint64_t)out_port_id;
 
-			RTE_LOG(INFO, USER1, "worker task %2u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, task->tx_ev_queue_id[socket_id], ev_port_id);
+			RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
+					lcore_id, ev_port_id, task->tx_ev_queue_id[socket_id], i);
 		}
 
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
 		if (nb_tx) {
-			RTE_LOG(INFO, USER1, "worker task %2u => %u events enqueued via ev-port %u\n", lcore_id, nb_tx, ev_port_id);
+			RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, packets enqueued: %u\n",
+					lcore_id, ev_port_id, nb_tx);
 		}
 		/* release mbufs not queued in event device */
 		if (nb_tx != nb_rx) {
 			for(i = nb_tx; i < nb_rx; i++) {
-				RTE_LOG(WARNING, USER1, "worker task %2u => dropping mbuf[%u] via ev-port %u to ev-queue %u\n", lcore_id, i, ev_port_id, tx_events[i].queue_id);
+				RTE_LOG(WARNING, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
+						lcore_id, ev_port_id, tx_events[i].queue_id, i);
 				rte_pktmbuf_free(tx_events[i].mbuf);
 			}
 		}
@@ -1125,7 +1132,8 @@ int processing_packet_transmission(void* not_used){
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
 
 		if (nb_rx) {
-			RTE_LOG(INFO, USER1, "TX task %2u => %u packets received from ev-queue %u via ev-port %u\n", lcore_id, nb_rx, ev_queue_id, ev_port_id);
+			RTE_LOG(INFO, USER1, "TX task %2u => event-port-id: %u, event-queue-id: %u, packets received: %u\n",
+					lcore_id, ev_port_id, ev_queue_id, nb_rx);
 		}
 
 		for (i = 0; i < nb_rx; i++) {
@@ -1178,8 +1186,8 @@ int processing_packet_transmission(void* not_used){
 
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, task->tx_queues[port_id].tx_pkts, task->tx_queues[port_id].nb_tx_pkts);
 
-			RTE_LOG(DEBUG, USER1, "TX task %2u => %u packets sent to eth-port %u, eth-queue %u\n",
-					lcore_id, nb_tx, port_id, task->tx_queues[port_id].queue_id);
+			RTE_LOG(DEBUG, USER1, "TX task %2u => eth-port: %u, eth-queue: %u, packets sent: %u\n",
+					lcore_id, port_id, task->tx_queues[port_id].queue_id, nb_tx);
 
 			if (nb_tx != task->tx_queues[port_id].nb_tx_pkts) {
 				for(i = nb_tx; i < task->tx_queues[port_id].nb_tx_pkts; i++) {
