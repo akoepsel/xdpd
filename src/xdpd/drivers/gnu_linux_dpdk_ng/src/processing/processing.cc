@@ -920,7 +920,7 @@ int processing_packet_reception(void* not_used){
 		RTE_LOG(INFO, USER1, " -- RX lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
 	}
 
-	RTE_LOG(INFO, USER1, "run RX task on lcore_id %u\n", lcore_id);
+	RTE_LOG(INFO, USER1, "run rx task on lcore_id %u\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1028,7 +1028,7 @@ int processing_core_process_packets(void* not_used){
 			continue;
 		}
 
-		RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, packets received: %u\n",
+		RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, packets dequeued: %u\n",
 				lcore_id, ev_port_id, ev_queue_id, nb_rx);
 
 		for (i = 0; i < nb_rx; i++) {
@@ -1121,7 +1121,7 @@ int processing_packet_transmission(void* not_used){
 	//Set flag to active
 	task->active = true;
 
-	RTE_LOG(INFO, USER1, "run TX task on lcore_id %u\n", lcore_id);
+	RTE_LOG(INFO, USER1, "run tx task on lcore_id %u\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1136,7 +1136,7 @@ int processing_packet_transmission(void* not_used){
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
 
 		if (nb_rx) {
-			RTE_LOG(INFO, USER1, "TX task %2u => event-port-id: %u, event-queue-id: %u, packets received: %u\n",
+			RTE_LOG(INFO, USER1, "tx task %2u => event-port-id: %u, event-queue-id: %u, packets dequeued: %u\n",
 					lcore_id, ev_port_id, ev_queue_id, nb_rx);
 		}
 
@@ -1160,14 +1160,14 @@ int processing_packet_transmission(void* not_used){
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
 			if (phyports[out_port_id].socket_id != socket_id) {
-				RTE_LOG(WARNING, USER1, "TX task %2u => on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
+				RTE_LOG(WARNING, USER1, "tx task %2u => on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
 						lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
 				rte_pktmbuf_free(events[i].mbuf);
 				continue;
 			}
 
 			if (unlikely(not task->tx_queues[out_port_id].enabled)) {
-				RTE_LOG(WARNING, USER1, "TX task %2u => task->tx_queues[%u].enabled = %u, ignoring event[%u]\n",
+				RTE_LOG(WARNING, USER1, "tx task %2u => task->tx_queues[%u].enabled = %u, ignoring event[%u]\n",
 						lcore_id, out_port_id, task->tx_queues[out_port_id].enabled, i);
 				rte_pktmbuf_free(events[i].mbuf);
 				continue;
@@ -1177,7 +1177,7 @@ int processing_packet_transmission(void* not_used){
 			task->tx_queues[out_port_id].tx_pkts[nb_tx_pkts] = events[i].mbuf;
 			task->tx_queues[out_port_id].nb_tx_pkts++;
 
-			RTE_LOG(WARNING, USER1, "TX task %2u => task->tx_queues[%u].nb_tx_pkts = %u on event %u\n",
+			RTE_LOG(WARNING, USER1, "tx task %2u => task->tx_queues[%u].nb_tx_pkts = %u on event %u\n",
 					lcore_id, out_port_id, task->tx_queues[out_port_id].nb_tx_pkts, i);
 
 			assert(task->tx_queues[out_port_id].nb_tx_pkts <= PROC_ETH_TX_BURST_SIZE);
@@ -1195,7 +1195,7 @@ int processing_packet_transmission(void* not_used){
 
 			if (nb_tx != task->tx_queues[port_id].nb_tx_pkts) {
 				for(i = nb_tx; i < task->tx_queues[port_id].nb_tx_pkts; i++) {
-					RTE_LOG(WARNING, USER1, "TX task %u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
+					RTE_LOG(WARNING, USER1, "tx task %u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
 							lcore_id, port_id, i, port_id, task->tx_queues[port_id].queue_id);
 					rte_pktmbuf_free(task->tx_queues[port_id].tx_pkts[i]);
 				}
