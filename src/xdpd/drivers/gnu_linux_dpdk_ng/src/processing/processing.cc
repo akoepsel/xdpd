@@ -1044,7 +1044,8 @@ int processing_core_process_packets(void* not_used){
 			RTE_LOG(INFO, USER1, "worker task %2u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, task->tx_ev_queue_id[socket_id], ev_port_id);
 		}
 
-		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
+		//const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
+		const int nb_tx = 0;
 		if (nb_tx) {
 			RTE_LOG(INFO, USER1, "worker task %2u => %u events enqueued via ev-port %u\n", lcore_id, nb_tx, ev_port_id);
 		}
