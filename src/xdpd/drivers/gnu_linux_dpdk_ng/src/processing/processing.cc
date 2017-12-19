@@ -1046,56 +1046,11 @@ int processing_core_process_packets(void* not_used){
 			process_pipeline_rx(lcore_id, port, rx_events[i].mbuf, &pkt, pkt_state);
 
 
-#if 0
-			/* TODO: fill in out_port_id from pipeline */
-			uint32_t out_port_id = 2; // outgoing port (for testing)
-
-			rte_rwlock_read_lock(&port_list_rwlock);
-			if ((port = port_list[out_port_id]) == NULL) {
-				rte_rwlock_read_unlock(&port_list_rwlock);
-				continue;
-			}
-
-			ps = (dpdk_port_state_t *)port->platform_port_state;
-
-			assert(ps->port_id == out_port_id);
-
-			int socket_id = rte_eth_dev_socket_id(ps->port_id);
-
-			tx_events[i].flow_id = rx_events[i].mbuf->hash.rss;
-			tx_events[i].op = RTE_EVENT_OP_NEW;
-			tx_events[i].sched_type = RTE_SCHED_TYPE_ATOMIC;
-			tx_events[i].queue_id = task->tx_ev_queue_id[socket_id]; /* use queue-id for outgoing port's NUMA socket */
-			tx_events[i].event_type = RTE_EVENT_TYPE_CPU;
-			tx_events[i].sub_event_type = 0;
-			tx_events[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
-			tx_events[i].mbuf = rx_events[i].mbuf;
-
-			rx_events[i].mbuf->udata64 = (uint64_t)out_port_id;
-
-			RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
-					lcore_id, ev_port_id, task->tx_ev_queue_id[socket_id], i);
-#endif
 		}
-#if 0
-		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
-		if (nb_tx) {
-			RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, packets enqueued: %u\n",
-					lcore_id, ev_port_id, nb_tx);
-		}
-		/* release mbufs not queued in event device */
-		if (nb_tx != nb_rx) {
-			for(i = nb_tx; i < nb_rx; i++) {
-				RTE_LOG(WARNING, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
-						lcore_id, ev_port_id, tx_events[i].queue_id, i);
-				rte_pktmbuf_free(tx_events[i].mbuf);
-			}
-		}
-#endif
 	}
-#if 0
+
 	destroy_datapacket_dpdk(pkt_state);
-#endif
+
 	return (int)ROFL_SUCCESS;
 }
 
