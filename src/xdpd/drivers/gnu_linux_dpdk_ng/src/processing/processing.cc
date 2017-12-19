@@ -950,6 +950,7 @@ int processing_packet_reception(void* not_used){
 						event[i].sub_event_type = 0;
 						event[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
 						event[i].mbuf = mbufs[i];
+						mbufs[i]->udata64 = (uint64_t)port_id;
 						RTE_LOG(INFO, USER1, "RX task %2u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, ev_queue_id, ev_port_id);
 					}
 
@@ -1020,16 +1021,17 @@ int processing_core_process_packets(void* not_used){
 				continue;
 			}
 
+			uint32_t port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
+
 			dpdk_port_state_t *ps;
 
 			rte_rwlock_read_lock(&port_list_rwlock);
-			if ((port = port_list[i]) == NULL) {
+			if ((port = port_list[port_id]) == NULL) {
 				rte_rwlock_read_unlock(&port_list_rwlock);
 				continue;
 			}
 
 			ps = (dpdk_port_state_t *)port->platform_port_state;
-			(void)ps; // just to make gcc happy for now
 
 			int socket_id = rte_eth_dev_socket_id(ps->port_id);
 
@@ -1051,8 +1053,7 @@ int processing_core_process_packets(void* not_used){
 			RTE_LOG(INFO, USER1, "worker task %2u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, task->tx_ev_queue_id[socket_id], ev_port_id);
 		}
 
-		//const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
-		const int nb_tx = 0;
+		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
 		if (nb_tx) {
 			RTE_LOG(INFO, USER1, "worker task %2u => %u events enqueued via ev-port %u\n", lcore_id, nb_tx, ev_port_id);
 		}
