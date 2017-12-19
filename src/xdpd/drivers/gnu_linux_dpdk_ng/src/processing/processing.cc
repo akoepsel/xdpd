@@ -1166,7 +1166,7 @@ int processing_packet_transmission(void* not_used){
 			task->tx_queues[out_port_id].nb_tx_pkts++;
 
 			RTE_LOG(WARNING, USER1, "TX task %2u => task->tx_queues[%u].nb_tx_pkts = %u on event %u\n",
-					lcore_id, out_port_id, nb_tx_pkts, i);
+					lcore_id, out_port_id, task->tx_queues[out_port_id].nb_tx_pkts, i);
 
 			assert(task->tx_queues[out_port_id].nb_tx_pkts <= PROC_ETH_TX_BURST_SIZE);
 		}
