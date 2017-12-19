@@ -1021,25 +1021,36 @@ int processing_core_process_packets(void* not_used){
 				continue;
 			}
 
-			uint32_t port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
+			uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
 
 			dpdk_port_state_t *ps;
 
 			rte_rwlock_read_lock(&port_list_rwlock);
-			if ((port = port_list[port_id]) == NULL) {
+			if ((port = port_list[in_port_id]) == NULL) {
+				rte_rwlock_read_unlock(&port_list_rwlock);
+				continue;
+			}
+
+
+			rte_rwlock_read_unlock(&port_list_rwlock);
+
+			/* TODO: inject into openflow pipeline */
+
+
+			/* TODO: fill in out_port_id from pipeline */
+			uint32_t out_port_id = 2; // outgoing port (for testing)
+
+			rte_rwlock_read_lock(&port_list_rwlock);
+			if ((port = port_list[out_port_id]) == NULL) {
 				rte_rwlock_read_unlock(&port_list_rwlock);
 				continue;
 			}
 
 			ps = (dpdk_port_state_t *)port->platform_port_state;
 
-			uint32_t out_port_id = 2; // outgoing port (for testing)
+			assert(ps->port_id == out_port_id);
 
-			int socket_id = rte_eth_dev_socket_id(out_port_id);
-
-			rte_rwlock_read_unlock(&port_list_rwlock);
-
-			/* TODO: inject into openflow pipeline */
+			int socket_id = rte_eth_dev_socket_id(ps->port_id);
 
 			tx_events[i].flow_id = rx_events[i].mbuf->hash.rss;
 			tx_events[i].op = RTE_EVENT_OP_NEW;
