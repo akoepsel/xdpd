@@ -1050,7 +1050,9 @@ int processing_core_process_packets(void* not_used){
 
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
-			/* TODO: inject into openflow pipeline */
+			/* inject packet into openflow pipeline */
+			process_pipeline_rx(lcore_id, port, rx_events[i].mbuf, &pkt, pkt_state);
+
 
 
 			/* TODO: fill in out_port_id from pipeline */
