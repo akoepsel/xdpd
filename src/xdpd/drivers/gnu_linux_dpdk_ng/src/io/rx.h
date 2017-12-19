@@ -55,7 +55,7 @@ process_pipeline_rx(unsigned int lcore_id, switch_port_t* port, struct rte_mbuf*
 #ifdef DEBUG
 		if(unlikely(sw == NULL)){
 			rte_pktmbuf_free(mbuf);
-			continue;
+			return;
 		}
 #endif
 
@@ -92,17 +92,17 @@ process_pipeline_rx(unsigned int lcore_id, switch_port_t* port, struct rte_mbuf*
 	if(unlikely(!tmp_port)){
 		//Not attached
 		rte_pktmbuf_free(mbuf);
-		continue;
+		return;
 	}
 
 	//Init&classify
 	init_datapacket_dpdk(pkt_dpdk, mbuf, sw, tmp_port->of_port_num, 0, true, false);
 
-	XDPD_DEBUG("calling of_process_packet_pipeline i=%d core_id=%d (%p)\n", i, core_id, pkt);
+	XDPD_DEBUG("calling of_process_packet_pipeline i=%d core_id=%d (%p)\n", i, lcore_id, pkt);
 
 #if 0
 	unsigned char *tmp = rte_pktmbuf_mtod(pkts_burst[i], unsigned char *);
-	fprintf(stderr, "%d(%d):#%d %x:%x:%x:%x:%x:%x->%x:%x:%x:%x:%x:%x\n", portid, core_id, i, tmp[6], tmp[7],
+	fprintf(stderr, "%d(%d):#%d %x:%x:%x:%x:%x:%x->%x:%x:%x:%x:%x:%x\n", portid, lcore_id, i, tmp[6], tmp[7],
 		tmp[8], tmp[9], tmp[10], tmp[11], tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);
 #endif
 	//Send to process
