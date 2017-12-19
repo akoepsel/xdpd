@@ -1033,7 +1033,9 @@ int processing_core_process_packets(void* not_used){
 
 			ps = (dpdk_port_state_t *)port->platform_port_state;
 
-			int socket_id = rte_eth_dev_socket_id(ps->port_id);
+			uint32_t out_port_id = 2; // outgoing port (for testing)
+
+			int socket_id = rte_eth_dev_socket_id(out_port_id);
 
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
@@ -1048,7 +1050,7 @@ int processing_core_process_packets(void* not_used){
 			tx_events[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
 			tx_events[i].mbuf = rx_events[i].mbuf;
 
-			rx_events[i].mbuf->udata64 = 0x0000000000000002; // outgoing port (for testing)
+			rx_events[i].mbuf->udata64 = (uint64_t)out_port_id;
 
 			RTE_LOG(INFO, USER1, "worker task %2u => event %i enqueued on ev-queue %u via ev-port %u\n", lcore_id, i, task->tx_ev_queue_id[socket_id], ev_port_id);
 		}
