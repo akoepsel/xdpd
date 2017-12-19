@@ -1177,6 +1177,10 @@ int processing_packet_transmission(void* not_used){
 			}
 
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, task->tx_queues[port_id].tx_pkts, task->tx_queues[port_id].nb_tx_pkts);
+
+			RTE_LOG(DEBUG, USER1, "TX task %2u => %u packets sent to eth-port %u, eth-queue %u\n",
+					lcore_id, nb_tx, port_id, task->tx_queues[port_id].queue_id);
+
 			if (nb_tx != task->tx_queues[port_id].nb_tx_pkts) {
 				for(i = nb_tx; i < task->tx_queues[port_id].nb_tx_pkts; i++) {
 					RTE_LOG(WARNING, USER1, "TX task %u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
