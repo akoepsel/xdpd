@@ -915,11 +915,11 @@ static uint16_t iface_manager_pci_address_to_port_id(const std::string& pci_addr
 rofl_result_t iface_manager_setup_virtual_ports(void){
 
 	int ret = 0;
+	unsigned int port_name_index = 0;
 
 	YAML::Node knis_node = y_config_dpdk_ng["dpdk"]["knis"];
 	if (knis_node && knis_node.IsMap()) {
 
-		unsigned int kniport_name_index = 0;
 		for (auto it : knis_node) {
 			YAML::Node& kni_name_node = it.first;
 			YAML::Node& kni_args_node = it.second;
@@ -927,8 +927,8 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 			if (not kni_name_node || not kni_name_node.IsScalar()) {
 				continue;
 			}
-			strncpy(vport_names[kniport_name_index], kni_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
-			std::string ifname(vport_names[kniport_name_index]);
+			strncpy(vport_names[port_name_index], kni_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
+			std::string ifname(vport_names[port_name_index]);
 
 			/* assumption: ifname = "kni0", "kni1", ..., TODO: add check for "kniN" */
 			std::string knidev_name("net_");
@@ -964,14 +964,13 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 				return ROFL_FAILURE;
 			}
 
-			kniport_name_index++;
+			port_name_index++;
 		}
 	}
 
 	YAML::Node rings_node = y_config_dpdk_ng["dpdk"]["rings"];
 	if (rings_node && rings_node.IsMap()) {
 
-		unsigned int ringport_name_index = 0;
 		for (auto it : rings_node) {
 			YAML::Node& ring_name_node = it.first;
 			YAML::Node& ring_args_node = it.second;
@@ -979,8 +978,8 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 			if (not ring_name_node || not ring_name_node.IsScalar()) {
 				continue;
 			}
-			strncpy(vport_names[ringport_name_index], ring_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
-			std::string ifname(vport_names[ringport_name_index]);
+			strncpy(vport_names[port_name_index], ring_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
+			std::string ifname(vport_names[port_name_index]);
 
 			/* assumption: ifname = "ring0", "ring1", ..., TODO: add check for "ringN" */
 			std::string ringdev_name("net_");
@@ -1016,7 +1015,7 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 				return ROFL_FAILURE;
 			}
 
-			ringport_name_index++;
+			port_name_index++;
 		}
 	}
 
