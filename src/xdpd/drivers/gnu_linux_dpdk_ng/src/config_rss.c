@@ -6,6 +6,8 @@ struct lcore lcores[RTE_MAX_LCORE];
 //The set of available physical ports (phyport) per NUMA node (=socket)
 struct phyport phyports[RTE_MAX_ETHPORTS];
 
+char vport_names[RTE_MAX_ETHPORTS][SWITCH_PORT_MAX_LEN_NAME];
+
 //Set default values TODO remove
 // default values wrt. 2 LSI with 2 physical ports and 2 kni ports
 struct lcore_params lcore_params[LCORE_PARAMS_MAX] = {

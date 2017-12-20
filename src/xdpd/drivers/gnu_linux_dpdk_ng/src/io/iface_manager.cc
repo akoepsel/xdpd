@@ -927,14 +927,16 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 
 		//rte_kni_init(max_kni_ifaces);
 
+		unsigned int kniport_name_index = 0;
 		for (auto it : knis_node) {
 			YAML::Node& kni_name_node = it.first;
 			YAML::Node& kni_args_node = it.second;
 
-			std::string ifname;
-			if (kni_name_node && kni_name_node.IsScalar()) {
-				ifname = kni_name_node.as<std::string>();
+			if (not kni_name_node || not kni_name_node.IsScalar()) {
+				continue;
 			}
+			strncpy(vport_names[kniport_name_index], kni_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
+			std::string ifname(vport_names[kniport_name_index]);
 
 			/* assumption: ifname = "kni0", "kni1", ..., TODO: add check for "kniN" */
 			std::string knidev_name("net_");
@@ -968,6 +970,8 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 				}
 				return ROFL_FAILURE;
 			}
+
+			kniport_name_index++;
 		}
 	}
 
@@ -1005,6 +1009,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].parent_port_id = -1;
 		phyports[port_id].nb_vfs = 0;
 		phyports[port_id].vf_id = -1;
+		phyports[port_id].is_virtual = 0;
 	}
 
 	//Calculate size of rte_mempool for rxqueue/txqueue configuration based on available physical ports
@@ -1042,14 +1047,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 	//Iterate over all available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
-		bool port_is_virtual = false;
 
 		rte_eth_dev_info_get(port_id, &dev_info);
+		memset(s_pci_addr, 0, sizeof(s_pci_addr));
 		if (dev_info.pci_dev) {
-			memset(s_pci_addr, 0, sizeof(s_pci_addr));
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
-		} else {
-			memset(s_pci_addr, 0, sizeof(s_pci_addr));
 		}
 
 		if (port_id >= RTE_MAX_ETHPORTS) {
@@ -1070,7 +1072,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (LCORE_ID_ANY == socket_id) {
 			socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
 			XDPD_DEBUG(DRIVER_NAME"[ifaces] physical port: %u, mapping LCORE_ID_ANY to socket %u used by master lcore\n", port_id, socket_id);
-			port_is_virtual = true;
+			phyports[port_id].is_virtual = true;
 		}
 
 		phyports[port_id].socket_id = socket_id;
@@ -1087,14 +1089,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		// port not specified in configuration file
-		if (not port_is_virtual && not iface_manager_port_exists(s_pci_addr)) {
+		if (not phyports[port_id].is_virtual && not iface_manager_port_exists(s_pci_addr)) {
 			XDPD_INFO(DRIVER_NAME"[ifaces] skipping physical port: %u (not found in configuration, assuming state \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
 			continue;
 		}
 
 		// port disabled in configuration file?
-		if (not port_is_virtual && not iface_manager_get_port_setting_as<bool>(s_pci_addr, "enabled")) {
+		if (not phyports[port_id].is_virtual && not iface_manager_get_port_setting_as<bool>(s_pci_addr, "enabled")) {
 			XDPD_INFO(DRIVER_NAME"[ifaces] skipping physical port: %u (port explicitly \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
 			continue;
@@ -1103,7 +1105,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].is_enabled = 1;
 
 		// is port a virtual function and has a parent device?
-		if (not port_is_virtual && iface_manager_port_setting_exists(s_pci_addr, "parent")) {
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "parent")) {
 			phyports[port_id].is_vf = 1;
 			phyports[port_id].parent_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"));
 			phyports[port_id].vf_id = phyports[phyports[port_id].parent_port_id].nb_vfs++;
@@ -1368,12 +1370,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			continue;
 		}
 
+		if (phyports[port_id].is_virtual) {
+			continue;
+		}
+
 		rte_eth_dev_info_get(port_id, &dev_info);
 		if (dev_info.pci_dev) {
 			memset(s_pci_addr, 0, sizeof(s_pci_addr));
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
-		} else {
-			continue;
 		}
 
 		//configure MAC addresses
@@ -1470,6 +1474,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		if (not phyports[port_id].is_vf) {
+			continue;
+		}
+
+		if (phyports[port_id].is_virtual) {
 			continue;
 		}
 
@@ -1602,6 +1610,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		++vf_id;
 	}
 
+	unsigned int vport_name_index = 0;
 	//Iterate over all available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 		char port_name[SWITCH_PORT_MAX_LEN_NAME];
@@ -1612,11 +1621,24 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		rte_eth_dev_info_get(port_id, &dev_info);
-		if (dev_info.pci_dev) {
-			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+
+		/* net_kni PMD */
+		if (dev_info.driver_name == std::string("net_kni")) {
+			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
+		} else
+		/* net_ring PMD */
+		if (dev_info.driver_name == std::string("net_ring")) {
+			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
+		} else
+		/* physical ports */
+		if (true) {
+			memset(s_pci_addr, 0, sizeof(s_pci_addr));
+			if (dev_info.pci_dev) {
+				rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+			}
+			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, iface_manager_get_port_setting_as<std::string>(s_pci_addr, "ifname").c_str());
 		}
 
-		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, iface_manager_get_port_setting_as<std::string>(s_pci_addr, "ifname").c_str());
 		XDPD_INFO(DRIVER_NAME" adding xdpd port: %s for dpdk port: %u\n", port_name, port_id);
 
 		//Initialize pipeline port

@@ -12,6 +12,8 @@
 #include <rte_lcore.h>
 #include <rte_kni.h>
 
+#include <rofl/datapath/pipeline/switch_port.h>
+
 /**
 * @file config.h
 *
@@ -47,12 +49,18 @@ struct phyport {
 	int parent_port_id; //-1:no parent port, only valid when is_vf is true
 	unsigned int nb_vfs; //number of virtual functions attached to this port, only valid when is_vf is false
 	int vf_id; //vf_id for this phyport, only valid when is_vf is true
+	int is_virtual; //true: port is kni, ring, ...
 } __rte_cache_aligned;
 
 /**
 * phyports
 */
 extern struct phyport phyports[RTE_MAX_ETHPORTS];
+
+/**
+ * virtual port names (kni, ring, ...)
+ */
+extern char vport_names[RTE_MAX_ETHPORTS][SWITCH_PORT_MAX_LEN_NAME];
 
 struct virport {
 	struct rte_kni_conf conf;
