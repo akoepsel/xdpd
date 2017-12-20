@@ -1054,6 +1054,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		unsigned int socket_id = rte_eth_dev_socket_id(port_id);
 
+		/* for ports bound to LCORE_ID_ANY (virtual interfaces, e.g., kni), use socket_id of master lcore */
+		if (LCORE_ID_ANY == socket_id) {
+			socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
+			XDPD_DEBUG(DRIVER_NAME"[ifaces] mapping LCORE_ID_ANY to socket %u used by master lcore\n", socket_id);
+		}
+
 		phyports[port_id].socket_id = socket_id;
 		phyports[port_id].is_enabled = 0;
 
