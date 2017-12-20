@@ -1042,6 +1042,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 	//Iterate over all available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+		bool port_is_virtual = false;
+
 		rte_eth_dev_info_get(port_id, &dev_info);
 		if (dev_info.pci_dev) {
 			memset(s_pci_addr, 0, sizeof(s_pci_addr));
@@ -1068,6 +1070,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (LCORE_ID_ANY == socket_id) {
 			socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
 			XDPD_DEBUG(DRIVER_NAME"[ifaces] physical port: %u, mapping LCORE_ID_ANY to socket %u used by master lcore\n", port_id, socket_id);
+			port_is_virtual = true;
 		}
 
 		phyports[port_id].socket_id = socket_id;
@@ -1084,14 +1087,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		// port not specified in configuration file
-		if (not iface_manager_port_exists(s_pci_addr)) {
+		if (not port_is_virtual && not iface_manager_port_exists(s_pci_addr)) {
 			XDPD_INFO(DRIVER_NAME"[ifaces] skipping physical port: %u (not found in configuration, assuming state \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
 			continue;
 		}
 
 		// port disabled in configuration file?
-		if (not iface_manager_get_port_setting_as<bool>(s_pci_addr, "enabled")) {
+		if (not port_is_virtual && not iface_manager_get_port_setting_as<bool>(s_pci_addr, "enabled")) {
 			XDPD_INFO(DRIVER_NAME"[ifaces] skipping physical port: %u (port explicitly \"disabled\") on socket: %u, driver: %s, firmware: %s, PCI address: %s\n",
 					port_id, socket_id, dev_info.driver_name, s_fw_version, s_pci_addr);
 			continue;
