@@ -939,7 +939,7 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 				knidev_args = kni_args_node.as<std::string>();
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual port: %s with args: %s\n", knidev_name.c_str(), knidev_args.c_str());
+			XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual PMD kni port: %s with args: %s\n", knidev_name.c_str(), knidev_args.c_str());
 
 			/* initialize kni pmd device */
 			if ((ret = rte_vdev_init(knidev_name.c_str(), knidev_args.c_str())) < 0) {
@@ -990,7 +990,7 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 				ringdev_args = ring_args_node.as<std::string>();
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual port: %s with args: %s\n", ringdev_name.c_str(), ringdev_args.c_str());
+			XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual PMD ring port: %s with args: %s\n", ringdev_name.c_str(), ringdev_args.c_str());
 
 			/* initialize ring pmd device */
 			if ((ret = rte_vdev_init(ringdev_name.c_str(), ringdev_args.c_str())) < 0) {
