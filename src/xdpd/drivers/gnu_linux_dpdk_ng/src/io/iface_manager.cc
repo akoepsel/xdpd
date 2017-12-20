@@ -1046,6 +1046,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (dev_info.pci_dev) {
 			memset(s_pci_addr, 0, sizeof(s_pci_addr));
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		} else {
+			memset(s_pci_addr, 0, sizeof(s_pci_addr));
 		}
 
 		if (port_id >= RTE_MAX_ETHPORTS) {
@@ -1057,7 +1059,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		/* for ports bound to LCORE_ID_ANY (virtual interfaces, e.g., kni), use socket_id of master lcore */
 		if (LCORE_ID_ANY == socket_id) {
 			socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
-			XDPD_DEBUG(DRIVER_NAME"[ifaces] port: %u, mapping LCORE_ID_ANY to socket %u used by master lcore\n", port_id, socket_id);
+			XDPD_DEBUG(DRIVER_NAME"[ifaces] physical port: %u, mapping LCORE_ID_ANY to socket %u used by master lcore\n", port_id, socket_id);
 		}
 
 		phyports[port_id].socket_id = socket_id;
