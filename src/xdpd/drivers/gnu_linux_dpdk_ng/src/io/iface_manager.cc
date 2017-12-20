@@ -941,7 +941,8 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 			/* assumption: ifname = "kni0", "kni1", ..., TODO: add check for "kniN" */
 			std::string knidev_name("net_");
 			knidev_name.append(ifname);
-			std::string knidev_args("no_request_thread=0");
+
+			std::string knidev_args;
 			if (kni_args_node && kni_args_node.IsScalar()) {
 				knidev_args = kni_args_node.as<std::string>();
 			}
@@ -1878,8 +1879,6 @@ rofl_result_t iface_manager_bring_up(switch_port_t* port){
 		*  PHYSICAL
 		*/
 		port_id = ((dpdk_port_state_t*)port->platform_port_state)->port_id;
-
-		XDPD_INFO(DRIVER_NAME" starting dpdk port %u\n", port_id);
 
 		//Start port in RTE
 		if(!port->up){
