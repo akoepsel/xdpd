@@ -1056,6 +1056,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		unsigned int socket_id = rte_eth_dev_socket_id(port_id);
 
+
+		/* virtual ports appear as physical ones here (including kni, ring, ...)
+		 * However, they are bound to NUMA node LCORE_ID_ANY. We bind all those
+		 * virtual devices to the NUMA socket the master lcore is running on.
+		 * Thus, all virtual devices use the same NUMA node. It may be necessary to
+		 * change this static mapping in the future to avoid high load on the
+		 * master lcore NUMA node. */
+
 		/* for ports bound to LCORE_ID_ANY (virtual interfaces, e.g., kni), use socket_id of master lcore */
 		if (LCORE_ID_ANY == socket_id) {
 			socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
@@ -1361,6 +1369,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (dev_info.pci_dev) {
 			memset(s_pci_addr, 0, sizeof(s_pci_addr));
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		} else {
+			continue;
 		}
 
 		//configure MAC addresses
