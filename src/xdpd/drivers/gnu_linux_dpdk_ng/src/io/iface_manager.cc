@@ -1879,6 +1879,8 @@ rofl_result_t iface_manager_bring_up(switch_port_t* port){
 		*/
 		port_id = ((dpdk_port_state_t*)port->platform_port_state)->port_id;
 
+		XDPD_INFO(DRIVER_NAME" starting dpdk port %u\n", port_id);
+
 		//Start port in RTE
 		if(!port->up){
 			//Was down; simply start
