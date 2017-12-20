@@ -1,33 +1,84 @@
 dpdk:
   log_level: 8
-  mbuf_elems_in_pool: 8191
-  mbuf_data_room_size: 16383
+  eventdev:
+    name: event_sw0
+    args: sched_quanta=64,credit_quanta=32
+  lcores:
+    svc_coremask: 0x00000000004000
+    tx_coremask:  0x00000000008002
+    rx_coremask:  0x00000000010004
+    wk_coremask:  0x00000000060018
   knis:
-    kni0:
-      pci_address: "0000:00:0a.0"
-    kni1:
-      pci_address: "0000:00:0b.0"
-    kni2:
-      pci_address: "0000:00:0c.0"
-    kni3:
-      pci_address: "0000:00:0d.0"
+    kni0: ""
+    kni1: ""
+  rings:
+    ring0: "nodeaction=ring_A:0:CREATE"
+    ring1: "nodeaction=ring_A:0:ATTACH"
+    ring2: "nodeaction=ring_B:1:CREATE"
+    ring3: "nodeaction=ring_B:1:ATTACH"
   interfaces:
-    10ge0: 
-      pci_address: "0000:00:09.0"
+    ens1f1: 
       enabled: true
+      pci_address: "0000:82:00.1"
       tx_loopback: true
       promisc: true
-      allmulticast: true
+      allmulticast: false
       vlan_filter:
-        - vlan_id: 103
+        - vlan_id: 101
           vf_mask: 0xffffffffffffffff
           enabled: true
-        - vlan_id: 104
-          vf_mask: 0x0000000000000003
+        - vlan_id: 102
+          vf_mask: 0xffffffffffffffff
           enabled: true
-    10ge0vf0:
-      pci_address: "0000:00:09.1"
-      parent: "0000:00:09.0"
+    ens1f1vf0:
+      enabled: true
+      pci_address: "0000:82:0a.0"
+      parent: "0000:82:00.1"
+      enabled: true
+      mac_addr: 
+        - "00:11:11:11:01:01"
+        - "00:11:11:11:01:11"
+      mac_anti_spoof: true
+      vlan_anti_spoof: true
+      unicast_promisc: true
+      multicast_promisc: true
+      broadcast: true
+      vlan_stripq: true
+      vlan_tag: true
+      vlan_insert: 101
+    ens1f1vf1:
+      enabled: true
+      pci_address: "0000:82:0a.1"
+      parent: "0000:82:00.1"
+      mac_addr: 
+        - "00:11:11:11:01:02"
+        - "00:11:11:11:01:12"
+      mac_anti_spoof: true
+      vlan_anti_spoof: true
+      tx_loopback: true
+      unicast_promisc: true
+      multicast_promisc: true
+      broadcast: true
+      vlan_stripq: true
+      vlan_tag: true
+      vlan_insert: 102
+    ens3f1: 
+      enabled: true
+      pci_address: "0000:03:00.1"
+      tx_loopback: true
+      promisc: true
+      allmulticast: false
+      vlan_filter:
+        - vlan_id: 101
+          vf_mask: 0xffffffffffffffff
+          enabled: true
+        - vlan_id: 102
+          vf_mask: 0xffffffffffffffff
+          enabled: true
+    ens3f1vf0:
+      enabled: true
+      pci_address: "0000:03:0a.0"
+      parent: "0000:03:00.1"
       enabled: true
       mac_addr: 
         - "00:11:11:11:01:03"
@@ -39,30 +90,20 @@ dpdk:
       broadcast: true
       vlan_stripq: true
       vlan_tag: true
-      vlan_insert: 103
-    10ge0vf1:
-      pci_address: "0000:00:09.2"
-      parent: "0000:00:09.0"
+      vlan_insert: 101
+    ens3f1vf1:
       enabled: true
+      pci_address: "0000:03:0a.1"
+      parent: "0000:03:00.1"
       mac_addr: 
         - "00:11:11:11:01:04"
         - "00:11:11:11:01:14"
       mac_anti_spoof: true
       vlan_anti_spoof: true
+      tx_loopback: true
       unicast_promisc: true
       multicast_promisc: true
       broadcast: true
       vlan_stripq: true
       vlan_tag: true
-      vlan_insert: 104
-    10ge1: 
-      pci_address: "0000:00:0a.0"
-      enabled: false
-    10ge2: 
-      pci_address: "0000:00:0b.0"
-    10ge3: 
-      pci_address: "0000:00:0c.0"
-    10ge4: 
-      pci_address: "0000:00:0d.0"
-    some_weird_ifname: 
-      pci_address: "0000:00:0e.0"
+      vlan_insert: 102

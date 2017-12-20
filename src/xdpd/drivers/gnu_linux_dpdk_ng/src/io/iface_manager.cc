@@ -916,16 +916,8 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 
 	int ret = 0;
 
-	//size_t max_kni_ifaces = 0;
-
-	//2 x KNI_FIFO_COUNT_MAX
-
 	YAML::Node knis_node = y_config_dpdk_ng["dpdk"]["knis"];
-
 	if (knis_node && knis_node.IsMap()) {
-		//max_kni_ifaces = y_config_dpdk_ng["dpdk"]["knis"].size();
-
-		//rte_kni_init(max_kni_ifaces);
 
 		unsigned int kniport_name_index = 0;
 		for (auto it : knis_node) {
@@ -976,6 +968,57 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 		}
 	}
 
+	YAML::Node rings_node = y_config_dpdk_ng["dpdk"]["rings"];
+	if (rings_node && rings_node.IsMap()) {
+
+		unsigned int ringport_name_index = 0;
+		for (auto it : rings_node) {
+			YAML::Node& ring_name_node = it.first;
+			YAML::Node& ring_args_node = it.second;
+
+			if (not ring_name_node || not ring_name_node.IsScalar()) {
+				continue;
+			}
+			strncpy(vport_names[ringport_name_index], ring_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
+			std::string ifname(vport_names[ringport_name_index]);
+
+			/* assumption: ifname = "ring0", "ring1", ..., TODO: add check for "ringN" */
+			std::string ringdev_name("net_");
+			ringdev_name.append(ifname);
+
+			std::string ringdev_args;
+			if (ring_args_node && ring_args_node.IsScalar()) {
+				ringdev_args = ring_args_node.as<std::string>();
+			}
+
+			XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual port: %s with args: %s\n", ringdev_name.c_str(), ringdev_args.c_str());
+
+			/* initialize ring pmd device */
+			if ((ret = rte_vdev_init(ringdev_name.c_str(), ringdev_args.c_str())) < 0) {
+				switch (ret) {
+				case -EINVAL: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of ring dev %s with args \"%s\" failed (EINVAL)\n",
+							ifname.c_str(), ringdev_args.c_str());
+				} break;
+				case -EEXIST: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of ring dev %s with args \"%s\" failed (EEXIST)\n",
+							ifname.c_str(), ringdev_args.c_str());
+				} break;
+				case -ENOMEM: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of ring dev %s with args \"%s\" failed (ENOMEM)\n",
+							ifname.c_str(), ringdev_args.c_str());
+				} break;
+				default: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of ring dev %s with args \"%s\" failed\n",
+							ifname.c_str(), ringdev_args.c_str());
+				};
+				}
+				return ROFL_FAILURE;
+			}
+
+			ringport_name_index++;
+		}
+	}
 
 	return ROFL_SUCCESS;
 }
