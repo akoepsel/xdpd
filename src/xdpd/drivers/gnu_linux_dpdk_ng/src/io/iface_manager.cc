@@ -916,16 +916,16 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 
 	int ret = 0;
 
-	size_t max_kni_ifaces = 0;
+	//size_t max_kni_ifaces = 0;
 
 	//2 x KNI_FIFO_COUNT_MAX
 
 	YAML::Node knis_node = y_config_dpdk_ng["dpdk"]["knis"];
 
 	if (knis_node && knis_node.IsMap()) {
-		max_kni_ifaces = y_config_dpdk_ng["dpdk"]["knis"].size();
+		//max_kni_ifaces = y_config_dpdk_ng["dpdk"]["knis"].size();
 
-		rte_kni_init(max_kni_ifaces);
+		//rte_kni_init(max_kni_ifaces);
 
 		for (auto it : knis_node) {
 			YAML::Node& kni_name_node = it.first;
