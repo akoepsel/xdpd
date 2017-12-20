@@ -74,6 +74,7 @@ if ( test "$HW" = "gnu-linux-dpdk-ng");then
 #the .la file. Hence, they have to be provided here at the top-level...
 	xdpd_HW_LDFLAGS=" -Wl,--whole-archive \
 		-Wl,-lrte_pmd_sw_event \
+		-Wl,-lrte_pmd_kni \
 		-Wl,-lrte_pmd_e1000 \
 		-Wl,-lrte_pmd_ixgbe \
 		-Wl,-lrte_pmd_i40e \
