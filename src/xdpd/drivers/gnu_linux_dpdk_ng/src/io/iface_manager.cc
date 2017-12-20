@@ -1638,13 +1638,13 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 */
 rofl_result_t iface_manager_discover_system_ports(void){
 
-	if (iface_manager_discover_physical_ports() < 0) {
-		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_physical_ports failed\n");
+	if (iface_manager_setup_virtual_ports() < 0) {
+		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_setup_virtual_ports failed\n");
 		return ROFL_FAILURE;
 	}
 
-	if (iface_manager_setup_virtual_ports() < 0) {
-		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_setup_virtual_ports failed\n");
+	if (iface_manager_discover_physical_ports() < 0) {
+		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_physical_ports failed\n");
 		return ROFL_FAILURE;
 	}
 
