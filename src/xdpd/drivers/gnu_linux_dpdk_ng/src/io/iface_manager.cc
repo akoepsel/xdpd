@@ -17,6 +17,7 @@ extern "C" {
 #include <rte_eth_ctrl.h>
 #include <rte_bus_pci.h>
 #include <rte_ethdev.h>
+#include <rte_bus_vdev.h>
 
 #ifdef RTE_LIBRTE_IXGBE_PMD
 #include <rte_pmd_ixgbe.h>
@@ -65,10 +66,6 @@ uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 
 //a set of available NUMA sockets (socket_id)
 static std::set<int> sockets;
-#if 0
-//a map of available logical cores per NUMA socket (set of lcore_id)
-static std::map<unsigned int, std::set<unsigned int> > cores;
-#endif
 
 /* a map of available event logical cores per NUMA socket (set of lcore_id) */
 extern std::map<unsigned int, std::set<unsigned int> > svc_lcores;
@@ -81,14 +78,6 @@ extern std::map<unsigned int, std::set<unsigned int> > tx_lcores;
 /* a map of available worker logical cores per NUMA socket (set of lcore_id) */
 extern std::map<unsigned int, std::set<unsigned int> > wk_lcores;
 
-// XXX(toanju) these values need a proper configuration
-int port_vf_id[RTE_MAX_ETHPORTS] = {-1, 0, 1, -1, 0, 1, -1, 0, 1};
-int port_parent_id_of_vf[RTE_MAX_ETHPORTS] = {-1, 0, 0, -1, 3, 3, -1, 6, 6};
-uint16_t port_pvid[RTE_MAX_ETHPORTS] = {0, 101, 102, 0, 201, 202, 0, 301, 302};
-struct ether_addr port_ether_addr[RTE_MAX_ETHPORTS][ETHER_ADDR_LEN] = {
-    {0}, {0x0e, 0x11, 0x11, 0x11, 0x01, 0x03}, {0x0e, 0x11, 0x11, 0x11, 0x01, 0x04},
-    {0}, {0x0e, 0x11, 0x11, 0x11, 0x02, 0x03}, {0x0e, 0x11, 0x11, 0x11, 0x02, 0x04},
-    {0}, {0x0e, 0x11, 0x11, 0x11, 0x03, 0x03}, {0x0e, 0x11, 0x11, 0x11, 0x03, 0x04}};
 
 
 
@@ -682,392 +671,6 @@ void print_ethaddr(const char *name, const struct ether_addr *eth_addr)
 }
 
 
-#if 0
-//Initializes the pipeline structure and launches the port
-switch_port_t *configure_port(uint8_t port_id)
-{
-	int ret;
-	switch_port_t* port;
-	struct core_tasks *qconf;
-	struct rte_eth_dev_info dev_info;
-	struct rte_eth_conf port_conf;
-	struct rte_eth_txconf *txconf;
-	char port_name[SWITCH_PORT_MAX_LEN_NAME];
-	//char queue_name[PORT_QUEUE_MAX_LEN_NAME];
-	uint16_t queueid;
-	unsigned lcore_id, nb_ports;
-	uint32_t n_tx_queue, nb_lcores;
-	uint8_t nb_rx_queue, socketid, queue, lsi_id;
-	
-	//Get info
-	rte_eth_dev_info_get(port_id, &dev_info);
-
-	//Hack to "deduce" the maximum speed of the NIC.
-	//As of DPDK v1.4 there is not way to retreive such features from
-	//the NIC
-	XDPD_DEBUG(DRIVER_NAME"[iface_manager] driver_name=%s\n", dev_info.driver_name);
-	if(strncmp(dev_info.driver_name, "net_i40e_vf", 10) == 0){
-		/* 40G vf */
-		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, "40gevf%u",port_id);
-	} else if(strncmp(dev_info.driver_name, "net_i40e", 8) == 0){
-		/* 40G */
-		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, "40ge%u",port_id);
-	} else if(strncmp(dev_info.driver_name, "net_ixgbe", 9) == 0) {
-		/* 10G */
-		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, "10ge%u",port_id);
-	} else {
-		/* 1G */
-		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, "ge%u",port_id);
-	}
-
-	XDPD_INFO(DRIVER_NAME "[iface_manager] configuring port %s port_id=%d, max_tx_queues=%d, max_rx_queues=%d, "
-			      "speed_capa=0x%x\n",
-		  port_name, port_id, dev_info.max_tx_queues, dev_info.max_rx_queues, dev_info.speed_capa);
-
-	// Set rx and tx queues
-	memset(&port_conf, 0, sizeof(port_conf));
-
-	//Initialize pipeline port
-	port = switch_port_init(port_name, false, PORT_TYPE_PHYSICAL, PORT_STATE_NONE);
-	if(!port)
-		return NULL; 
-
-	//Generate port state
-	dpdk_port_state_t* ps = (dpdk_port_state_t*)rte_malloc(NULL,sizeof(dpdk_port_state_t),0);
-	
-	if(!ps){
-		switch_port_destroy(port);
-		return NULL;
-	}
-
-	port_conf.rxmode.header_split = 0;   /**< Header Split disabled */
-	port_conf.rxmode.hw_ip_checksum = 1; /**< IP checksum offload enabled */
-	port_conf.rxmode.hw_vlan_strip = 1;  /**< VLAN strip enable. */
-	port_conf.rxmode.hw_vlan_extend = 0; /**< Extended VLAN disabled */
-	port_conf.rxmode.hw_vlan_filter = 1; /**< VLAN filtering enalbed */
-	port_conf.rxmode.hw_strip_crc = 1;   /**< CRC stripped by hardware */
-	port_conf.rxmode.jumbo_frame = 0;    /**< Jumbo Frame Support disabled */
-	port_conf.rxmode.enable_scatter = 0; /**< Enable scatter packets rx handler */
-	port_conf.rxmode.enable_lro = 0;     /**< Enable LRO */
-
-	port_conf.rxmode.split_hdr_size = 0;
-	port_conf.rxmode.max_rx_pkt_len = IO_MAX_PACKET_SIZE;
-	
-	// rss
-	port_conf.rxmode.mq_mode = ETH_MQ_RX_RSS;
-	port_conf.rx_adv_conf.rss_conf.rss_key = NULL;
-	port_conf.rx_adv_conf.rss_conf.rss_hf = /*ETH_RSS_L2_PAYLOAD |*/ ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP;
-
-	port_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
-
-	nb_ports = rte_eth_dev_count();
-	nb_lcores = rte_lcore_count();
-	lsi_id = get_lsi_id(port_id);
-	nb_rx_queue = get_port_n_rx_queues(port_id);
-	n_tx_queue = get_port_n_tx_queues(lsi_id, port_id); // for pf could be rte_lcore_count(); must always equal(=1) for vf
-
-	// check rx
-	if (nb_rx_queue > dev_info.max_rx_queues) {
-		rte_exit(EXIT_FAILURE, "Fail: nb_rx_queue(%d) is greater than max_rx_queues(%d)\n", nb_rx_queue,
-			 dev_info.max_rx_queues);
-	}
-
-	if (n_tx_queue > dev_info.max_tx_queues) {
-		rte_exit(EXIT_FAILURE, "Fail: n_tx_queue(%d) is greater than max_tx_queues(%d)\n", n_tx_queue,
-			 dev_info.max_tx_queues);
-	}
-
-	XDPD_INFO("Creating queues: nb_rxq=%d nb_txq=%u...", nb_rx_queue, (unsigned)n_tx_queue);
-
-	ret = rte_eth_dev_configure(port_id, nb_rx_queue, (uint16_t)n_tx_queue,
-				    &port_conf);
-	if (ret < 0)
-		rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%d\n", ret, port_id);
-
-#if 0 
-	// set pvid
-	if (port_pvid[port_id]) {
-		XDPD_INFO(" pvid:%d", port_pvid[port_id]);
-		ret = rte_eth_dev_set_vlan_pvid(port_id, port_pvid[port_id], 1);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "Cannot configure pvid: err=%d, port=%d\n", ret, port_id);
-	}
-#endif
-
-	if (!is_zero_ether_addr(port_ether_addr[port_id])) {
-#ifdef VLAN_ADD_MAC
-		// XXX(tonaju) there is a set mac function as well
-		set_vf_mac_addr(port_parent_id_of_vf[port_id], port_vf_id[port_id], port_ether_addr[port_id]);
-#endif
-		print_ethaddr(" vf-added:", port_ether_addr[port_id]);
-		ret = rte_eth_dev_default_mac_addr_set(port_id, port_ether_addr[port_id]);
-		//ret = rte_eth_dev_mac_addr_add(port_id, port_ether_addr[port_id], 0);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "Cannot configure ether addr: err=%d, port=%d\n", ret, port_id);
-		
-		if (port_vf_id[port_id] != -1) {
-			fprintf(stderr,
-				"params: port_id=%d, port_parent_id_of_vf=%d, port_vf_id=%d, port_pvid=%d\n",
-				port_id, port_parent_id_of_vf[port_id], port_vf_id[port_id], port_pvid[port_id]);
-
-			fprintf(stderr, "calling rte_eth_dev_mac_addr_add\n");
-			ret = rte_eth_dev_mac_addr_add(port_parent_id_of_vf[port_id], port_ether_addr[port_id],
-						       port_vf_id[port_id]);
-			if (ret < 0)
-				rte_exit(EXIT_FAILURE,
-					 "Cannot configure mac on vf: err=%d, port=%d, parent=%d, vf_id=%d\n", ret,
-					 port_id, port_parent_id_of_vf[port_id], port_vf_id[port_id]);
-
-#if 0
-			XDPD_INFO(" broadcast:1(port %d, parent %d, vf_id %d)", port_id, port_parent_id_of_vf[port_id],
-				  port_vf_id[port_id]);
-			ret = rte_pmd_i40e_set_vf_broadcast(port_parent_id_of_vf[port_id], port_vf_id[port_id], 1);
-			if (ret < 0)
-				rte_exit(EXIT_FAILURE,
-					 "Cannot configure broadcast: err=%d, port=%d, parent=%d, vf_id=%d\n", ret,
-					 port_id, port_parent_id_of_vf[port_id], port_vf_id[port_id]);
-
-#endif
-#ifdef VLAN_ANTI_SPOOF
-			set_vf_vlan_anti_spoof(port_parent_id_of_vf[port_id], port_vf_id[port_id], 0);
-#endif
-#ifdef VLAN_SET_MACVLAN_FILTER
-			set_vf_macvlan_filter(port_parent_id_of_vf[port_id], port_vf_id[port_id],
-					      port_ether_addr[port_id], "exact-mac-vlan", 1);
-#endif
-
-#ifdef USE_INPUT_FILTER_SET
-			ret = set_hash_input_set(port_id, RTE_ETH_INPUT_SET_SELECT, RTE_ETH_FLOW_NONFRAG_IPV4_TCP, RTE_ETH_INPUT_SET_L3_SRC_IP4);
-			if (ret < 0)
-				rte_exit(EXIT_FAILURE, "Cannot configure hash input set select "
-						       "RTE_ETH_FLOW_NONFRAG_IPV4_TCP, RTE_ETH_INPUT_SET_L3_SRC_IP4: "
-						       "err=%d, port=%d\n",
-					 ret, port_id);
-			ret = set_hash_input_set(port_id, RTE_ETH_INPUT_SET_ADD, RTE_ETH_FLOW_NONFRAG_IPV4_TCP, RTE_ETH_INPUT_SET_L3_DST_IP4);
-			if (ret < 0)
-				rte_exit(EXIT_FAILURE, "Cannot configure hash input set add "
-						       "RTE_ETH_FLOW_NONFRAG_IPV4_TCP, RTE_ETH_INPUT_SET_L3_DST_IP4: "
-						       "err=%d, port=%d\n",
-					 ret, port_id);
-
-			ret = set_hash_input_set(port_id, RTE_ETH_INPUT_SET_SELECT, RTE_ETH_FLOW_NONFRAG_IPV4_UDP, RTE_ETH_INPUT_SET_L3_SRC_IP4);
-			if (ret < 0)
-				rte_exit(EXIT_FAILURE, "Cannot configure hash input set select "
-						       "RTE_ETH_FLOW_NONFRAG_IPV4_UDP, RTE_ETH_INPUT_SET_L3_SRC_IP4: "
-						       "err=%d, port=%d\n",
-					 ret, port_id);
-			ret = set_hash_input_set(port_id, RTE_ETH_INPUT_SET_ADD, RTE_ETH_FLOW_NONFRAG_IPV4_UDP, RTE_ETH_INPUT_SET_L3_DST_IP4);
-			if (ret < 0)
-				rte_exit(EXIT_FAILURE, "Cannot configure hash input set add "
-						       "RTE_ETH_FLOW_NONFRAG_IPV4_UDP, RTE_ETH_INPUT_SET_L3_DST_IP4: "
-						       "err=%d, port=%d\n",
-					 ret, port_id);
-
-			ret = set_hash_global_config(port_id, RTE_ETH_HASH_FUNCTION_DEFAULT, RTE_ETH_FLOW_FRAG_IPV4, 1);
-			if (ret < 0)
-				rte_exit(EXIT_FAILURE,
-					 "Cannot configure hash global config frag IPv4: err=%d, port=%d\n", ret,
-					 port_id);
-			ret = set_hash_global_config(port_id, RTE_ETH_HASH_FUNCTION_DEFAULT, RTE_ETH_FLOW_NONFRAG_IPV4_TCP, 1);
-			if (ret < 0)
-				rte_exit(EXIT_FAILURE,
-					 "Cannot configure hash global config nonfrag IPv4 TCP: err=%d, port=%d\n", ret,
-					 port_id);
-			ret = set_hash_global_config(port_id, RTE_ETH_HASH_FUNCTION_DEFAULT, RTE_ETH_FLOW_NONFRAG_IPV4_UDP, 1);
-			if (ret < 0)
-				rte_exit(EXIT_FAILURE,
-					 "Cannot configure hash global config nonfrag IPv4 UDP: err=%d, port=%d\n", ret,
-					 port_id);
-#endif
-		}
-		fflush(stderr);
-	}
-
-	//Recover MAC address
-	rte_eth_macaddr_get(port_id, &ports_eth_addr[port_id]);
-	print_ethaddr(" Address:", &ports_eth_addr[port_id]);
-	XDPD_INFO(", ");
-
-#if 0
-	ret = init_mem(NB_MBUF);
-	if (ret < 0)
-		rte_exit(EXIT_FAILURE, "init_mem failed\n");
-#else
-	(void)nb_ports;
-	(void)nb_lcores;
-#endif
-
-#if 1
-	/* init one TX queue per couple (lcore,port) */
-	queueid = 0;
-	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
-		if (rte_lcore_is_enabled(lcore_id) == 0)
-			continue;
-
-		if (0 == is_txq_enabled(lsi_id, port_id, lcore_id))
-			continue;
-
-		if (numa_on)
-			socketid = (uint8_t)rte_lcore_to_socket_id(lcore_id);
-		else
-			socketid = 0;
-
-		XDPD_INFO("txq: port_id=%d, queue_id=%d, socket_id=%d, lcore_id=%d, nb_txd=%d\n", port_id, queueid,
-			  socketid, lcore_id, nb_txd);
-
-		rte_eth_dev_info_get(port_id, &dev_info);
-		txconf = &dev_info.default_txconf;
-
-		if (port_conf.rxmode.jumbo_frame)
-			txconf->txq_flags = 0;
-
-		ret = rte_eth_tx_queue_setup(port_id, queueid, nb_txd, socketid, txconf);
-
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup: err=%d, "
-					       "port=%d\n",
-				 ret, port_id);
-#if 0
-		qconf = &wk_core_tasks[lcore_id];
-		qconf->tx_queue_id[port_id] = queueid;
-		queueid++;
-
-		qconf->tx_port_id[qconf->n_tx_port] = port_id;
-		qconf->n_tx_port++;
-#endif
-	}
-#else
-	/* init one TX queue */
-	socketid = (uint8_t)rte_lcore_to_socket_id(rte_get_master_lcore());
-
-	XDPD_INFO("txq: port_id=%d, queue_id=%d, socket_id=%d, nb_txd=%d\n", port_id, 0, socketid, nb_txd);
-
-	rte_eth_dev_info_get(port_id, &dev_info);
-	txconf = &dev_info.default_txconf;
-	if (port_conf.rxmode.jumbo_frame)
-		txconf->txq_flags = 0;
-
-	ret = rte_eth_tx_queue_setup(port_id, 0, nb_txd, socketid, txconf);
-	if (ret < 0)
-		rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup: err=%d, "
-				       "port=%d\n",
-			 ret, port_id);
-
-#endif
-
-	//Add TX queues to the pipeline
-	//Filling one-by-one the queues 
-
-	/* for(i=0;i<IO_IFACE_NUM_QUEUES;i++){
-		
-		//Create rofl-pipeline queue state
-		snprintf(queue_name, PORT_QUEUE_MAX_LEN_NAME, "%s%d", "queue", i);
-		if(switch_port_add_queue(port, i, (char*)&queue_name, IO_IFACE_MAX_PKT_BURST, 0, 0) != ROFL_SUCCESS){
-			XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot configure queues on device (pipeline): %s\n", port->name);
-			assert(0);
-			return NULL;
-		}
-		
-		//Add port_tx_lcore_queue
-		snprintf(queue_name, PORT_QUEUE_MAX_LEN_NAME, "%u-q%u", port_id, i);
-		port_tx_lcore_queue[port_id][i] = rte_ring_create(queue_name, IO_TX_LCORE_QUEUE_SLOTS , SOCKET_ID_ANY, RING_F_SC_DEQ);
-	
-		
-		if(unlikely( port_tx_lcore_queue[port_id][i] == NULL )){
-			XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot create rte_ring for queue on device: %s\n", port->name);
-			assert(0);
-			return NULL;
-		}
-
-	}
-	*/
-
-#if 0 // PF
-	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
-		if (rte_lcore_is_enabled(lcore_id) == 0)
-			continue;
-		qconf = &wk_core_tasks[lcore_id];
-		printf("\nInitializing rx queues on lcore %u ... ", lcore_id);
-		fflush(stdout);
-		/* init RX queues */
-		for (queue = 0; queue < qconf->n_rx_queue; ++queue) {
-			uint8_t portid = qconf->rx_queue_list[queue].port_id;
-			queueid = qconf->rx_queue_list[queue].queue_id;
-
-			if (portid != port_id)
-				continue;
-
-			if (numa_on)
-				socketid =
-				    (uint8_t)rte_lcore_to_socket_id(lcore_id);
-			else
-				socketid = 0;
-
-			printf("rxq=%d,%d,%d\n", portid, queueid, socketid);
-			fflush(stdout);
-
-			ret = rte_eth_rx_queue_setup(portid, queueid, nb_rxd,
-						     socketid, NULL,
-						     direct_pools[socketid]);
-			if (ret < 0)
-				rte_exit(
-				    EXIT_FAILURE,
-				    "rte_eth_rx_queue_setup: err=%d, port=%d\n",
-				    ret, portid);
-		}
-	}
-#else
-	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
-		if (rte_lcore_is_enabled(lcore_id) == 0)
-			continue;
-		qconf = &wk_core_tasks[lcore_id];
-
-		XDPD_INFO("\nInitializing rx queues on lcore %u ... ", lcore_id);
-		/* init RX queues */
-		for (queue = 0; queue < qconf->n_rx_queue; ++queue) {
-			uint8_t portid = qconf->rx_queue_list[queue].port_id;
-			queueid = qconf->rx_queue_list[queue].queue_id;
-
-			if (portid != port_id)
-				continue;
-
-			if (numa_on)
-				socketid =
-				    (uint8_t)rte_lcore_to_socket_id(lcore_id);
-			else
-				socketid = 0;
-
-			XDPD_INFO("rxq=%d,%d,%d(%d) ", portid, queueid, socketid, nb_rxd);
-
-			ret = rte_eth_rx_queue_setup(portid, queueid, nb_rxd,
-						     socketid, NULL,
-						     direct_pools[socketid]);
-			if (ret < 0)
-				rte_exit(EXIT_FAILURE,
-					 "rte_eth_rx_queue_setup: err=%d,"
-					 "port=%d\n",
-					 ret, portid);
-		}
-	}
-	XDPD_INFO("\n");
-#endif
-
-	//Fill-in dpdk port state
-	ps->queues_set = false;
-	ps->scheduled = false;
-	ps->port_id = port_id;
-	port->platform_port_state = (platform_port_state_t*)ps;
-
-	unsigned int cpu_socket_id = rte_eth_dev_socket_id(port_id);
-	XDPD_INFO(DRIVER_NAME"[iface_manager] Discovered port %s [PCI addr: %04u:%02u:%02u, MAC: %02X:%02X:%02X:%02X:%02X:%02X] id %u (CPU socket: %u)\n", port_name, dev_info.pci_dev->addr.domain, dev_info.pci_dev->addr.bus, dev_info.pci_dev->addr.devid, port->hwaddr[0], port->hwaddr[1], port->hwaddr[2], port->hwaddr[3], port->hwaddr[4], port->hwaddr[5], port_id, (cpu_socket_id == 0xFFFFFFFF)? 0 : cpu_socket_id);
-
-	//Set the port in the phy_port_mapping
-	phy_port_mapping[port_id] = port;
-
-	return port;
-}
-#endif
-
 
 rofl_result_t iface_manager_reset_port(switch_port_t *port)
 {
@@ -1132,14 +735,6 @@ START_RETRY:
 	if(likely(phy_port_mapping[ps->port_id]!=NULL)){
 		phy_port_mapping[ps->port_id]->up = true;
 	}
-
-#if 0
-	//Set promiscuous mode
-	rte_eth_promiscuous_enable(ps->port_id);
-
-	//Enable multicast
-	rte_eth_allmulticast_enable(ps->port_id);
-#endif
 	
 	//Reset stats
 	rte_eth_stats_reset(ps->port_id);
@@ -1319,6 +914,8 @@ static uint16_t iface_manager_pci_address_to_port_id(const std::string& pci_addr
 */
 rofl_result_t iface_manager_setup_virtual_ports(void){
 
+	int ret = 0;
+
 	size_t max_kni_ifaces = 0;
 
 	//2 x KNI_FIFO_COUNT_MAX
@@ -1330,31 +927,48 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 
 		rte_kni_init(max_kni_ifaces);
 
-		// TODO: KNI
-#if 0
 		for (auto it : knis_node) {
-			std::string ifname(it.first.as<std::string>());
-			YAML::Node& kni_node = it.second;
+			YAML::Node& kni_name_node = it.first;
+			YAML::Node& kni_args_node = it.second;
 
-			struct rte_kni_ops kni_ops;
-			kni_ops.change_mtu = nullptr;
-			kni_ops.config_network_if = nullptr;
+			std::string ifname;
+			if (kni_name_node && kni_name_node.IsScalar()) {
+				ifname = kni_name_node.as<std::string>();
+			}
 
-			struct rte_kni_conf kni_conf;
-			strncpy(kni_conf.name, ifname.c_str(), RTE_KNI_NAMESIZE);
-			kni_conf.addr;
-			kni_conf.core_id = rte_get_master_lcore();
-			kni_conf.id;
-			kni_conf.force_bind = 0;
-			kni_conf.group_id = 0;
-			kni_conf.mbuf_size = 0;
+			/* assumption: ifname = "kni0", "kni1", ..., TODO: add check for "kniN" */
+			std::string knidev_name("net_");
+			knidev_name.append(ifname);
+			std::string knidev_args("no_request_thread=1");
+			if (kni_args_node && kni_args_node.IsScalar()) {
+				knidev_args = kni_args_node.as<std::string>();
+			}
 
-			if (rte_kni_alloc(nullptr, &kni_conf, &kni_ops) == NULL) {
-				XDPD_INFO(DRIVER_NAME" failed to allocate virtual KNI port: %s\n", ifname.c_str());
+			XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual port: %s with args: %s\n", knidev_name.c_str(), knidev_args.c_str());
+
+			/* initialize kni pmd device */
+			if ((ret = rte_vdev_init(knidev_name.c_str(), knidev_args.c_str())) < 0) {
+				switch (ret) {
+				case -EINVAL: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of kni dev %s with args \"%s\" failed (EINVAL)\n",
+							ifname.c_str(), knidev_args.c_str());
+				} break;
+				case -EEXIST: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of kni dev %s with args \"%s\" failed (EEXIST)\n",
+							ifname.c_str(), knidev_args.c_str());
+				} break;
+				case -ENOMEM: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of kni dev %s with args \"%s\" failed (ENOMEM)\n",
+							ifname.c_str(), knidev_args.c_str());
+				} break;
+				default: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of kni dev %s with args \"%s\" failed\n",
+							ifname.c_str(), knidev_args.c_str());
+				};
+				}
 				return ROFL_FAILURE;
 			}
 		}
-#endif
 	}
 
 
@@ -2023,70 +1637,17 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 * Discovers and initializes (including rofl-pipeline state) DPDK-enabled ports.
 */
 rofl_result_t iface_manager_discover_system_ports(void){
-#if 0
-	uint8_t i;
-	switch_port_t* port;
-#endif
-
-#if 0
-	if (iface_manager_discover_logical_cores() < 0) {
-		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_logical_cores failed\n");
-		return ROFL_FAILURE;
-	}
-#endif
-
-	if (iface_manager_discover_physical_ports() < 0) {
-		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_physical_ports failed\n");
-		return ROFL_FAILURE;
-	}
 
 	if (iface_manager_setup_virtual_ports() < 0) {
 		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_setup_virtual_ports failed\n");
 		return ROFL_FAILURE;
 	}
 
-#if 0
-	if (check_lcore_params() < 0) {
-		XDPD_ERR(DRIVER_NAME"[iface_manager] check_lcore_params failed\n");
+	if (iface_manager_discover_physical_ports() < 0) {
+		XDPD_ERR(DRIVER_NAME"[iface_manager] iface_manager_discover_physical_ports failed\n");
 		return ROFL_FAILURE;
 	}
-#endif
-#if 0
-	if (init_lcore_rx_queues() < 0) {
-		XDPD_ERR(DRIVER_NAME"[iface_manager] init_lcore_rx_queues failed\n");
-		return ROFL_FAILURE;
-	}
-#endif
-#if 0
-	nb_phy_ports = rte_eth_dev_count();
-	XDPD_INFO(DRIVER_NAME"[iface_manager] Found %u DPDK-capable interfaces\n", nb_phy_ports);
-#endif
-#if 0
-	if (check_port_config(nb_phy_ports) < 0) {
-		XDPD_ERR(DRIVER_NAME "[iface_manager] check_port_config failed\n");
-		return ROFL_FAILURE;
-	}
-#endif
-#if 0
-	for (i = 0; i < nb_phy_ports; ++i) {
-		// only VF ports for now
-		if (port_vf_id[i] == -1) {
-			continue;
-		}
 
-		if(! ( port = configure_port(i) ) ){
-			XDPD_ERR(DRIVER_NAME"[iface_manager] Unable to initialize port-id: %u\n", i);
-			return ROFL_FAILURE;
-		}
-
-		//Add port to the pipeline
-		if( physical_switch_add_port(port) != ROFL_SUCCESS ){
-			XDPD_ERR(DRIVER_NAME"[iface_manager] Unable to add the switch port to physical switch; perhaps there are no more physical port slots available?\n");
-			return ROFL_FAILURE;
-		}
-
-	}	
-#endif
 	return ROFL_SUCCESS;
 }
 
