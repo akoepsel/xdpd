@@ -941,7 +941,7 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 			/* assumption: ifname = "kni0", "kni1", ..., TODO: add check for "kniN" */
 			std::string knidev_name("net_");
 			knidev_name.append(ifname);
-			std::string knidev_args("no_request_thread=1");
+			std::string knidev_args("no_request_thread=0");
 			if (kni_args_node && kni_args_node.IsScalar()) {
 				knidev_args = kni_args_node.as<std::string>();
 			}
