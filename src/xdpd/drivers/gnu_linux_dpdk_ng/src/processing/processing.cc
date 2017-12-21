@@ -955,6 +955,11 @@ int processing_packet_reception(void* not_used){
 						event[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
 						event[i].mbuf = mbufs[i];
 						mbufs[i]->udata64 = (uint64_t)port_id;
+
+						if (mbufs[i]->port == MBUF_INVALID_PORT) {
+							mbufs[i]->port = port_id;
+						}
+
 						RTE_LOG(INFO, USER1, "rx task %2u => eth-port-id: %u, eth-queue-id: %u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
 								lcore_id, port_id, queue_id, ev_port_id, ev_queue_id, i);
 					}
