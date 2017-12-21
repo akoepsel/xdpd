@@ -175,7 +175,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 		ps = (dpdk_port_state_t *)port->platform_port_state;
 
-		int socket_id = rte_eth_dev_socket_id(ps->port_id);
+		int socket_id = ps->socket_id;
 
 		tx_events[0].flow_id = mbuf->hash.rss;
 		tx_events[0].op = RTE_EVENT_OP_NEW;

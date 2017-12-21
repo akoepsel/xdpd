@@ -21,6 +21,7 @@ struct dpdk_port_state {
 	//port id (dpdk)
 	unsigned port_id;
 	unsigned proc_id;
+	int socket_id; // NUMA node socket
 } __rte_cache_aligned;
 
 typedef struct dpdk_port_state dpdk_port_state_t;
