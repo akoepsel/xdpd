@@ -228,12 +228,12 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 		ps = (dpdk_port_state_t *)port->platform_port_state;
 
-		int socket_id = rte_eth_dev_socket_id(ps->port_id);
+		//int socket_id = rte_eth_dev_socket_id(ps->port_id);
 
 		tx_events[0].flow_id = mbuf->hash.rss;
 		tx_events[0].op = RTE_EVENT_OP_NEW;
 		tx_events[0].sched_type = RTE_SCHED_TYPE_ATOMIC;
-		tx_events[0].queue_id = task->tx_ev_queue_id[socket_id]; /* use queue-id for outgoing port's NUMA socket */
+		tx_events[0].queue_id = task->tx_ev_queue_id[ps->socket_id]; /* use queue-id for outgoing port's NUMA socket */
 		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
 		tx_events[0].sub_event_type = 0;
 		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
@@ -242,7 +242,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		tx_events[0].mbuf->udata64 = (uint64_t)port_id;
 
 		RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, event[%u] for eth-port: %u\n",
-				lcore_id, task->ev_port_id, task->tx_ev_queue_id[socket_id], 0, port_id);
+				lcore_id, task->ev_port_id, task->tx_ev_queue_id[ps->socket_id], 0, port_id);
 
 		int i = 0, nb_rx = 1;
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, task->ev_port_id, tx_events, 1);
