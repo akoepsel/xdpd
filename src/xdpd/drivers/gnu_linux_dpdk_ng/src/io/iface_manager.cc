@@ -1033,13 +1033,13 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	size_t nb_mbuf[RTE_MAX_NUMA_NODES]; //The required space per NUMA node
 	YAML::Node node;
 	int ret = 0;
-	unsigned int lcore_id_rxqueue[RTE_MAX_NUMA_NODES];
-	unsigned int lcore_id_txqueue[RTE_MAX_NUMA_NODES];
+	//unsigned int lcore_id_rxqueue[RTE_MAX_NUMA_NODES];
+	//unsigned int lcore_id_txqueue[RTE_MAX_NUMA_NODES];
 
 	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
 		nb_mbuf[socket_id] = rte_eth_dev_count() * rx_lcores.size() * IO_IFACE_MAX_PKT_BURST + rx_lcores.size() * MEMPOOL_CACHE_SIZE;
-		lcore_id_rxqueue[socket_id] = 0;
-		lcore_id_txqueue[socket_id] = 0;
+		//lcore_id_rxqueue[socket_id] = 0;
+		//lcore_id_txqueue[socket_id] = 0;
 	}
 
 	//Initialize physical port structure: all phyports disabled
@@ -1178,7 +1178,25 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, dev_info.max_tx_queues, nb_tx_queues, dev_info.driver_name, s_fw_version, s_pci_addr);
 
 
+		/* all RX lcores for this port's (port_id) NUMA node (socket_id) */
+		uint16_t rx_queue_id = 0;
+		for (auto lcore_id : rx_lcores[socket_id]) {
+			if (not lcores[lcore_id].is_enabled) {
+				continue;
+			}
+			if (not lcores[lcore_id].is_rx_lcore) {
+				continue;
+			}
 
+			uint16_t index = rx_core_tasks[lcore_id].nb_rx_queues;
+			rx_core_tasks[lcore_id].rx_queues[index].port_id = port_id;
+			rx_core_tasks[lcore_id].rx_queues[index].queue_id = rx_queue_id;
+			rx_core_tasks[lcore_id].nb_rx_queues++;
+			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, rxqueue: %u on socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
+					port_id, rx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id), rx_core_tasks[lcore_id].nb_rx_queues);
+			rx_queue_id = (rx_queue_id < phyports[port_id].nb_rx_queues) ? rx_queue_id + 1 : 0;
+		}
+#if 0
 		/* assign all rxqueues to RX lcores */
 		for (unsigned int rx_queue_id = 0; rx_queue_id < phyports[port_id].nb_rx_queues; ++rx_queue_id) {
 			int count = 0;
@@ -1200,9 +1218,25 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					port_id, rx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id), rx_core_tasks[lcore_id].nb_rx_queues);
 			lcore_id_rxqueue[socket_id] = (lcore_id_rxqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_rxqueue[socket_id] + 1 : 0;
 		}
+#endif
 
 
+		/* all TX lcores for this port's (port_id) NUMA node (socket_id) */
+		uint16_t tx_queue_id = 0;
+		for (auto lcore_id : tx_lcores[socket_id]) {
+			if (not lcores[lcore_id].is_enabled) {
+				continue;
+			}
+			if (not lcores[lcore_id].is_tx_lcore) {
+				continue;
+			}
 
+			tx_core_tasks[lcore_id].tx_queues[port_id].enabled = 1;
+			tx_core_tasks[lcore_id].tx_queues[port_id].queue_id = tx_queue_id;
+			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, txqueue: %u on socket: %u to lcore: %u on socket: %u\n",
+					port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
+		}
+#if 0
 		/* assign all txqueues to TX lcores */
 		for (unsigned int tx_queue_id = 0; tx_queue_id < phyports[port_id].nb_tx_queues; ++tx_queue_id) {
 			int count = 0;
@@ -1223,6 +1257,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
 			lcore_id_txqueue[socket_id] = (lcore_id_txqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_txqueue[socket_id] + 1 : 0;
 		}
+#endif
 
 
 
