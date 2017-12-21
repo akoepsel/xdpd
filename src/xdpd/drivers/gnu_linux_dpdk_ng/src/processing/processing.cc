@@ -323,7 +323,6 @@ rofl_result_t processing_init_eventdev(void){
 	}
 	eventdev_conf.nb_events_limit = eventdev_info.max_num_events;
 	eventdev_conf.nb_event_queue_flows = eventdev_info.max_event_queue_flows;
-	eventdev_conf.nb_event_ports = eventdev_info.max_event_ports;
 	eventdev_conf.nb_event_port_dequeue_depth = eventdev_info.max_event_port_dequeue_depth;
 	eventdev_conf.nb_event_port_enqueue_depth = eventdev_info.max_event_port_enqueue_depth;
 
