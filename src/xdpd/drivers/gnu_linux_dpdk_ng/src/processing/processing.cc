@@ -593,21 +593,12 @@ rofl_result_t processing_init(void){
 		return ROFL_FAILURE;
 	}
 
-	/*
-	 * initialize RTE event device
-	 */
-	if (ROFL_FAILURE == processing_init_eventdev()) {
-		XDPD_ERR(DRIVER_NAME"[processing][init] RTE event device initialization failed\n");
-		return ROFL_FAILURE;
-	}
 
-	//Initialize basics
-	max_cores = rte_lcore_count();
 
-	rte_rwlock_init(&port_list_rwlock);
 
-	XDPD_DEBUG(DRIVER_NAME"[processing][init] %u logical cores guessed from rte_eal_get_configuration(). Master is: %u\n", rte_lcore_count(), rte_get_master_lcore());
-	//mp_hdlr_init_ops_mp_mc();
+
+
+
 
 
 	YAML::Node mbuf_elems_node = y_config_dpdk_ng["dpdk"]["mbuf_elems_in_pool"];
@@ -702,6 +693,24 @@ rofl_result_t processing_init(void){
 			}
 		}
 	}
+
+
+	/*
+	 * initialize RTE event device
+	 */
+	if (ROFL_FAILURE == processing_init_eventdev()) {
+		XDPD_ERR(DRIVER_NAME"[processing][init] RTE event device initialization failed\n");
+		return ROFL_FAILURE;
+	}
+
+	//Initialize basics
+	max_cores = rte_lcore_count();
+
+	rte_rwlock_init(&port_list_rwlock);
+
+	XDPD_DEBUG(DRIVER_NAME"[processing][init] %u logical cores guessed from rte_eal_get_configuration(). Master is: %u\n", rte_lcore_count(), rte_get_master_lcore());
+	//mp_hdlr_init_ops_mp_mc();
+
 	return ROFL_SUCCESS;
 }
 
