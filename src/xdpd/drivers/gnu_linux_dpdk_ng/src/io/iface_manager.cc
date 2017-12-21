@@ -1179,7 +1179,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 
 
-		/* assign all rxqueues to lcores */
+		/* assign all rxqueues to RX lcores */
 		for (unsigned int rx_queue_id = 0; rx_queue_id < phyports[port_id].nb_rx_queues; ++rx_queue_id) {
 			int count = 0;
 			while (((not lcores[lcore_id_rxqueue[socket_id]].is_rx_lcore) || (not (lcores[lcore_id_rxqueue[socket_id]].socket_id == (int)socket_id))) && (count++ < RTE_MAX_LCORE)) {
@@ -1203,10 +1203,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 
 
-		/* assign all txqueues to lcores */
+		/* assign all txqueues to TX lcores */
 		for (unsigned int tx_queue_id = 0; tx_queue_id < phyports[port_id].nb_tx_queues; ++tx_queue_id) {
 			int count = 0;
-			while ((not lcores[lcore_id_txqueue[socket_id]].is_tx_lcore) && (count++ < RTE_MAX_LCORE)) {
+			//while ((not lcores[lcore_id_txqueue[socket_id]].is_tx_lcore) && (count++ < RTE_MAX_LCORE)) {
+			while (((not lcores[lcore_id_txqueue[socket_id]].is_tx_lcore) || (not (lcores[lcore_id_txqueue[socket_id]].socket_id == (int)socket_id))) && (count++ < RTE_MAX_LCORE)) {
 				lcore_id_txqueue[socket_id] = (lcore_id_txqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_txqueue[socket_id] + 1 : 0;
 				//XDPD_DEBUG(DRIVER_NAME"[ifaces][txqueues] lcore_id: %u\n", lcore_id_rxqueue[socket_id]);
 			}
