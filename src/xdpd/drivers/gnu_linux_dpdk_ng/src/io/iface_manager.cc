@@ -1184,7 +1184,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			int count = 0;
 			while (((not lcores[lcore_id_rxqueue[socket_id]].is_rx_lcore) || (not (lcores[lcore_id_rxqueue[socket_id]].socket_id == (int)socket_id))) && (count++ < RTE_MAX_LCORE)) {
 				lcore_id_rxqueue[socket_id] = (lcore_id_rxqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_rxqueue[socket_id] + 1 : 0;
-				XDPD_DEBUG(DRIVER_NAME"[ifaces][rxqueues] lcore_id: %u\n", lcore_id_rxqueue[socket_id]);
+				//XDPD_DEBUG(DRIVER_NAME"[ifaces][rxqueues] lcore_id: %u\n", lcore_id_rxqueue[socket_id]);
 			}
 			if (count >= RTE_MAX_LCORE) {
 				XDPD_ERR(DRIVER_NAME"[ifaces] no RX lcore found, unable to map rx queues for port %u\n", port_id);
@@ -1208,7 +1208,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			int count = 0;
 			while ((not lcores[lcore_id_txqueue[socket_id]].is_tx_lcore) && (count++ < RTE_MAX_LCORE)) {
 				lcore_id_txqueue[socket_id] = (lcore_id_txqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_txqueue[socket_id] + 1 : 0;
-				XDPD_DEBUG(DRIVER_NAME"[ifaces][txqueues] lcore_id: %u\n", lcore_id_rxqueue[socket_id]);
+				//XDPD_DEBUG(DRIVER_NAME"[ifaces][txqueues] lcore_id: %u\n", lcore_id_rxqueue[socket_id]);
 			}
 			if (count >= RTE_MAX_LCORE) {
 				XDPD_ERR(DRIVER_NAME"[ifaces] no TX lcore found, unable to map tx queues for port %u\n", port_id);
