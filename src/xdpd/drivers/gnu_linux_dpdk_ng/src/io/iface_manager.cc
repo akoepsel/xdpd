@@ -1033,13 +1033,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	size_t nb_mbuf[RTE_MAX_NUMA_NODES]; //The required space per NUMA node
 	YAML::Node node;
 	int ret = 0;
-	//unsigned int lcore_id_rxqueue[RTE_MAX_NUMA_NODES];
-	//unsigned int lcore_id_txqueue[RTE_MAX_NUMA_NODES];
 
 	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
 		nb_mbuf[socket_id] = rte_eth_dev_count() * rx_lcores.size() * IO_IFACE_MAX_PKT_BURST + rx_lcores.size() * MEMPOOL_CACHE_SIZE;
-		//lcore_id_rxqueue[socket_id] = 0;
-		//lcore_id_txqueue[socket_id] = 0;
 	}
 
 	//Initialize physical port structure: all phyports disabled
@@ -1212,29 +1208,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 			rx_queue_id = (rx_queue_id < (phyports[port_id].nb_rx_queues - 1)) ? rx_queue_id + 1 : 0;
 		}
-#if 0
-		/* assign all rxqueues to RX lcores */
-		for (unsigned int rx_queue_id = 0; rx_queue_id < phyports[port_id].nb_rx_queues; ++rx_queue_id) {
-			int count = 0;
-			while (((not lcores[lcore_id_rxqueue[socket_id]].is_rx_lcore) || (not (lcores[lcore_id_rxqueue[socket_id]].socket_id == (int)socket_id))) && (count++ < RTE_MAX_LCORE)) {
-				lcore_id_rxqueue[socket_id] = (lcore_id_rxqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_rxqueue[socket_id] + 1 : 0;
-				//XDPD_DEBUG(DRIVER_NAME"[ifaces][rxqueues] lcore_id: %u\n", lcore_id_rxqueue[socket_id]);
-			}
-			if (count >= RTE_MAX_LCORE) {
-				XDPD_ERR(DRIVER_NAME"[ifaces] no RX lcore found, unable to map rx queues for port %u\n", port_id);
-				return ROFL_FAILURE;
-			}
-			uint16_t lcore_id = lcore_id_rxqueue[socket_id];
-
-			uint16_t index = rx_core_tasks[lcore_id].nb_rx_queues;
-			rx_core_tasks[lcore_id].rx_queues[index].port_id = port_id;
-			rx_core_tasks[lcore_id].rx_queues[index].queue_id = rx_queue_id;
-			rx_core_tasks[lcore_id].nb_rx_queues++;
-			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, rxqueue: %u on socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
-					port_id, rx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id), rx_core_tasks[lcore_id].nb_rx_queues);
-			lcore_id_rxqueue[socket_id] = (lcore_id_rxqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_rxqueue[socket_id] + 1 : 0;
-		}
-#endif
 
 
 		/* all TX lcores for this port's (port_id) NUMA node (socket_id) */
@@ -1257,28 +1230,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 			tx_queue_id = (tx_queue_id < (phyports[port_id].nb_tx_queues - 1)) ? tx_queue_id + 1 : 0;
 		}
-#if 0
-		/* assign all txqueues to TX lcores */
-		for (unsigned int tx_queue_id = 0; tx_queue_id < phyports[port_id].nb_tx_queues; ++tx_queue_id) {
-			int count = 0;
-			//while ((not lcores[lcore_id_txqueue[socket_id]].is_tx_lcore) && (count++ < RTE_MAX_LCORE)) {
-			while (((not lcores[lcore_id_txqueue[socket_id]].is_tx_lcore) || (not (lcores[lcore_id_txqueue[socket_id]].socket_id == (int)socket_id))) && (count++ < RTE_MAX_LCORE)) {
-				lcore_id_txqueue[socket_id] = (lcore_id_txqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_txqueue[socket_id] + 1 : 0;
-				//XDPD_DEBUG(DRIVER_NAME"[ifaces][txqueues] lcore_id: %u\n", lcore_id_rxqueue[socket_id]);
-			}
-			if (count >= RTE_MAX_LCORE) {
-				XDPD_ERR(DRIVER_NAME"[ifaces] no TX lcore found, unable to map tx queues for port %u\n", port_id);
-				return ROFL_FAILURE;
-			}
-			uint16_t lcore_id = lcore_id_txqueue[socket_id];
-
-			tx_core_tasks[lcore_id].tx_queues[port_id].enabled = 1;
-			tx_core_tasks[lcore_id].tx_queues[port_id].queue_id = tx_queue_id;
-			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, txqueue: %u on socket: %u to lcore: %u on socket: %u\n",
-					port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
-			lcore_id_txqueue[socket_id] = (lcore_id_txqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_txqueue[socket_id] + 1 : 0;
-		}
-#endif
 
 
 
@@ -1748,7 +1699,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			socket_id = rte_eth_dev_socket_id(port_id);
 		}
 
-		XDPD_INFO(DRIVER_NAME" adding xdpd port: %s for dpdk port: %u\n", port_name, port_id);
+		XDPD_INFO(DRIVER_NAME" adding xdpd port: %s for dpdk port: %u on socket: %u\n", port_name, port_id, socket_id);
 
 		//Initialize pipeline port
 		port = switch_port_init(port_name, false, PORT_TYPE_PHYSICAL, PORT_STATE_NONE);
