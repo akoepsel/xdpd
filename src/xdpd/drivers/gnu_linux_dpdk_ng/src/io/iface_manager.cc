@@ -1174,6 +1174,19 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].nb_rx_queues = nb_rx_queues;
 		phyports[port_id].nb_tx_queues = nb_tx_queues;
 
+		if (phyports[port_id].nb_rx_queues == 0) {
+			XDPD_INFO(DRIVER_NAME"[ifaces] skipping physical port: %u on socket: %u with nb_rx_queues: %u\n",
+					port_id, socket_id, nb_rx_queues);
+			continue;
+		}
+
+		if (phyports[port_id].nb_tx_queues == 0) {
+			XDPD_INFO(DRIVER_NAME"[ifaces] skipping physical port: %u on socket: %u with nb_tx_queues: %u\n",
+					port_id, socket_id, nb_tx_queues);
+			continue;
+		}
+
+
 		XDPD_INFO(DRIVER_NAME"[ifaces] adding physical port: %u on socket: %u with max_rx_queues: %u, rx_queues in use: %u, max_tx_queues: %u, tx_queues in use: %u, driver: %s, firmware: %s, PCI address: %s\n",
 				port_id, socket_id, dev_info.max_rx_queues, nb_rx_queues, dev_info.max_tx_queues, nb_tx_queues, dev_info.driver_name, s_fw_version, s_pci_addr);
 
@@ -1194,7 +1207,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rx_core_tasks[lcore_id].nb_rx_queues++;
 			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, rxqueue: %u on socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
 					port_id, rx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id), rx_core_tasks[lcore_id].nb_rx_queues);
-			rx_queue_id = (rx_queue_id < phyports[port_id].nb_rx_queues) ? rx_queue_id + 1 : 0;
+			rx_queue_id = (rx_queue_id < (phyports[port_id].nb_rx_queues - 1)) ? rx_queue_id + 1 : 0;
 		}
 #if 0
 		/* assign all rxqueues to RX lcores */
@@ -1235,7 +1248,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			tx_core_tasks[lcore_id].tx_queues[port_id].queue_id = tx_queue_id;
 			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, txqueue: %u on socket: %u to lcore: %u on socket: %u\n",
 					port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
-			tx_queue_id = (tx_queue_id < phyports[port_id].nb_tx_queues) ? tx_queue_id + 1 : 0;
+			tx_queue_id = (tx_queue_id < (phyports[port_id].nb_tx_queues - 1)) ? tx_queue_id + 1 : 0;
 		}
 #if 0
 		/* assign all txqueues to TX lcores */
