@@ -97,6 +97,7 @@ typedef struct tx_core_task {
 	 * transmitting to ethdevs
 	 */
 	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id] => for all ports in the system
+	uint16_t nb_tx_queues; // number if valid tx_queues
 #if 0
 	//These are the TX-queues for ALL ports in the system; index is port_id
 	struct mbuf_burst tx_mbufs[RTE_MAX_ETHPORTS];
