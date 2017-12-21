@@ -188,8 +188,8 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 		tx_events[0].mbuf->udata64 = (uint64_t)port_id;
 
-		RTE_LOG(INFO, USER1, "wk task %2u => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u] for eth-port: %u\n",
-				lcore_id, ps->port_id, ev_port_id, event_queues[socket_id][EVENT_QUEUE_TXCORES], 0, port_id);
+		RTE_LOG(INFO, USER1, "wk task %2u => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
+				lcore_id, ps->port_id, ev_port_id, event_queues[socket_id][EVENT_QUEUE_TXCORES], 0);
 
 		int i = 0, nb_rx = 1;
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, 1);

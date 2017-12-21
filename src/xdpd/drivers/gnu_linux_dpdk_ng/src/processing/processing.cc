@@ -1021,9 +1021,6 @@ int processing_core_process_packets(void* not_used){
 			continue;
 		}
 
-		RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, packets dequeued: %u\n",
-				lcore_id, ev_port_id, ev_queue_id, nb_rx);
-
 		for (i = 0; i < nb_rx; i++) {
 
 			if (rx_events[i].mbuf == NULL) {
@@ -1040,6 +1037,9 @@ int processing_core_process_packets(void* not_used){
 
 
 			rte_rwlock_read_unlock(&port_list_rwlock);
+
+			RTE_LOG(INFO, USER1, "wk task %2u => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u], packets dequeued: %u\n",
+					lcore_id, in_port_id, ev_port_id, ev_queue_id, i, nb_rx);
 
 			/* inject packet into openflow pipeline */
 			process_pipeline_rx(lcore_id, port, rx_events[i].mbuf, &pkt, pkt_state);
