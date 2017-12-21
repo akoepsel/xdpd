@@ -1182,7 +1182,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		/* assign all rxqueues to lcores */
 		for (unsigned int rx_queue_id = 0; rx_queue_id < phyports[port_id].nb_rx_queues; ++rx_queue_id) {
 			int count = 0;
-			while ((not lcores[lcore_id_rxqueue[socket_id]].is_rx_lcore) && (count++ < RTE_MAX_LCORE)) {
+			while ((not lcores[lcore_id_rxqueue[socket_id]].is_rx_lcore) && (lcores[lcore_id_rxqueue[socket_id]].socket_id != (int)socket_id) && (count++ < RTE_MAX_LCORE)) {
 				lcore_id_rxqueue[socket_id] = (lcore_id_rxqueue[socket_id] < (rte_lcore_count() - 1)) ? lcore_id_rxqueue[socket_id] + 1 : 0;
 			}
 			if (count >= RTE_MAX_LCORE) {
