@@ -1235,6 +1235,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			tx_core_tasks[lcore_id].tx_queues[port_id].queue_id = tx_queue_id;
 			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, txqueue: %u on socket: %u to lcore: %u on socket: %u\n",
 					port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id));
+			tx_queue_id = (tx_queue_id < phyports[port_id].nb_tx_queues) ? tx_queue_id + 1 : 0;
 		}
 #if 0
 		/* assign all txqueues to TX lcores */
