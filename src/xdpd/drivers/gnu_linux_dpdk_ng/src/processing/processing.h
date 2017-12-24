@@ -101,15 +101,20 @@ typedef struct tx_core_task {
 	 */
 	/* queues per port for storing packets before initiating tx-burst to eth-dev */
 	struct rte_ring* txring[RTE_MAX_ETHPORTS];
-	/* maximum time interval before initiating next tx-burst for port */
-	unsigned int txring_drain_interval[RTE_MAX_ETHPORTS];
+
 	/* maximum number of packets allowed in queue before initiating tx-burst for port */
 	unsigned int txring_drain_threshold[RTE_MAX_ETHPORTS];
 	/* maximum packet capacity in drain queue */
 	unsigned int txring_drain_max_queue_size[RTE_MAX_ETHPORTS];
 
+	/* maximum time interval before initiating next tx-burst for port */
+	uint64_t txring_drain_interval[RTE_MAX_ETHPORTS];
+	/* timestamp of last tx-burst */
+	uint64_t last_tx_time[RTE_MAX_ETHPORTS];
+
 	/* mbuf table of packets to be sent out (shared by all ports!) */
 	struct rte_mbuf *tx_pkts[PROC_ETH_TX_BURST_SIZE];
+
 
 	/*
 	 * transmitting to ethdevs

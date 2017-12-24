@@ -1087,6 +1087,7 @@ int processing_packet_transmission(void* not_used){
 	tx_core_task_t* task = &tx_core_tasks[lcore_id];
 	uint32_t out_port_id;
 	int socket_id = rte_lcore_to_socket_id(lcore_id);
+	struct rte_event events[PROC_ETH_TX_BURST_SIZE];
 
 	//Set flag to active
 	task->active = true;
@@ -1101,11 +1102,11 @@ int processing_packet_transmission(void* not_used){
 
 		(void)ev_queue_id;
 
+
 		/*
 		 * read events from event queue
 		 */
 		int timeout = 0;
-		struct rte_event events[PROC_ETH_TX_BURST_SIZE];
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
 
 		/* interate over all received events */
@@ -1136,7 +1137,7 @@ int processing_packet_transmission(void* not_used){
 			}
 
 			/* store event.mbuf in txring assigned to outgoing port */
-			if (likely(task->txring != NULL) && likely(events[i].mbuf != NULL)) {
+			if (likely(task->txring[out_port_id] != NULL) && likely(events[i].mbuf != NULL)) {
 				unsigned int ret;
 				if ((ret = rte_ring_enqueue(task->txring[out_port_id], events[i].mbuf)) < 0) {
 					switch (ret) {
@@ -1155,17 +1156,31 @@ int processing_packet_transmission(void* not_used){
 			}
 		}
 
+
 		/*
 		 * drain all outgoing ports
 		 */
 		for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id) {
+
+			unsigned int nb_elems;
 
 			/* port not enabled in this tx-task */
 			if (not task->tx_queues[port_id].enabled) {
 				continue;
 			}
 
-			unsigned int nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, sizeof(task->tx_pkts), NULL);
+			uint64_t cur_tsc = rte_rdtsc();
+
+			/* get number of packets stored in txring */
+			nb_elems = rte_ring_get_size(task->txring[port_id]);
+
+			/* not enough time elapsed since last tx-burst for this port or number of packets in ring does not exceed the threshold value for this port */
+			if (((task->last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) && (nb_elems < task->txring_drain_threshold[port_id])) {
+				continue;
+			}
+
+			/* get mbufs from txring */
+			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, sizeof(task->tx_pkts), NULL);
 
 			/* no elements in txring */
 			if (nb_elems == 0) {
@@ -1178,12 +1193,15 @@ int processing_packet_transmission(void* not_used){
 			RTE_LOG(DEBUG, USER1, "tx-task-%2u: eth-port-id: %u, eth-queue-id: %u, packets sent: %u\n",
 					lcore_id, port_id, task->tx_queues[port_id].queue_id, nb_tx);
 
-			/* all packets sent, next port */
+			/* adjust timestamp */
+			task->last_tx_time[port_id] = cur_tsc;
+
+			/* if all packets have been sent, goto next port */
 			if (nb_tx == nb_elems) {
 				continue;
 			}
 
-			/* release any unsent packets */
+			/* otherwise, release any unsent packets */
 			for(i = nb_tx; i < nb_elems; i++) {
 				RTE_LOG(WARNING, USER1, "tx-task-%2u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
 						lcore_id, port_id, i, port_id, task->tx_queues[port_id].queue_id);
@@ -1197,119 +1215,6 @@ int processing_packet_transmission(void* not_used){
 	return (int)ROFL_SUCCESS;
 }
 
-
-#if 0
-int processing_core_process_packets(void* not_used){
-
-	unsigned int i, l, lcore_id = rte_lcore_id();
-	uint16_t port_id;
-	uint16_t queue_id;
-	//bool own_port = true;
-	switch_port_t* port;
-	//port_bursts_t* port_bursts;
-    uint64_t diff_tsc, prev_tsc, cur_tsc;
-	struct rte_mbuf* pkt_burst[IO_IFACE_MAX_PKT_BURST]={0};
-	wk_core_task_t* task = &wk_core_tasks[lcore_id];
-
-	//Time to drain in tics
-	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * IO_BURST_TX_DRAIN_US;
-
-	if (task->n_rx_queue == 0) {
-		RTE_LOG(INFO, USER1, "lcore %u has nothing to do\n", lcore_id);
-		//return 0;
-	}
-
-	//Parsing and pipeline extra state
-	datapacket_t pkt;
-	datapacket_dpdk_t* pkt_state = create_datapacket_dpdk(&pkt);
-
-	//Init values and assign
-	pkt.platform_state = (platform_datapacket_state_t*)pkt_state;
-	pkt_state->mbuf = NULL;
-
-	//Set flag to active
-	task->active = true;
-
-	//Last drain tsc
-	prev_tsc = 0;
-
-	for (i = 0; i < task->n_rx_queue; i++) {
-		port_id = task->rx_queue_list[i].port_id;
-		queue_id = task->rx_queue_list[i].queue_id;
-		RTE_LOG(INFO, USER1, " -- lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
-	}
-
-	RTE_LOG(INFO, USER1, "run task on lcore_id=%d\n", lcore_id);
-
-	while(likely(task->active)){
-
-		cur_tsc = rte_rdtsc();
-		//Calc diff
-		diff_tsc = cur_tsc - prev_tsc;
-
-		//Drain TX if necessary
-		if(unlikely(diff_tsc > drain_tsc)){
-
-			//Handle physical ports
-			for (i = 0, l = 0; l < total_num_of_ports && likely(i < PROCESSING_MAX_PORTS); ++i) {
-
-				switch_port_t *port;
-				dpdk_port_state_t *ps;
-
-				rte_rwlock_read_lock(&port_list_rwlock);
-				if ((port = port_list[i]) == NULL) {
-					rte_rwlock_read_unlock(&port_list_rwlock);
-					continue;
-				}
-
-				l++;
-				ps = (dpdk_port_state_t *)port->platform_port_state;
-
-				assert(i == ps->port_id);
-#if 0
-				if (task->tx_mbufs[i].len == 0) {
-					rte_rwlock_read_unlock(&port_list_rwlock);
-					continue;
-				}
-#endif
-				RTE_LOG(INFO, USER1, "handle tx of core_id=%d, i=%d, ps->port_id=%d, port->name=%s\n", lcore_id, i, ps->port_id, port->name);
-				// port_bursts = &task->ports[i];
-				//process_port_tx(task, i);
-				rte_pause();
-#if 0
-				task->tx_mbufs[i].len = 0;
-#endif
-				rte_rwlock_read_unlock(&port_list_rwlock);
-			}
-
-			prev_tsc = cur_tsc;
-		}
-
-		// Process RX
-		for (unsigned int rxslot = 0; rxslot < task->n_rx_queue; ++rxslot) {
-
-			port_id = task->rx_queue_list[rxslot].port_id;
-			queue_id = task->rx_queue_list[rxslot].queue_id;
-
-			rte_rwlock_read_lock(&port_list_rwlock);
-			if ((port = port_list[port_id]) == NULL) {
-				rte_rwlock_read_unlock(&port_list_rwlock);
-				continue;
-			}
-
-			if (likely(port->up)) { // This CAN happen while deschedulings
-				// Process RX&pipeline
-				process_port_rx(lcore_id, port, port_id, queue_id, pkt_burst, &pkt, pkt_state);
-			}
-			rte_rwlock_read_unlock(&port_list_rwlock);
-		}
-	}
-
-	destroy_datapacket_dpdk(pkt_state);
-
-	return (int)ROFL_SUCCESS;
-}
-#endif
 
 //
 //Port scheduling
