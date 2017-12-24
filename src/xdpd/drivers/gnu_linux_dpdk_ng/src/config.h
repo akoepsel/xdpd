@@ -176,15 +176,6 @@
  */
 #define DEFAULT_NB_MBUF 65365
 
-/**
-* NF related parameters
-*/
-
-//Enable NF extensions (KNI and secondary process DPDK ports)
-#define GNU_LINUX_DPDK_ENABLE_NF
-
-//Maximum number of KNI interfaces, used during preallocation
-#define GNU_LINUX_DPDK_MAX_KNI_IFACES 4
 
 /**
 * Uncomment the following line to enable the semaphore and implement a sleep/
