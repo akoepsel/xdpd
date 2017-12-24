@@ -12,8 +12,12 @@ dpdk:
     name: event_sw0
     args: sched_quanta=64,credit_quanta=32
   knis:
-    kni0: ""
-    kni1: ""
+    kni0: 
+      socket_id: 0
+      args: ""
+    kni1: 
+      socket_id: 1
+      args: ""
   rings:
     ring0: "nodeaction=ring_A:0:CREATE"
     ring1: "nodeaction=ring_A:0:ATTACH"
@@ -23,6 +27,9 @@ dpdk:
     ens1f1: 
       enabled: true
       pci_address: "0000:82:00.1"
+      txring-drain-queue-capacity: 128
+      txring-drain-threshold: 16
+      txring-drain-interval: 100
       tx_loopback: true
       promisc: true
       allmulticast: false
@@ -37,6 +44,9 @@ dpdk:
       enabled: true
       pci_address: "0000:82:0a.0"
       parent: "0000:82:00.1"
+      txring-drain-queue-capacity: 128
+      txring-drain-threshold: 16
+      txring-drain-interval: 100
       enabled: true
       mac_addr: 
         - "00:11:11:11:01:01"
@@ -53,6 +63,9 @@ dpdk:
       enabled: true
       pci_address: "0000:82:0a.1"
       parent: "0000:82:00.1"
+      txring-drain-queue-capacity: 128
+      txring-drain-threshold: 16
+      txring-drain-interval: 100
       mac_addr: 
         - "00:11:11:11:01:02"
         - "00:11:11:11:01:12"
@@ -68,6 +81,9 @@ dpdk:
     ens3f1: 
       enabled: true
       pci_address: "0000:03:00.1"
+      txring-drain-queue-capacity: 128
+      txring-drain-threshold: 16
+      txring-drain-interval: 100
       tx_loopback: true
       promisc: true
       allmulticast: false
@@ -82,6 +98,9 @@ dpdk:
       enabled: true
       pci_address: "0000:03:0a.0"
       parent: "0000:03:00.1"
+      txring-drain-queue-capacity: 128
+      txring-drain-threshold: 16
+      txring-drain-interval: 100
       enabled: true
       mac_addr: 
         - "00:11:11:11:01:03"
@@ -98,6 +117,9 @@ dpdk:
       enabled: true
       pci_address: "0000:03:0a.1"
       parent: "0000:03:00.1"
+      txring-drain-queue-capacity: 128
+      txring-drain-threshold: 16
+      txring-drain-interval: 100
       mac_addr: 
         - "00:11:11:11:01:04"
         - "00:11:11:11:01:14"

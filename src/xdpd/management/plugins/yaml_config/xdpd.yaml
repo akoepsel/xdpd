@@ -88,4 +88,4 @@ root:
     system:
       id: "0000000123"
       logging-level: "DEBUG"
-      driver-extra-params: "coremask=0xf;master-lcore=0;config=../src/xdpd/drivers/gnu_linux_dpdk_ng/xdpd.gnu_linux_dpdk_ng.conf.yaml"
+      driver-extra-params: "config=../src/xdpd/drivers/gnu_linux_dpdk_ng/xdpd.gnu_linux_dpdk_ng.conf.yaml"

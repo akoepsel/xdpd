@@ -97,7 +97,7 @@ typedef struct tx_core_task {
 	/* maximum number of packets allowed in queue before initiating tx-burst for port */
 	unsigned int txring_drain_threshold[RTE_MAX_ETHPORTS];
 	/* maximum packet capacity in drain queue */
-	unsigned int txring_drain_max_queue_size[RTE_MAX_ETHPORTS];
+	unsigned int txring_drain_queue_capacity[RTE_MAX_ETHPORTS];
 
 	/* maximum time interval before initiating next tx-burst for port */
 	uint64_t txring_drain_interval[RTE_MAX_ETHPORTS];

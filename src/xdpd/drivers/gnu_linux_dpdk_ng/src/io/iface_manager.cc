@@ -1036,10 +1036,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rgname << "port-" << port_id;
 
 			/* store txring-drain-max-queuesize parameter for this port */
-			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-max-queue-size")) {
-				tx_core_tasks[lcore_id].txring_drain_max_queue_size[port_id] = pow(2, (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring-drain-max-queue-size"))));
+			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-queue-capacity")) {
+				tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id] = pow(2, (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring-drain-queue-capacity"))));
 			} else {
-				tx_core_tasks[lcore_id].txring_drain_max_queue_size[port_id] = pow(2, (unsigned int)ceil(log2(PROCESSING_TXRING_DRAIN_MAX_QUEUE_SIZE_DEFAULT)));
+				tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id] = pow(2, (unsigned int)ceil(log2(PROCESSING_TXRING_DRAIN_QUEUE_CAPACITY_DEFAULT)));
 			}
 
 			/* store txring-drain-interval parameter for this port */
@@ -1057,7 +1057,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 
 			/* create RTE ring for queuing packets between workers and tx threads */
-			if (rte_ring_create(rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_max_queue_size[port_id], socket_id, RING_F_SP_ENQ | RING_F_SC_DEQ) == NULL) {
+			if (rte_ring_create(rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id], socket_id, RING_F_SP_ENQ | RING_F_SC_DEQ) == NULL) {
 				XDPD_DEBUG(DRIVER_NAME"[ifaces] unable to create tx-ring: %s for port-id: %u\n", rgname.str().c_str(), port_id);
 				return ROFL_FAILURE;
 			}
