@@ -1,13 +1,16 @@
 dpdk:
-  log_level: 8
-  eventdev:
-    name: event_sw0
-    args: sched_quanta=64,credit_quanta=32
+  eal:
+    log_level:    8
+    master_lcore: 0
+    coremask:     0x0fffffffffffff
   lcores:
     svc_coremask: 0x00000000004000
     tx_coremask:  0x00000000008002
     rx_coremask:  0x00000000010004
     wk_coremask:  0x00000000060018
+  eventdev:
+    name: event_sw0
+    args: sched_quanta=64,credit_quanta=32
   knis:
     kni0: ""
     kni1: ""

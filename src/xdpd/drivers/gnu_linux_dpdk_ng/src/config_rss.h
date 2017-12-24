@@ -72,24 +72,4 @@ struct virport {
 */
 extern struct virport virports[RTE_MAX_ETHPORTS];
 
-#define LCORE_PARAMS_MAX 1024
-
-//Auxiliary struct to hold binding between port, queue and lcore
-struct lcore_params {
-	uint8_t lsi_id;
-	uint8_t port_id;
-	uint8_t queue_id;
-	uint8_t lcore_id;
-} __rte_cache_aligned;
-
-/**
-* lcore parameters (RSS)
-*/
-extern struct lcore_params lcore_params[LCORE_PARAMS_MAX];
-
-/**
-* lcore number of parameters
-*/
-extern uint16_t nb_lcore_params;
-
 #endif //XDPD_GNU_LINUX_XDPD_CONFIG_RSS_H

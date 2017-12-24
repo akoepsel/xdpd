@@ -2,8 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef XDPD_GNU_LINUX_XDPD_CONFIG_H 
-#define XDPD_GNU_LINUX_XDPD_CONFIG_H 
+#ifndef XDPD_GNU_LINUX_DPDK_NG_CONFIG_H
+#define XDPD_GNU_LINUX_DPDK_NG_CONFIG_H
 
 /**
 * @file config.h
@@ -198,4 +198,4 @@
 //#define PKT_TO_NF_THRESHOLD 	200
 
 
-#endif //XDPD_GNU_LINUX_XDPD_CONFIG_H
+#endif //XDPD_GNU_LINUX_DPDK_NG_CONFIG_H

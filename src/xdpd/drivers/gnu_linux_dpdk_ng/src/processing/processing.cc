@@ -21,11 +21,14 @@
 #include <rofl/datapath/pipeline/openflow/of_switch.h>
 #include <yaml-cpp/yaml.h>
 
-extern unsigned int mbuf_elems_in_pool;
-extern unsigned int mbuf_data_room_size;
 extern YAML::Node y_config_dpdk_ng;
 
 using namespace xdpd::gnu_linux_dpdk_ng;
+
+
+//Number of MBUFs per pool (per CPU socket)
+unsigned int mbuf_elems_in_pool = DEFAULT_NB_MBUF;
+unsigned int mbuf_data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE;
 
 //
 // Processing state
@@ -679,7 +682,7 @@ rofl_result_t processing_init(void){
 	/*
 	 * set log level
 	 */
-	YAML::Node log_level_node = y_config_dpdk_ng["dpdk"]["log_level"];
+	YAML::Node log_level_node = y_config_dpdk_ng["dpdk"]["eal"]["log_level"];
 	if (log_level_node && log_level_node.IsScalar()) {
 		rte_log_set_global_level(log_level_node.as<uint32_t>());
 		rte_log_set_level(RTE_LOGTYPE_XDPD, log_level_node.as<uint32_t>());

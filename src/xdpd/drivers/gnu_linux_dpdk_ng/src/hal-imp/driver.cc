@@ -52,39 +52,19 @@ using namespace xdpd::gnu_linux;
 
 //Extra params MACROS
 #define DRIVER_EXTRA_CONFIG "config"
-#define DRIVER_EXTRA_COREMASK "coremask"
-#define DRIVER_EXTRA_POOL_SIZE "pool_size"
-#define DRIVER_EXTRA_LCORE_PARAMS "lcore_params"
-#define DRIVER_EXTRA_MASTER_LCORE "master-lcore"
 
 //Some useful macros
 #define STR(a) #a
 #define XSTR(a) STR(a)
 
-#define GNU_LINUX_DPDK_CODE_NAME "gnu-linux-dpdk-ng"
-#define GNU_LINUX_DPDK_VERSION VERSION
-#define GNU_LINUX_DPDK_DESC \
+#define GNU_LINUX_DPDK_NG_CODE_NAME "gnu-linux-dpdk-ng"
+#define GNU_LINUX_DPDK_NG_VERSION VERSION
+#define GNU_LINUX_DPDK_NG_DESC \
 "GNU/Linux DPDK-ng driver.\n\n"\
 "The GNU/Linux DPDK driver is a user-space software driver that uses Data Plane Development Kit(DPDK)[1] as the I/O Framework.\n\n"\
-"This driver supports Network Function port extensions. This functions enable xDPd to communicate to other entities via dedicated ports. The port type mapping from abstract xDPd ports to DPDK is the following:\n"\
-"   -NATIVE: not supported.\n"\
-"   -SHMEM: rte_ring shared memory port. The NF name is the name of the RTE ring.\n"\
-"   -EXTERNAL: KNI port.\n"\
 "\n\n"\
 "[1] http://www.dpdk.org"
-#define GNU_LINUX_DPDK_USAGE  \
-"\t\t\t\t" DRIVER_EXTRA_COREMASK "=<hexadecimal mask>;\t - DPDK coremask.\n"\
-"\t\t\t\t" DRIVER_EXTRA_POOL_SIZE "=<#bufs>;\t\t - Number of MBUFs in the pool (per CPU socket).\n"
-
-#define GNU_LINUX_DPDK_EXTRA_PARAMS "This driver has a number of optional \"extra parameters\" that can be used using -e option, specifying them as key1=value1;key2=value2... :\n\n"\
-"   " DRIVER_EXTRA_COREMASK "=<hexadecimal mask>\t - Overrides default coremaskDPDK EAL coremask. Default: " XSTR(DEFAULT_RTE_CORE_MASK) ".\n"\
-"   " DRIVER_EXTRA_POOL_SIZE "=<#bufs>;\t\t - Override the number of MBUFs or size of the pool (per CPU socket). Default: " XSTR(DEFAULT_NB_MBUF) ".\n"\
-"   " DRIVER_EXTRA_LCORE_PARAMS "=L1:P1:Q1:C1,L2:P2:Q2:C2...;\t\t - Override lcore_params (VF). Where Li = lsi_id Pi = port_id, Qi = Queue id and Ci = lcore id. Default: TODO.\n\n"
-
-
-//Number of MBUFs per pool (per CPU socket)
-unsigned int mbuf_elems_in_pool = DEFAULT_NB_MBUF;
-unsigned int mbuf_data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE;
+#define GNU_LINUX_DPDK_NG_USAGE "specify driver configuration file: config=/path/to/gnu_linux_dpdk_ng.conf"
 
 //configuration file
 static std::string s_config_dpdk_ng("./xdpd.gnu_linux_dpdk_ng.conf.yaml");
@@ -93,76 +73,13 @@ YAML::Node y_config_dpdk_ng;
 //Fake argv for eal
 static const char* argv_fake[] = {"xdpd", "-c", NULL, "--master-lcore", NULL, "-n", XSTR(RTE_MEM_CHANNELS), NULL};
 
-#define MAX_COREMASK_LEN 64
-static char coremask[MAX_COREMASK_LEN];
-#define MAX_MASTER_LCORE_LEN 64
-static char master_lcore[MAX_MASTER_LCORE_LEN];
-
-static rofl_result_t parse_extra_lcore_params(std::string& val){
-	int i;
-	std::string param, att;
-
-	//Format is lcore_params=W1:X1:Y1:Z1,W2:X2:Y2:Z2,...;
-	//Split into ,
-	std::istringstream ss_p(val);
-	int param_cnt = 0;
-	while(std::getline(ss_p, param, ',')) {
-		//Parse quad
-		int att_cnt = 0;
-		std::istringstream ss_a(param);
-		while(std::getline(ss_a, att, ':')) {
-			//Parse number
-			int at = atoi(att.c_str());
-			switch(att_cnt++){
-				case 0: lcore_params[param_cnt].lsi_id = at;
-					break;
-				case 1: lcore_params[param_cnt].port_id = at;
-					break;
-				case 2: lcore_params[param_cnt].queue_id = at;
-					break;
-				case 3: lcore_params[param_cnt].lcore_id = at;
-					break;
-				default:
-					XDPD_ERR(DRIVER_NAME"ERROR: unable to parse lcore_params. Malformed quad\n");
-					return ROFL_FAILURE;
-			}
-
-		}
-
-		if(att_cnt != 4){
-			XDPD_ERR(DRIVER_NAME"ERROR: unable to parse lcore_params. Malformed quad\n");
-			return ROFL_FAILURE;
-		}
-
-		if(++param_cnt == LCORE_PARAMS_MAX){
-			XDPD_ERR(DRIVER_NAME"ERROR: unable to parse lcore_params. Number of quads beyond LCORE_PARAMS_MAX(%u). Consider increasing it at compile time in config_rss.h\n", LCORE_PARAMS_MAX);
-			return ROFL_FAILURE;
-		}
-	}
-
-	nb_lcore_params = param_cnt;
-
-	XDPD_DEBUG(DRIVER_NAME" Overriding lcore_params with:\n");
-	for (i = 0; i < nb_lcore_params; ++i) {
-		XDPD_DEBUG(DRIVER_NAME " {%u:%u:%u:%u}\n", lcore_params[i].lsi_id, lcore_params[i].port_id,
-			   lcore_params[i].queue_id, lcore_params[i].lcore_id);
-	}
-
-	return ROFL_SUCCESS;
-}
+std::string coremask("0xff");
+std::string master_lcore("0");
 
 static rofl_result_t parse_extra_params(const std::string& params){
 
 	std::istringstream ss(params);
 	std::string t, r;
-
-	//Asign the coremask pointer
-	strncpy(coremask, XSTR(DEFAULT_RTE_CORE_MASK), MAX_COREMASK_LEN);
-	argv_fake[2] = coremask;
-
-	//Asign the master_lcore pointer
-	strncpy(master_lcore, XSTR(DEFAULT_RTE_MASTER_LCORE), MAX_MASTER_LCORE_LEN);
-	argv_fake[4] = master_lcore;
 
 	//First split
 	while(std::getline(ss, t, ';')) {
@@ -185,35 +102,6 @@ static rofl_result_t parse_extra_params(const std::string& params){
 			}catch(YAML::BadFile& e){
 				XDPD_ERR(DRIVER_NAME" Configuration file %s not found, continuing with defaults\n", s_config_dpdk_ng.c_str());
 			}
-		}else if(r.compare(DRIVER_EXTRA_COREMASK) == 0){
-			std::getline(ss_, r, '=');
-			r.erase(std::remove_if( r.begin(), r.end(),
-						::isspace ), r.end() );
-
-			strncpy(coremask, r.c_str(), MAX_COREMASK_LEN);
-			XDPD_DEBUG(DRIVER_NAME" Overriding default coremask(%s) with %s\n", XSTR(DEFAULT_RTE_CORE_MASK), coremask);
-		}else if(r.compare(DRIVER_EXTRA_MASTER_LCORE) == 0){
-			std::getline(ss_, r, '=');
-			r.erase(std::remove_if( r.begin(), r.end(),
-						::isspace ), r.end() );
-
-			strncpy(master_lcore, r.c_str(), MAX_MASTER_LCORE_LEN);
-			XDPD_DEBUG(DRIVER_NAME" Overriding default master-lcore(%s) with %s\n", XSTR(DEFAULT_RTE_MASTER_LCORE), master_lcore);
-		}else if(r.compare(DRIVER_EXTRA_POOL_SIZE) == 0){
-			std::getline(ss_, r, '=');
-			r.erase(std::remove_if( r.begin(), r.end(),
-						::isspace ), r.end() );
-
-			std::istringstream ss__(r);
-			unsigned int mbufs;
-			ss__ >> mbufs;
-			mbuf_elems_in_pool = mbufs;
-			XDPD_DEBUG(DRIVER_NAME" Overriding default #mbufs per pool(%u) with %u\n", DEFAULT_NB_MBUF, mbufs);
-		}else if(r.compare(DRIVER_EXTRA_LCORE_PARAMS) == 0){
-			std::getline(ss_, r, '=');
-			r.erase(std::remove_if( r.begin(), r.end(), ::isspace ), r.end() );
-			if(parse_extra_lcore_params(r) != ROFL_SUCCESS)
-				return ROFL_FAILURE;
 		}else{
 			t.erase(std::remove_if( t.begin(), t.end(),
 						::isspace ), t.end() );
@@ -242,6 +130,22 @@ hal_result_t hal_driver_init(hal_extension_ops_t* extensions, const char* extra_
 	//Parse extra parameters
 	if(parse_extra_params(std::string(extra_params)) != ROFL_SUCCESS)
 		return HAL_FAILURE;
+
+	//get coremask
+	YAML::Node coremask_node = y_config_dpdk_ng["dpdk"]["eal"]["coremask"];
+	if (coremask_node && coremask_node.IsScalar()) {
+		coremask = coremask_node.as<std::string>();
+	}
+
+	//get master_lcore
+	YAML::Node master_lcore_node = y_config_dpdk_ng["dpdk"]["eal"]["master_lcore"];
+	if (master_lcore_node && master_lcore_node.IsScalar()) {
+		master_lcore = master_lcore_node.as<std::string>();
+	}
+
+	//prepare arguments for rte_eal_init()
+	argv_fake[2] = coremask.c_str();
+	argv_fake[4] = master_lcore.c_str();
 
 	//Show a nice trace
 	XDPD_INFO(DRIVER_NAME" Initializing EAL with coremask: %s, master-lcore: %s, memchannels: %s\n", argv_fake[2], argv_fake[4], argv_fake[6]);
@@ -312,11 +216,10 @@ hal_result_t hal_driver_init(hal_extension_ops_t* extensions, const char* extra_
 */
 void hal_driver_get_info(driver_info_t* info){
 	//Fill-in hal_driver_info_t
-	strncpy(info->code_name, GNU_LINUX_DPDK_CODE_NAME, DRIVER_CODE_NAME_MAX_LEN);
-	strncpy(info->version, GNU_LINUX_DPDK_VERSION, DRIVER_VERSION_MAX_LEN);
-	strncpy(info->description, GNU_LINUX_DPDK_DESC, DRIVER_DESCRIPTION_MAX_LEN);
-	strncpy(info->usage, GNU_LINUX_DPDK_USAGE, DRIVER_USAGE_MAX_LEN);
-	strncpy(info->extra_params, GNU_LINUX_DPDK_EXTRA_PARAMS, DRIVER_EXTRA_PARAMS_MAX_LEN);
+	strncpy(info->code_name, GNU_LINUX_DPDK_NG_CODE_NAME, DRIVER_CODE_NAME_MAX_LEN);
+	strncpy(info->version, GNU_LINUX_DPDK_NG_VERSION, DRIVER_VERSION_MAX_LEN);
+	strncpy(info->description, GNU_LINUX_DPDK_NG_DESC, DRIVER_DESCRIPTION_MAX_LEN);
+	strncpy(info->usage, GNU_LINUX_DPDK_NG_USAGE, DRIVER_USAGE_MAX_LEN);
 }
 
 /*
