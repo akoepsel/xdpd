@@ -236,7 +236,7 @@ rofl_result_t processing_deschedule_nf_port(switch_port_t* port);
 /**
 * Packet processing routine for cores 
 */
-int processing_core_process_packets(void*);
+int processing_packet_pipeline_processing(void*);
 
 /**
  * RX packet reception

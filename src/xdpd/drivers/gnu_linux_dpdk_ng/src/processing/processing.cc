@@ -830,7 +830,7 @@ rofl_result_t processing_run(void){
 			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting worker lcore %u on socket %u\n", lcore_id, wk_core_tasks[lcore_id].socket_id);
 
 			// launch processing task on lcore
-			if (rte_eal_remote_launch(&processing_core_process_packets, NULL, lcore_id)) {
+			if (rte_eal_remote_launch(&processing_packet_pipeline_processing, NULL, lcore_id)) {
 				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring lcore %u for starting, as it is not waiting for new task\n", lcore_id);
 				continue;
 			}
@@ -1006,7 +1006,7 @@ int processing_packet_reception(void* not_used){
 }
 
 
-int processing_core_process_packets(void* not_used){
+int processing_packet_pipeline_processing(void* not_used){
 
 	unsigned int i, lcore_id = rte_lcore_id();
 	switch_port_t* port;
@@ -1096,7 +1096,7 @@ int processing_packet_transmission(void* not_used){
 		 * read events from event queue
 		 */
 		int timeout = 0;
-		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
+		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, events, sizeof(events), timeout);
 
 		/* interate over all received events */
 		for (i = 0; i < nb_rx; i++) {

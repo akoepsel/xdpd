@@ -1233,9 +1233,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			/* store txring-drain-max-queuesize parameter for this port */
 			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-max-queue-size")) {
-				tx_core_tasks[lcore_id].txring_drain_max_queue_size[port_id] = (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring-drain-max-queue-size")));
+				tx_core_tasks[lcore_id].txring_drain_max_queue_size[port_id] = pow(2, (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring-drain-max-queue-size"))));
 			} else {
-				tx_core_tasks[lcore_id].txring_drain_max_queue_size[port_id] = (unsigned int)ceil(log2(PROCESSING_TXRING_DRAIN_MAX_QUEUE_SIZE_DEFAULT));
+				tx_core_tasks[lcore_id].txring_drain_max_queue_size[port_id] = pow(2, (unsigned int)ceil(log2(PROCESSING_TXRING_DRAIN_MAX_QUEUE_SIZE_DEFAULT)));
 			}
 
 			/* store txring-drain-interval parameter for this port */
