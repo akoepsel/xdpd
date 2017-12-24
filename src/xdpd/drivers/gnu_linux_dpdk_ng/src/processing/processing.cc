@@ -1009,9 +1009,6 @@ int processing_packet_reception(void* not_used){
 int processing_core_process_packets(void* not_used){
 
 	unsigned int i, lcore_id = rte_lcore_id();
-	uint16_t ev_port_id;
-	uint16_t ev_queue_id;
-	//bool own_port = true;
 	switch_port_t* port;
 	wk_core_task_t* task = &wk_core_tasks[lcore_id];
 
@@ -1027,10 +1024,6 @@ int processing_core_process_packets(void* not_used){
 	//Set flag to active
 	task->active = true;
 
-	/* write event to evdev queue "ev-queue-id" via port "ev-port-id" */
-
-	ev_port_id = task->ev_port_id;
-	ev_queue_id = task->rx_ev_queue_id;
 
 
 	RTE_LOG(INFO, USER1, "wk-task-%2u started\n", lcore_id);
@@ -1039,7 +1032,7 @@ int processing_core_process_packets(void* not_used){
 
 		int timeout = 0;
 		struct rte_event rx_events[PROC_ETH_TX_BURST_SIZE];
-		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, rx_events, PROC_ETH_TX_BURST_SIZE, timeout);
+		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, rx_events, PROC_ETH_TX_BURST_SIZE, timeout);
 
 		if (nb_rx == 0) {
 			rte_pause();
@@ -1064,10 +1057,12 @@ int processing_core_process_packets(void* not_used){
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
 			RTE_LOG(INFO, USER1, "wk task %2u => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u], packets dequeued: %u\n",
-					lcore_id, in_port_id, ev_port_id, ev_queue_id, i, nb_rx);
+					lcore_id, in_port_id, task->ev_port_id, task->rx_ev_queue_id, i, nb_rx);
 
 			/* inject packet into openflow pipeline */
 			process_pipeline_rx(lcore_id, port, rx_events[i].mbuf, &pkt, pkt_state);
+
+			/* see packet_inline.h for transmission of packets */
 		}
 	}
 
@@ -1085,10 +1080,6 @@ int processing_core_process_packets(void* not_used){
 int processing_packet_transmission(void* not_used){
 
 	unsigned int i, lcore_id = rte_lcore_id();
-	//uint16_t port_id;
-	//uint16_t queue_id;
-	uint8_t ev_port_id;
-	uint8_t ev_queue_id;
 	tx_core_task_t* task = &tx_core_tasks[lcore_id];
 	uint32_t out_port_id;
 	int socket_id = rte_lcore_to_socket_id(lcore_id);
@@ -1101,18 +1092,11 @@ int processing_packet_transmission(void* not_used){
 
 	while(likely(task->active)) {
 
-		/* write event to evdev queue "ev-queue-id" via port "ev-port-id" */
-		ev_port_id = task->ev_port_id;
-		ev_queue_id = task->rx_ev_queue_id;
-
-		(void)ev_queue_id;
-
-
 		/*
 		 * read events from event queue
 		 */
 		int timeout = 0;
-		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
+		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
 
 		/* interate over all received events */
 		for (i = 0; i < nb_rx; i++) {
