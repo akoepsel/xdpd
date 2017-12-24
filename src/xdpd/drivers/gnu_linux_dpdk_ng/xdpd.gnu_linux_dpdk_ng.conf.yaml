@@ -35,10 +35,10 @@ dpdk:
       allmulticast: false
       vlan_filter:
         - vlan_id: 101
-          vf_mask: 0xffffffffffffffff
+          vf_mask: 0x1
           enabled: true
         - vlan_id: 102
-          vf_mask: 0xffffffffffffffff
+          vf_mask: 0x2
           enabled: true
     ens1f1vf0:
       enabled: true
@@ -89,10 +89,10 @@ dpdk:
       allmulticast: false
       vlan_filter:
         - vlan_id: 101
-          vf_mask: 0xffffffffffffffff
+          vf_mask: 0x0000000000000001
           enabled: true
         - vlan_id: 102
-          vf_mask: 0xffffffffffffffff
+          vf_mask: 0x0000000000000002
           enabled: true
     ens3f1vf0:
       enabled: true
