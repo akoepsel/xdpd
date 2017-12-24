@@ -682,7 +682,7 @@ rofl_result_t processing_init(void){
 	YAML::Node log_level_node = y_config_dpdk_ng["dpdk"]["log_level"];
 	if (log_level_node && log_level_node.IsScalar()) {
 		rte_log_set_global_level(log_level_node.as<uint32_t>());
-		rte_log_set_level(RTE_LOGTYPE_USER1, log_level_node.as<uint32_t>());
+		rte_log_set_level(RTE_LOGTYPE_XDPD, log_level_node.as<uint32_t>());
 	}
 
 	/*
@@ -919,7 +919,7 @@ int processing_packet_reception(void* not_used){
 	rx_core_task_t* task = &rx_core_tasks[lcore_id];
 
 	if (task->nb_rx_queues == 0) {
-		RTE_LOG(INFO, USER1, "lcore %u has no rx-queues assigned, terminating\n", lcore_id);
+		RTE_LOG(INFO, XDPD, "lcore %u has no rx-queues assigned, terminating\n", lcore_id);
 		return ROFL_SUCCESS;
 	}
 
@@ -929,10 +929,10 @@ int processing_packet_reception(void* not_used){
 	for (i = 0; i < task->nb_rx_queues; i++) {
 		port_id = task->rx_queues[i].port_id;
 		queue_id = task->rx_queues[i].queue_id;
-		RTE_LOG(INFO, USER1, " -- RX lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
+		RTE_LOG(INFO, XDPD, " -- RX lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
 	}
 
-	RTE_LOG(INFO, USER1, "rx-task-%2u started\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "rx-task-%2u started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -959,7 +959,7 @@ int processing_packet_reception(void* not_used){
 				const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, PROC_ETH_RX_BURST_SIZE);
 
 				if (nb_rx) {
-					RTE_LOG(DEBUG, USER1, "rx task %2u => eth-port-id: %u => eth-queue: %u, packets rcvd: %u\n",
+					RTE_LOG(DEBUG, XDPD, "rx task %2u => eth-port-id: %u => eth-queue: %u, packets rcvd: %u\n",
 							lcore_id, port_id, queue_id, nb_rx);
 
 					for (i = 0; i < nb_rx; i++) {
@@ -977,19 +977,19 @@ int processing_packet_reception(void* not_used){
 							mbufs[i]->port = port_id;
 						}
 
-						RTE_LOG(INFO, USER1, "rx task %2u => eth-port-id: %u, eth-queue-id: %u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
+						RTE_LOG(INFO, XDPD, "rx task %2u => eth-port-id: %u, eth-queue-id: %u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
 								lcore_id, port_id, queue_id, ev_port_id, ev_queue_id, i);
 					}
 
 					const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
 					if (nb_tx) {
-						RTE_LOG(INFO, USER1, "rx task %2u => event-port-id: %u, packets enqueued: %u\n",
+						RTE_LOG(INFO, XDPD, "rx task %2u => event-port-id: %u, packets enqueued: %u\n",
 								lcore_id, ev_port_id, nb_tx);
 					}
 					/* release mbufs not queued in event device */
 					if (nb_tx != nb_rx) {
 						for(i = nb_tx; i < nb_rx; i++) {
-							RTE_LOG(WARNING, USER1, "rx task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
+							RTE_LOG(WARNING, XDPD, "rx task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
 									lcore_id, ev_port_id, event[i].queue_id, i);
 							rte_pktmbuf_free(mbufs[i]);
 						}
@@ -1000,7 +1000,7 @@ int processing_packet_reception(void* not_used){
 		}
 	}
 
-	RTE_LOG(INFO, USER1, "rx-task-%2u terminated\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "rx-task-%2u terminated\n", lcore_id);
 
 	return (int)ROFL_SUCCESS;
 }
@@ -1026,7 +1026,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 
 
-	RTE_LOG(INFO, USER1, "wk-task-%2u started\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "wk-task-%2u started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1056,7 +1056,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
-			RTE_LOG(INFO, USER1, "wk task %2u => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u], packets dequeued: %u\n",
+			RTE_LOG(INFO, XDPD, "wk task %2u => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u], packets dequeued: %u\n",
 					lcore_id, in_port_id, task->ev_port_id, task->rx_ev_queue_id, i, nb_rx);
 
 			/* inject packet into openflow pipeline */
@@ -1068,7 +1068,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 	destroy_datapacket_dpdk(pkt_state);
 
-	RTE_LOG(INFO, USER1, "wk-task-%2u terminated\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "wk-task-%2u terminated\n", lcore_id);
 
 	return (int)ROFL_SUCCESS;
 }
@@ -1088,7 +1088,7 @@ int processing_packet_transmission(void* not_used){
 	//Set flag to active
 	task->active = true;
 
-	RTE_LOG(INFO, USER1, "tx-task-%2u started\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "tx-task-%2u started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1119,7 +1119,7 @@ int processing_packet_transmission(void* not_used){
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
 			if (phyports[out_port_id].socket_id != socket_id) {
-				RTE_LOG(WARNING, USER1, "tx task %2u => on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
+				RTE_LOG(WARNING, XDPD, "tx task %2u => on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
 						lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
 				rte_pktmbuf_free(events[i].mbuf);
 				continue;
@@ -1131,12 +1131,12 @@ int processing_packet_transmission(void* not_used){
 				if ((ret = rte_ring_enqueue(task->txring[out_port_id], events[i].mbuf)) < 0) {
 					switch (ret) {
 					case -ENOBUFS: {
-						RTE_LOG(WARNING, USER1, "tx-task-%2u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
+						RTE_LOG(WARNING, XDPD, "tx-task-%2u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
 								lcore_id, i, out_port_id);
 						rte_pktmbuf_free(events[i].mbuf);
 					} break;
 					default: {
-						RTE_LOG(WARNING, USER1, "tx-task-%2u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
+						RTE_LOG(WARNING, XDPD, "tx-task-%2u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
 								lcore_id, i, out_port_id);
 						rte_pktmbuf_free(events[i].mbuf);
 					};
@@ -1179,7 +1179,7 @@ int processing_packet_transmission(void* not_used){
 			/* send tx-burst */
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, task->tx_pkts, nb_elems);
 
-			RTE_LOG(DEBUG, USER1, "tx-task-%2u: eth-port-id: %u, eth-queue-id: %u, packets sent: %u\n",
+			RTE_LOG(DEBUG, XDPD, "tx-task-%2u: eth-port-id: %u, eth-queue-id: %u, packets sent: %u\n",
 					lcore_id, port_id, task->tx_queues[port_id].queue_id, nb_tx);
 
 			/* adjust timestamp */
@@ -1192,14 +1192,14 @@ int processing_packet_transmission(void* not_used){
 
 			/* otherwise, release any unsent packets */
 			for(i = nb_tx; i < nb_elems; i++) {
-				RTE_LOG(WARNING, USER1, "tx-task-%2u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
+				RTE_LOG(WARNING, XDPD, "tx-task-%2u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
 						lcore_id, port_id, i, port_id, task->tx_queues[port_id].queue_id);
 				rte_pktmbuf_free(task->tx_pkts[i]);
 			}
 		}
 	}
 
-	RTE_LOG(INFO, USER1, "tx-task-%2u terminated\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "tx-task-%2u terminated\n", lcore_id);
 
 	return (int)ROFL_SUCCESS;
 }
