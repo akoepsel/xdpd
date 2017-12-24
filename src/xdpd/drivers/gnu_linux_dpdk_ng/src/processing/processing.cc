@@ -932,7 +932,7 @@ int processing_packet_reception(void* not_used){
 		RTE_LOG(INFO, USER1, " -- RX lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
 	}
 
-	RTE_LOG(INFO, USER1, "run rx task on lcore_id %u\n", lcore_id);
+	RTE_LOG(INFO, USER1, "rx-task-%2u started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -965,7 +965,7 @@ int processing_packet_reception(void* not_used){
 					for (i = 0; i < nb_rx; i++) {
 						event[i].flow_id = mbufs[i]->hash.rss;
 						event[i].op = RTE_EVENT_OP_NEW;
-						event[i].sched_type = RTE_SCHED_TYPE_ATOMIC;
+						event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
 						event[i].queue_id = ev_queue_id;
 						event[i].event_type = RTE_EVENT_TYPE_ETHDEV;
 						event[i].sub_event_type = 0;
@@ -999,6 +999,9 @@ int processing_packet_reception(void* not_used){
 			rte_rwlock_read_unlock(&port_list_rwlock);
 		}
 	}
+
+	RTE_LOG(INFO, USER1, "rx-task-%2u terminated\n", lcore_id);
+
 	return (int)ROFL_SUCCESS;
 }
 
@@ -1030,7 +1033,7 @@ int processing_core_process_packets(void* not_used){
 	ev_queue_id = task->rx_ev_queue_id;
 
 
-	RTE_LOG(INFO, USER1, "run worker task on lcore_id=%d\n", lcore_id);
+	RTE_LOG(INFO, USER1, "wk-task-%2u started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1069,6 +1072,8 @@ int processing_core_process_packets(void* not_used){
 	}
 
 	destroy_datapacket_dpdk(pkt_state);
+
+	RTE_LOG(INFO, USER1, "wk-task-%2u terminated\n", lcore_id);
 
 	return (int)ROFL_SUCCESS;
 }
@@ -1175,7 +1180,7 @@ int processing_packet_transmission(void* not_used){
 			nb_elems = rte_ring_get_size(task->txring[port_id]);
 
 			/* not enough time elapsed since last tx-burst for this port or number of packets in ring does not exceed the threshold value for this port */
-			if (((task->last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) && (nb_elems < task->txring_drain_threshold[port_id])) {
+			if (((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) && (nb_elems < task->txring_drain_threshold[port_id])) {
 				continue;
 			}
 
@@ -1194,7 +1199,7 @@ int processing_packet_transmission(void* not_used){
 					lcore_id, port_id, task->tx_queues[port_id].queue_id, nb_tx);
 
 			/* adjust timestamp */
-			task->last_tx_time[port_id] = cur_tsc;
+			task->txring_last_tx_time[port_id] = cur_tsc;
 
 			/* if all packets have been sent, goto next port */
 			if (nb_tx == nb_elems) {
@@ -1205,7 +1210,7 @@ int processing_packet_transmission(void* not_used){
 			for(i = nb_tx; i < nb_elems; i++) {
 				RTE_LOG(WARNING, USER1, "tx-task-%2u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
 						lcore_id, port_id, i, port_id, task->tx_queues[port_id].queue_id);
-				rte_pktmbuf_free(task->tx_queues[port_id].tx_pkts[i]);
+				rte_pktmbuf_free(task->tx_pkts[i]);
 			}
 		}
 	}

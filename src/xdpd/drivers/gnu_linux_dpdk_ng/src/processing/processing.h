@@ -23,12 +23,6 @@
 
 #include "../io/dpdk_datapacket.h"
 
-#define PROCESSING_MAX_PORTS_PER_CORE 32
-#define PROCESSING_MAX_PORTS 128
-#define PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT 10
-#define PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT 16
-#define PROCESSING_TXRING_DRAIN_MAX_QUEUE_SIZE_DEFAULT 128
-
 typedef struct rx_port_queue {
 	/* all these elemens in rxqueues are enabled by default */
 	uint8_t port_id;
@@ -38,8 +32,6 @@ typedef struct rx_port_queue {
 typedef struct tx_port_queue {
 	uint8_t enabled;
 	uint8_t queue_id;
-	struct rte_mbuf *tx_pkts[PROC_ETH_TX_BURST_SIZE];
-	unsigned int nb_tx_pkts;
 } __rte_cache_aligned tx_port_queue_t;
 
 #if 0
@@ -100,7 +92,7 @@ typedef struct tx_core_task {
 	 * drain queues per port
 	 */
 	/* queues per port for storing packets before initiating tx-burst to eth-dev */
-	struct rte_ring* txring[RTE_MAX_ETHPORTS];
+	struct rte_ring *txring[RTE_MAX_ETHPORTS];
 
 	/* maximum number of packets allowed in queue before initiating tx-burst for port */
 	unsigned int txring_drain_threshold[RTE_MAX_ETHPORTS];
@@ -110,7 +102,7 @@ typedef struct tx_core_task {
 	/* maximum time interval before initiating next tx-burst for port */
 	uint64_t txring_drain_interval[RTE_MAX_ETHPORTS];
 	/* timestamp of last tx-burst */
-	uint64_t last_tx_time[RTE_MAX_ETHPORTS];
+	uint64_t txring_last_tx_time[RTE_MAX_ETHPORTS];
 
 	/* mbuf table of packets to be sent out (shared by all ports!) */
 	struct rte_mbuf *tx_pkts[PROC_ETH_TX_BURST_SIZE];
@@ -136,18 +128,12 @@ typedef struct wk_core_task {
 	uint8_t rx_ev_queue_id; /* event queue-id for receiving events */
 	uint8_t tx_ev_queue_id[RTE_MAX_NUMA_NODES]; /* event queue-id for sending events to the appropriate TX lcore event queue */
 
-
-
 	uint16_t n_rx_queue;
 	rx_port_queue_t rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
 	uint16_t n_tx_port;
 	uint8_t tx_queue_id[RTE_MAX_ETHPORTS]; // tx_queue_id[port_id] = queue_id => transmission queue for outgoing packets
 	uint16_t tx_port_id[RTE_MAX_ETHPORTS];
 
-#if 0
-	//This are the TX-queues for ALL ports in the system; index is port_id
-	struct mbuf_burst tx_mbufs[RTE_MAX_ETHPORTS];
-#endif
 } __rte_cache_aligned wk_core_task_t;
 
 /**
@@ -162,6 +148,7 @@ extern switch_port_t* port_list[PROCESSING_MAX_PORTS];
 extern rte_rwlock_t port_list_rwlock;
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
 extern uint8_t eventdev_id;
+
 /* maximum number of event queues per NUMA node: queue[0]=used by workers, queue[1]=used by TX lcores */
 enum event_queue_t {
 	EVENT_QUEUE_WORKERS = 0,
