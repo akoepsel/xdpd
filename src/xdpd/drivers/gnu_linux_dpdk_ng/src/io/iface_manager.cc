@@ -1550,13 +1550,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (dev_info.driver_name == std::string("net_kni")) {
 			//snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
 			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname);
-			socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
 		} else
 		/* net_ring PMD */
 		if (dev_info.driver_name == std::string("net_ring")) {
 			//snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
 			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname);
-			socket_id = rte_eth_dev_socket_id(port_id);
 		} else
 		/* physical ports */
 		if (true) {
@@ -1565,8 +1563,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
 			}
 			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, iface_manager_get_port_setting_as<std::string>(s_pci_addr, "ifname").c_str());
-			socket_id = rte_eth_dev_socket_id(port_id);
 		}
+
+		socket_id = phyports[port_id].socket_id;
 
 		XDPD_INFO(DRIVER_NAME" adding xdpd port: %s for dpdk port: %u on socket: %u\n", port_name, port_id, socket_id);
 
