@@ -236,37 +236,6 @@ static inline void output_single_packet(datapacket_t* pkt, datapacket_dpdk_t* pa
 		
 		XDPD_DEBUG("[%s] OUTPUT packet(%p)\n", port->name, pkt);
 
-#if 0
-		if(port->type == PORT_TYPE_VIRTUAL){
-			/*
-			* Virtual link
-			*/
-			//Reset port_in and reprocess
-			((datapacket_dpdk_t*)pkt->platform_state)->clas_state.port_in =  ((switch_port_t*)port->platform_port_state)->of_port_num;
-	
-			xdpd::gnu_linux_dpdk_ng::tx_pkt_vlink(port, pkt);
-			return;
-		}
-#ifdef GNU_LINUX_DPDK_ENABLE_NF		
-		else if(port->type == PORT_TYPE_NF_SHMEM)
-		{
-			/*
-			* DPDK NF port
-			*/
-			xdpd::gnu_linux_dpdk_ng::tx_pkt_shmem_nf_port(port, pkt);
-		}else if(port->type == PORT_TYPE_NF_EXTERNAL)
-		{
-			/*
-			* KNI NF port
-			*/
-			xdpd::gnu_linux_dpdk_ng::tx_pkt_kni_nf_port(port, pkt);
-		}
-#endif		
-		else{
-			xdpd::gnu_linux_dpdk_ng::tx_pkt(port, pack->output_queue, pkt);
-		}
-#endif
-
 		xdpd::gnu_linux_dpdk_ng::tx_pkt(port, pack->output_queue, pkt);
 
 	}else{

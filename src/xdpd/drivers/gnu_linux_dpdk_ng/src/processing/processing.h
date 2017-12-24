@@ -24,7 +24,10 @@
 #include "../io/dpdk_datapacket.h"
 
 #define PROCESSING_MAX_PORTS_PER_CORE 32
-#define PROCESSING_MAX_PORTS 128 
+#define PROCESSING_MAX_PORTS 128
+#define PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT 10
+#define PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT 16
+#define PROCESSING_TXRING_DRAIN_MAX_QUEUE_SIZE_DEFAULT 128
 
 typedef struct rx_port_queue {
 	/* all these elemens in rxqueues are enabled by default */
@@ -94,14 +97,26 @@ typedef struct tx_core_task {
 	uint8_t rx_ev_queue_id; /* event queue-id for receiving events */
 
 	/*
+	 * drain queues per port
+	 */
+	/* queues per port for storing packets before initiating tx-burst to eth-dev */
+	struct rte_ring* txring[RTE_MAX_ETHPORTS];
+	/* maximum time interval before initiating next tx-burst for port */
+	unsigned int txring_drain_interval[RTE_MAX_ETHPORTS];
+	/* maximum number of packets allowed in queue before initiating tx-burst for port */
+	unsigned int txring_drain_threshold[RTE_MAX_ETHPORTS];
+	/* maximum packet capacity in drain queue */
+	unsigned int txring_drain_max_queue_size[RTE_MAX_ETHPORTS];
+
+	/* mbuf table of packets to be sent out (shared by all ports!) */
+	struct rte_mbuf *tx_pkts[PROC_ETH_TX_BURST_SIZE];
+
+	/*
 	 * transmitting to ethdevs
 	 */
+	/* queue-id to be used by this task for given port-id */
 	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id] => for all ports in the system
 	uint16_t nb_tx_queues; // number if valid tx_queues
-#if 0
-	//These are the TX-queues for ALL ports in the system; index is port_id
-	struct mbuf_burst tx_mbufs[RTE_MAX_ETHPORTS];
-#endif
 } __rte_cache_aligned tx_core_task_t;
 
 /**
@@ -173,6 +188,11 @@ ROFL_BEGIN_DECLS
 * Initialize data structures for lcores
 */
 rofl_result_t processing_init_lcores(void);
+
+/**
+* Allocate memory
+*/
+rofl_result_t processing_init_task_structures(void);
 
 /**
 * Initialize data structures for event device

@@ -241,6 +241,107 @@ rofl_result_t processing_init_lcores(void){
 	return ROFL_SUCCESS;
 }
 
+/**
+* Allocate memory
+*/
+rofl_result_t processing_init_task_structures(void) {
+
+	YAML::Node mbuf_elems_node = y_config_dpdk_ng["dpdk"]["mbuf_elems_in_pool"];
+	if (mbuf_elems_node && mbuf_elems_node.IsScalar()) {
+		mbuf_elems_in_pool = mbuf_elems_node.as<unsigned int>();
+	}
+
+	YAML::Node mbuf_data_node = y_config_dpdk_ng["dpdk"]["mbuf_data_room_size"];
+	if (mbuf_data_node && mbuf_data_node.IsScalar()) {
+		mbuf_data_room_size = mbuf_data_node.as<unsigned int>();
+	}
+
+	//Define available cores
+	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
+		enum rte_lcore_role_t role = rte_eal_lcore_role(lcore_id);
+		if(role == ROLE_RTE){
+
+			if (lcores[lcore_id].is_master){
+				continue;
+			}
+			if (lcores[lcore_id].is_svc_lcore) {
+				continue;
+			}
+			if (lcores[lcore_id].is_wk_lcore) {
+				wk_core_tasks[lcore_id].available = true;
+				continue;
+			}
+			if (lcores[lcore_id].is_tx_lcore) {
+				tx_core_tasks[lcore_id].available = true;
+				continue;
+			}
+			if (lcores[lcore_id].is_rx_lcore) {
+				rx_core_tasks[lcore_id].available = true;
+				continue;
+			}
+
+			//XDPD_DEBUG(DRIVER_NAME"[processing][init] marking core %u as available\n", lcore_id);
+
+			//Recover CPU socket for the lcore
+			unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
+
+			/*
+			 * Initialize memory for NUMA socket (socket_id)
+			 */
+
+			/* direct mbufs */
+			if(direct_pools[socket_id] == NULL){
+
+				/**
+				*  create the mbuf pool for that socket id
+				*/
+				char pool_name[RTE_MEMPOOL_NAMESIZE];
+				snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_direct_%u", socket_id);
+				XDPD_INFO(DRIVER_NAME"[processing][init][memory] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
+
+				direct_pools[socket_id] = rte_pktmbuf_pool_create(
+						pool_name,
+						/*number of elements in pool=*/mbuf_elems_in_pool,
+						/*cache_size=*/0,
+						/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
+						/*data_room_size=*/mbuf_data_room_size,
+						socket_id);
+
+				if (direct_pools[socket_id] == NULL) {
+					XDPD_INFO(DRIVER_NAME"[processing][init][memory] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
+					rte_panic("Cannot initialize direct mbuf pool for CPU socket: %u\n", socket_id);
+				}
+			}
+
+			/* indirect mbufs */
+			if(indirect_pools[socket_id] == NULL){
+
+				/**
+				*  create the mbuf pool for that socket id
+				*/
+				char pool_name[RTE_MEMPOOL_NAMESIZE];
+				snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_indirect_%u", socket_id);
+				XDPD_INFO(DRIVER_NAME"[processing][init][memory] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
+
+				indirect_pools[socket_id] = rte_pktmbuf_pool_create(
+						pool_name,
+						/*number of elements in pool=*/mbuf_elems_in_pool,
+						/*cache_size=*/0,
+						/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
+						/*data_room_size=*/mbuf_data_room_size,
+						socket_id);
+
+				if (indirect_pools[socket_id] == NULL) {
+					XDPD_INFO(DRIVER_NAME"[processing][init][memory] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
+					rte_panic("Cannot initialize indirect mbuf pool for CPU socket: %u\n", socket_id);
+				}
+			}
+		}
+	}
+
+	return ROFL_SUCCESS;
+}
+
 /*
 * Initialize data structures for RTE event device
 */
@@ -592,107 +693,13 @@ rofl_result_t processing_init(void){
 		return ROFL_FAILURE;
 	}
 
-
-
-
-
-
-
-
-
-	YAML::Node mbuf_elems_node = y_config_dpdk_ng["dpdk"]["mbuf_elems_in_pool"];
-	if (mbuf_elems_node && mbuf_elems_node.IsScalar()) {
-		mbuf_elems_in_pool = mbuf_elems_node.as<unsigned int>();
+	/*
+	 * allocate memory
+	 */
+	if (ROFL_FAILURE == processing_init_task_structures()) {
+		XDPD_ERR(DRIVER_NAME"[processing][init] RTE memory allocation failed\n");
+		return ROFL_FAILURE;
 	}
-
-	YAML::Node mbuf_data_node = y_config_dpdk_ng["dpdk"]["mbuf_data_room_size"];
-	if (mbuf_data_node && mbuf_data_node.IsScalar()) {
-		mbuf_data_room_size = mbuf_data_node.as<unsigned int>();
-	}
-
-	//Define available cores
-	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
-		enum rte_lcore_role_t role = rte_eal_lcore_role(lcore_id);
-		if(role == ROLE_RTE){
-
-			if (lcores[lcore_id].is_master){
-				continue;
-			}
-			if (lcores[lcore_id].is_svc_lcore) {
-				continue;
-			}
-			if (lcores[lcore_id].is_wk_lcore) {
-				wk_core_tasks[lcore_id].available = true;
-				continue;
-			}
-			if (lcores[lcore_id].is_tx_lcore) {
-				tx_core_tasks[lcore_id].available = true;
-				continue;
-			}
-			if (lcores[lcore_id].is_rx_lcore) {
-				rx_core_tasks[lcore_id].available = true;
-				continue;
-			}
-
-			//XDPD_DEBUG(DRIVER_NAME"[processing][init] marking core %u as available\n", lcore_id);
-
-			//Recover CPU socket for the lcore
-			unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
-
-			/*
-			 * Initialize memory for NUMA socket (socket_id)
-			 */
-
-			/* direct mbufs */
-			if(direct_pools[socket_id] == NULL){
-
-				/**
-				*  create the mbuf pool for that socket id
-				*/
-				char pool_name[RTE_MEMPOOL_NAMESIZE];
-				snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_direct_%u", socket_id);
-				XDPD_INFO(DRIVER_NAME"[processing][init] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
-
-				direct_pools[socket_id] = rte_pktmbuf_pool_create(
-						pool_name,
-						/*number of elements in pool=*/mbuf_elems_in_pool,
-						/*cache_size=*/0,
-						/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
-						/*data_room_size=*/mbuf_data_room_size,
-						socket_id);
-
-				if (direct_pools[socket_id] == NULL) {
-					XDPD_INFO(DRIVER_NAME"[processing][init] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
-					rte_panic("Cannot initialize direct mbuf pool for CPU socket: %u\n", socket_id);
-				}
-			}
-
-			/* indirect mbufs */
-			if(indirect_pools[socket_id] == NULL){
-
-				/**
-				*  create the mbuf pool for that socket id
-				*/
-				char pool_name[RTE_MEMPOOL_NAMESIZE];
-				snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_indirect_%u", socket_id);
-				XDPD_INFO(DRIVER_NAME"[processing][init] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
-
-				indirect_pools[socket_id] = rte_pktmbuf_pool_create(
-						pool_name,
-						/*number of elements in pool=*/mbuf_elems_in_pool,
-						/*cache_size=*/0,
-						/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
-						/*data_room_size=*/mbuf_data_room_size,
-						socket_id);
-
-				if (indirect_pools[socket_id] == NULL) {
-					XDPD_INFO(DRIVER_NAME"[processing][init] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
-					rte_panic("Cannot initialize indirect mbuf pool for CPU socket: %u\n", socket_id);
-				}
-			}
-		}
-	}
-
 
 	/*
 	 * initialize RTE event device
@@ -701,6 +708,7 @@ rofl_result_t processing_init(void){
 		XDPD_ERR(DRIVER_NAME"[processing][init] RTE event device initialization failed\n");
 		return ROFL_FAILURE;
 	}
+
 
 	//Initialize basics
 	max_cores = rte_lcore_count();
@@ -1083,7 +1091,7 @@ int processing_packet_transmission(void* not_used){
 	//Set flag to active
 	task->active = true;
 
-	RTE_LOG(INFO, USER1, "run tx task on lcore_id %u\n", lcore_id);
+	RTE_LOG(INFO, USER1, "tx-task-%2u started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1093,15 +1101,14 @@ int processing_packet_transmission(void* not_used){
 
 		(void)ev_queue_id;
 
+		/*
+		 * read events from event queue
+		 */
 		int timeout = 0;
 		struct rte_event events[PROC_ETH_TX_BURST_SIZE];
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, ev_port_id, events, PROC_ETH_TX_BURST_SIZE, timeout);
 
-		if (nb_rx) {
-			RTE_LOG(INFO, USER1, "tx task %2u => event-port-id: %u, event-queue-id: %u, packets dequeued: %u\n",
-					lcore_id, ev_port_id, ev_queue_id, nb_rx);
-		}
-
+		/* interate over all received events */
 		for (i = 0; i < nb_rx; i++) {
 			switch_port_t* port;
 			dpdk_port_state_t *ps;
@@ -1128,47 +1135,64 @@ int processing_packet_transmission(void* not_used){
 				continue;
 			}
 
-			if (unlikely(not task->tx_queues[out_port_id].enabled)) {
-				RTE_LOG(WARNING, USER1, "tx task %2u => task->tx_queues[%u].enabled = %u, ignoring event[%u]\n",
-						lcore_id, out_port_id, task->tx_queues[out_port_id].enabled, i);
-				rte_pktmbuf_free(events[i].mbuf);
-				continue;
-			}
-
-			unsigned int nb_tx_pkts = task->tx_queues[out_port_id].nb_tx_pkts;
-			task->tx_queues[out_port_id].tx_pkts[nb_tx_pkts] = events[i].mbuf;
-			task->tx_queues[out_port_id].nb_tx_pkts++;
-
-			RTE_LOG(WARNING, USER1, "tx task %2u => task->tx_queues[%u].nb_tx_pkts = %u on event %u\n",
-					lcore_id, out_port_id, task->tx_queues[out_port_id].nb_tx_pkts, i);
-
-			RTE_LOG(INFO, USER1, "tx task %2u => event-port-id: %u, event-queue-id: %u, event[%u] => eth-port-id: %u, eth-queue-id: %u\n",
-					lcore_id, ev_port_id, ev_queue_id, i, out_port_id, task->tx_queues[out_port_id].nb_tx_pkts);
-
-
-			assert(task->tx_queues[out_port_id].nb_tx_pkts <= PROC_ETH_TX_BURST_SIZE);
-		}
-
-		for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id) {
-			if ((not task->tx_queues[port_id].enabled) || (task->tx_queues[port_id].nb_tx_pkts == 0)) {
-				continue;
-			}
-
-			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, task->tx_queues[port_id].tx_pkts, task->tx_queues[port_id].nb_tx_pkts);
-
-			RTE_LOG(DEBUG, USER1, "tx task %2u => eth-port-id: %u, eth-queue-id: %u, packets sent: %u\n",
-					lcore_id, port_id, task->tx_queues[port_id].queue_id, nb_tx);
-
-			if (nb_tx != task->tx_queues[port_id].nb_tx_pkts) {
-				for(i = nb_tx; i < task->tx_queues[port_id].nb_tx_pkts; i++) {
-					RTE_LOG(WARNING, USER1, "tx task %u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
-							lcore_id, port_id, i, port_id, task->tx_queues[port_id].queue_id);
-					rte_pktmbuf_free(task->tx_queues[port_id].tx_pkts[i]);
+			/* store event.mbuf in txring assigned to outgoing port */
+			if (likely(task->txring != NULL) && likely(events[i].mbuf != NULL)) {
+				unsigned int ret;
+				if ((ret = rte_ring_enqueue(task->txring[out_port_id], events[i].mbuf)) < 0) {
+					switch (ret) {
+					case -ENOBUFS: {
+						RTE_LOG(WARNING, USER1, "tx-task-%2u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
+								lcore_id, i, out_port_id);
+						rte_pktmbuf_free(events[i].mbuf);
+					} break;
+					default: {
+						RTE_LOG(WARNING, USER1, "tx-task-%2u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
+								lcore_id, i, out_port_id);
+						rte_pktmbuf_free(events[i].mbuf);
+					};
+					}
 				}
 			}
-			task->tx_queues[port_id].nb_tx_pkts = 0;
+		}
+
+		/*
+		 * drain all outgoing ports
+		 */
+		for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id) {
+
+			/* port not enabled in this tx-task */
+			if (not task->tx_queues[port_id].enabled) {
+				continue;
+			}
+
+			unsigned int nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, sizeof(task->tx_pkts), NULL);
+
+			/* no elements in txring */
+			if (nb_elems == 0) {
+				continue;
+			}
+
+			/* send tx-burst */
+			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, task->tx_pkts, nb_elems);
+
+			RTE_LOG(DEBUG, USER1, "tx-task-%2u: eth-port-id: %u, eth-queue-id: %u, packets sent: %u\n",
+					lcore_id, port_id, task->tx_queues[port_id].queue_id, nb_tx);
+
+			/* all packets sent, next port */
+			if (nb_tx == nb_elems) {
+				continue;
+			}
+
+			/* release any unsent packets */
+			for(i = nb_tx; i < nb_elems; i++) {
+				RTE_LOG(WARNING, USER1, "tx-task-%2u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
+						lcore_id, port_id, i, port_id, task->tx_queues[port_id].queue_id);
+				rte_pktmbuf_free(task->tx_queues[port_id].tx_pkts[i]);
+			}
 		}
 	}
+
+	RTE_LOG(INFO, USER1, "tx-task-%2u terminated\n", lcore_id);
 
 	return (int)ROFL_SUCCESS;
 }

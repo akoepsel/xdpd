@@ -1,4 +1,5 @@
 #include "iface_manager.h"
+#include <math.h>
 #include <rofl/datapath/hal/cmm.h>
 #include <utils/c_logger.h>
 #include <rofl/datapath/pipeline/openflow/of_switch.h>
@@ -1219,6 +1220,48 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if (not lcores[lcore_id].is_tx_lcore) {
 				continue;
 			}
+
+
+			/*
+			 * RTE tx ring for this port
+			 */
+
+			/* allocate txring for tx-task */
+			std::stringstream rgname("tx-ring-");
+			rgname << "task-" << lcore_id;
+			rgname << "port-" << port_id;
+
+			/* store txring-drain-max-queuesize parameter for this port */
+			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-max-queue-size")) {
+				tx_core_tasks[lcore_id].txring_drain_max_queue_size[port_id] = (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring-drain-max-queue-size")));
+			} else {
+				tx_core_tasks[lcore_id].txring_drain_max_queue_size[port_id] = (unsigned int)ceil(log2(PROCESSING_TXRING_DRAIN_MAX_QUEUE_SIZE_DEFAULT));
+			}
+
+			/* store txring-drain-interval parameter for this port */
+			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-interval")) {
+				tx_core_tasks[lcore_id].txring_drain_interval[port_id] = iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring-drain-interval");
+			} else {
+				tx_core_tasks[lcore_id].txring_drain_interval[port_id] = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT;
+			}
+
+			/* store txring-drain-threshold parameter for this port */
+			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-threshold")) {
+				tx_core_tasks[lcore_id].txring_drain_threshold[port_id] = iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring-drain-threshold");
+			} else {
+				tx_core_tasks[lcore_id].txring_drain_threshold[port_id] = PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT;
+			}
+
+			/* create RTE ring for queuing packets between workers and tx threads */
+			if (rte_ring_create(rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_max_queue_size[port_id], socket_id, RING_F_SP_ENQ | RING_F_SC_DEQ) == NULL) {
+				XDPD_DEBUG(DRIVER_NAME"[ifaces] unable to create tx-ring: %s for port-id: %u\n", rgname.str().c_str(), port_id);
+				return ROFL_FAILURE;
+			}
+
+
+			/*
+			 * store txqueue on eth-dev for this port and TX task
+			 */
 
 			tx_core_tasks[lcore_id].tx_queues[port_id].enabled = 1;
 			tx_core_tasks[lcore_id].tx_queues[port_id].queue_id = tx_queue_id;
