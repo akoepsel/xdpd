@@ -892,6 +892,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	//Iterate over all available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 
+		char ifname[IF_NAMESIZE];
+		if ((ret = rte_eth_dev_get_name_by_port(port_id, ifname)) < 0) {
+			continue;
+		}
+
 		rte_eth_dev_info_get(port_id, &dev_info);
 		memset(s_pci_addr, 0, sizeof(s_pci_addr));
 		if (dev_info.pci_dev) {
@@ -905,6 +910,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		unsigned int socket_id = rte_eth_dev_socket_id(port_id);
 
 
+
 		/* virtual ports appear as physical ones here (including kni, ring, ...)
 		 * However, they are bound to NUMA node LCORE_ID_ANY. We bind all those
 		 * virtual devices to the NUMA socket the master lcore is running on.
@@ -912,9 +918,18 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		 * change this static mapping in the future to avoid high load on the
 		 * master lcore NUMA node. */
 
-		/* for ports bound to LCORE_ID_ANY (virtual interfaces, e.g., kni), use socket_id of master lcore */
+		/* for ports bound to LCORE_ID_ANY (virtual interfaces, e.g., kni), use socket_id as specified or that of master lcore as default */
 		if (dev_info.driver_name == std::string("net_kni")) {
-			socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
+			YAML::Node kni_node = y_config_dpdk_ng["dpdk"]["knis"][ifname]["socket_id"];
+			if (kni_node && kni_node.IsScalar()) {
+				socket_id = kni_node.as<int>();
+				if (sockets.find(socket_id) == sockets.end()) {
+					XDPD_ERR(DRIVER_NAME"[ifaces] virtual port: %u, invalid socket %u specified, ignoring\n", port_id, socket_id);
+					continue;
+				}
+			} else {
+				socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
+			}
 			XDPD_DEBUG(DRIVER_NAME"[ifaces] physical port: %u, mapping LCORE_ID_ANY to socket %u used by master lcore\n", port_id, socket_id);
 			phyports[port_id].is_virtual = true;
 		} else
@@ -1513,7 +1528,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		++vf_id;
 	}
 
-	unsigned int vport_name_index = 0;
+	//unsigned int vport_name_index = 0;
 	//Iterate over all available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 		char port_name[SWITCH_PORT_MAX_LEN_NAME];
@@ -1524,16 +1539,23 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			continue;
 		}
 
+		char ifname[IF_NAMESIZE];
+		if ((ret = rte_eth_dev_get_name_by_port(port_id, ifname)) < 0) {
+			continue;
+		}
+
 		rte_eth_dev_info_get(port_id, &dev_info);
 
 		/* net_kni PMD */
 		if (dev_info.driver_name == std::string("net_kni")) {
-			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
+			//snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
+			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname);
 			socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
 		} else
 		/* net_ring PMD */
 		if (dev_info.driver_name == std::string("net_ring")) {
-			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
+			//snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
+			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname);
 			socket_id = rte_eth_dev_socket_id(port_id);
 		} else
 		/* physical ports */
