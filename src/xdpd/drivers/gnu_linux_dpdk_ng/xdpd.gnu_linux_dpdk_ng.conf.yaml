@@ -13,22 +13,29 @@ dpdk:
     args: sched_quanta=64,credit_quanta=32
   knis:
     kni0: 
+      enabled: true
+      args: ""
       socket_id: 0
-      args: ""
     kni1: 
-      socket_id: 1
+      enabled: true
       args: ""
+      socket_id: 1
   rings:
     ring0: 
+      enabled: true
       args: "nodeaction=ring_A:0:CREATE"
     ring1: 
+      enabled: true
       args: "nodeaction=ring_A:0:ATTACH"
     ring2: 
+      enabled: false
       args: "nodeaction=ring_B:1:CREATE"
     ring3: 
+      enabled: false
       args: "nodeaction=ring_B:1:ATTACH"
   pcaps:
     pcap0:
+      enabled: true
       args: "iface=wlan0;socket_id=0"
   interfaces:
     ens1f1: 

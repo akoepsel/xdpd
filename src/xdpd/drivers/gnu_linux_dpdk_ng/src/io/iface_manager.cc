@@ -732,10 +732,16 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 		for (auto it : knis_node) {
 			YAML::Node& kni_name_node = it.first;
 			YAML::Node  kni_args_node = it.second["args"];
+			YAML::Node  kni_enabled_node = it.second["enabled"];
 
 			if (not kni_name_node || not kni_name_node.IsScalar()) {
 				continue;
 			}
+
+			if (kni_enabled_node && kni_enabled_node.IsScalar() && (kni_enabled_node.as<bool>() == false)) {
+				continue;
+			}
+
 			strncpy(vport_names[port_name_index], kni_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
 			std::string ifname(vport_names[port_name_index]);
 
@@ -783,10 +789,16 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 		for (auto it : rings_node) {
 			YAML::Node& ring_name_node = it.first;
 			YAML::Node  ring_args_node = it.second["args"];
+			YAML::Node  ring_enabled_node = it.second["enabled"];
 
 			if (not ring_name_node || not ring_name_node.IsScalar()) {
 				continue;
 			}
+
+			if (ring_enabled_node && ring_enabled_node.IsScalar() && (ring_enabled_node.as<bool>() == false)) {
+				continue;
+			}
+
 			strncpy(vport_names[port_name_index], ring_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
 			std::string ifname(vport_names[port_name_index]);
 
@@ -834,10 +846,16 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 		for (auto it : pcaps_node) {
 			YAML::Node& pcap_name_node = it.first;
 			YAML::Node  pcap_args_node = it.second["args"];
+			YAML::Node  pcap_enabled_node = it.second["enabled"];
 
 			if (not pcap_name_node || not pcap_name_node.IsScalar()) {
 				continue;
 			}
+
+			if (pcap_enabled_node && pcap_enabled_node.IsScalar() && (pcap_enabled_node.as<bool>() == false)) {
+				continue;
+			}
+
 			strncpy(vport_names[port_name_index], pcap_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
 			std::string ifname(vport_names[port_name_index]);
 
