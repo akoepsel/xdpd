@@ -19,10 +19,17 @@ dpdk:
       socket_id: 1
       args: ""
   rings:
-    ring0: "nodeaction=ring_A:0:CREATE"
-    ring1: "nodeaction=ring_A:0:ATTACH"
-    ring2: "nodeaction=ring_B:1:CREATE"
-    ring3: "nodeaction=ring_B:1:ATTACH"
+    ring0: 
+      args: "nodeaction=ring_A:0:CREATE"
+    ring1: 
+      args: "nodeaction=ring_A:0:ATTACH"
+    ring2: 
+      args: "nodeaction=ring_B:1:CREATE"
+    ring3: 
+      args: "nodeaction=ring_B:1:ATTACH"
+  pcaps:
+    pcap0:
+      args: "iface=wlan0;socket_id=0"
   interfaces:
     ens1f1: 
       enabled: true

@@ -731,7 +731,7 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 
 		for (auto it : knis_node) {
 			YAML::Node& kni_name_node = it.first;
-			YAML::Node& kni_args_node = it.second;
+			YAML::Node  kni_args_node = it.second["args"];
 
 			if (not kni_name_node || not kni_name_node.IsScalar()) {
 				continue;
@@ -782,7 +782,7 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 
 		for (auto it : rings_node) {
 			YAML::Node& ring_name_node = it.first;
-			YAML::Node& ring_args_node = it.second;
+			YAML::Node  ring_args_node = it.second["args"];
 
 			if (not ring_name_node || not ring_name_node.IsScalar()) {
 				continue;
@@ -819,6 +819,57 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 				default: {
 					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of ring dev %s with args \"%s\" failed\n",
 							ifname.c_str(), ringdev_args.c_str());
+				};
+				}
+				return ROFL_FAILURE;
+			}
+
+			port_name_index++;
+		}
+	}
+
+	YAML::Node pcaps_node = y_config_dpdk_ng["dpdk"]["pcaps"];
+	if (pcaps_node && pcaps_node.IsMap()) {
+
+		for (auto it : pcaps_node) {
+			YAML::Node& pcap_name_node = it.first;
+			YAML::Node  pcap_args_node = it.second["args"];
+
+			if (not pcap_name_node || not pcap_name_node.IsScalar()) {
+				continue;
+			}
+			strncpy(vport_names[port_name_index], pcap_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
+			std::string ifname(vport_names[port_name_index]);
+
+			/* assumption: ifname = "pcap0", "pcap1", ..., TODO: add check for "pcapN" */
+			std::string pcapdev_name("net_");
+			pcapdev_name.append(ifname);
+
+			std::string pcapdev_args;
+			if (pcap_args_node && pcap_args_node.IsScalar()) {
+				pcapdev_args = pcap_args_node.as<std::string>();
+			}
+
+			XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual PMD pcap port: %s with args: %s\n", pcapdev_name.c_str(), pcapdev_args.c_str());
+
+			/* initialize pcap pmd device */
+			if ((ret = rte_vdev_init(pcapdev_name.c_str(), pcapdev_args.c_str())) < 0) {
+				switch (ret) {
+				case -EINVAL: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of pcap dev %s with args \"%s\" failed (EINVAL)\n",
+							ifname.c_str(), pcapdev_args.c_str());
+				} break;
+				case -EEXIST: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of pcap dev %s with args \"%s\" failed (EEXIST)\n",
+							ifname.c_str(), pcapdev_args.c_str());
+				} break;
+				case -ENOMEM: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of pcap dev %s with args \"%s\" failed (ENOMEM)\n",
+							ifname.c_str(), pcapdev_args.c_str());
+				} break;
+				default: {
+					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of pcap dev %s with args \"%s\" failed\n",
+							ifname.c_str(), pcapdev_args.c_str());
 				};
 				}
 				return ROFL_FAILURE;
