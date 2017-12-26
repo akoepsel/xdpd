@@ -74,6 +74,7 @@ if ( test "$HW" = "gnu-linux-dpdk-ng");then
 #the .la file. Hence, they have to be provided here at the top-level...
 	xdpd_HW_LDFLAGS=" -Wl,--whole-archive \
 		-Wl,-lrte_pmd_sw_event \
+		-Wl,-lrte_pmd_pcap \
 		-Wl,-lrte_pmd_ring \
 		-Wl,-lrte_pmd_kni \
 		-Wl,-lrte_pmd_e1000 \
@@ -87,6 +88,7 @@ if ( test "$HW" = "gnu-linux-dpdk-ng");then
 		-Wl,-lrte_bus_vdev \
 		-Wl,-lrte_pci \
 		-Wl,-lnuma \
+		-Wl,-lpcap \
 		-Wl,--no-whole-archive"
 
 	#Onboard DPDK compilation
