@@ -1141,7 +1141,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 
 			/* create RTE ring for queuing packets between workers and tx threads */
-			if (rte_ring_create(rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id], socket_id, RING_F_SP_ENQ | RING_F_SC_DEQ) == NULL) {
+			if ((tx_core_tasks[lcore_id].txring[port_id] = rte_ring_create(rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id], socket_id, RING_F_SP_ENQ | RING_F_SC_DEQ)) == NULL) {
 				XDPD_DEBUG(DRIVER_NAME"[ifaces] unable to create tx-ring: %s for port-id: %u\n", rgname.str().c_str(), port_id);
 				return ROFL_FAILURE;
 			}
