@@ -1002,6 +1002,20 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			XDPD_DEBUG(DRIVER_NAME"[ifaces] physical port: %u, mapping LCORE_ID_ANY to socket %u used by master lcore\n", port_id, socket_id);
 			phyports[port_id].is_virtual = true;
 		} else
+		if (dev_info.driver_name == std::string("net_pcap")) {
+			YAML::Node pcap_node = y_config_dpdk_ng["dpdk"]["pcaps"][ifname]["socket_id"];
+			if (pcap_node && pcap_node.IsScalar()) {
+				socket_id = pcap_node.as<int>();
+				if (sockets.find(socket_id) == sockets.end()) {
+					XDPD_ERR(DRIVER_NAME"[ifaces] virtual port: %u, invalid socket %u specified, ignoring\n", port_id, socket_id);
+					continue;
+				}
+			} else {
+				socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
+			}
+			XDPD_DEBUG(DRIVER_NAME"[ifaces] physical port: %u, mapping LCORE_ID_ANY to socket %u used by master lcore\n", port_id, socket_id);
+			phyports[port_id].is_virtual = true;
+		} else
 		if (dev_info.driver_name == std::string("net_ring")) {
 			phyports[port_id].is_virtual = true;
 		}
