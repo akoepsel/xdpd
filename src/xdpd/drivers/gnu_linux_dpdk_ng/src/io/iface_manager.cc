@@ -1159,7 +1159,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			/* if the number of TX lcores exceeds the number of tx-queues on the port and
 			 * the TX queue is not able to handle multiple threads without locking, 
 			 * abort here and give a hint to the user */
-			if ((not (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MT_LOCKFREE)) && (tx_queue_id >= (phyports[port_id].nb_tx_queues - 1))) {
+			if ((not (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MT_LOCKFREE)) && (tx_queue_id > (phyports[port_id].nb_tx_queues - 1))) {
 				XDPD_ERR(DRIVER_NAME"[ifaces] number of TX tasks on NUMA node socket %u exceeds number of TX queues on port %u (%s) and port is not DEV_TX_OFFLOAD_MT_LOCKFREE capable, you have 3 options:\n", socket_id, port_id, ifname);
 				XDPD_ERR(DRIVER_NAME"[ifaces] 1. increase number of TX queues on port %s\n", ifname);
 				XDPD_ERR(DRIVER_NAME"[ifaces] 2. reduce number of TX tasks on NUMA node socket %u\n", socket_id);
