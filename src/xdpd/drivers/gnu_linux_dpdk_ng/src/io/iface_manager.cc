@@ -1642,6 +1642,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			//snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
 			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname);
 		} else
+		/* net_pcap PMD */
+		if (dev_info.driver_name == std::string("net_pcap")) {
+			//snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
+			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname);
+		} else
 		/* net_ring PMD */
 		if (dev_info.driver_name == std::string("net_ring")) {
 			//snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
