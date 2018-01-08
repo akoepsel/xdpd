@@ -1101,6 +1101,8 @@ int processing_packet_transmission(void* not_used){
 		int timeout = 0;
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, events, sizeof(events), timeout);
 
+		RTE_LOG(INFO, XDPD, "tx-task-%2u read %u events from worker event queue\n", lcore_id, nb_rx);
+
 		/* interate over all received events */
 		for (i = 0; i < nb_rx; i++) {
 			switch_port_t* port;
@@ -1145,6 +1147,7 @@ int processing_packet_transmission(void* not_used){
 					};
 					}
 				}
+				RTE_LOG(INFO, XDPD, "tx-task-%2u enqueued %u events to txring queue on port %u\n", lcore_id, ret, out_port_id);
 			}
 		}
 
@@ -1156,8 +1159,11 @@ int processing_packet_transmission(void* not_used){
 
 			unsigned int nb_elems;
 
+			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u\n", lcore_id, port_id);
+
 			/* port not enabled in this tx-task */
 			if (not task->tx_queues[port_id].enabled) {
+				RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, port is disabled, ignoring\n", lcore_id, port_id);
 				continue;
 			}
 
@@ -1166,13 +1172,25 @@ int processing_packet_transmission(void* not_used){
 			/* get number of packets stored in txring */
 			nb_elems = rte_ring_get_size(task->txring[port_id]);
 
+			RTE_LOG(INFO, XDPD, "tx-task-%2u %u packets waiting for transmission for for port %u\n", lcore_id, nb_elems, port_id);
+
 			/* not enough time elapsed since last tx-burst for this port or number of packets in ring does not exceed the threshold value for this port */
 			if (((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) && (nb_elems < task->txring_drain_threshold[port_id])) {
+				if ((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) {
+					RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, (txring_last_tx_time[%u]=0x%lx + txring_drain_interval[%u]=0x%lx) < (cur_tsc=0x%lx)\n", lcore_id, port_id,
+							port_id, task->txring_last_tx_time[port_id], port_id, task->txring_drain_interval[port_id], cur_tsc);
+				}
+				if (nb_elems < task->txring_drain_threshold[port_id]) {
+					RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, (nb_elems=%u) < (txring_drain_threshold[%u]=%u)\n", lcore_id, port_id,
+							nb_elems, port_id, task->txring_drain_threshold[port_id]);
+				}
 				continue;
 			}
 
 			/* get mbufs from txring */
 			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, sizeof(task->tx_pkts), NULL);
+
+			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, received %u packets from txring[%u]\n", lcore_id, port_id, nb_elems, port_id);
 
 			/* no elements in txring */
 			if (nb_elems == 0) {
