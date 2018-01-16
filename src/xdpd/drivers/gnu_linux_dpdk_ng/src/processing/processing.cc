@@ -1159,20 +1159,19 @@ int processing_packet_transmission(void* not_used){
 
 			unsigned int nb_elems;
 
-			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u\n", lcore_id, port_id);
-
 			/* port not enabled in this tx-task */
 			if (not task->tx_queues[port_id].enabled) {
-				RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, port is disabled, ignoring\n", lcore_id, port_id);
 				continue;
 			}
+
+			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u\n", lcore_id, port_id);
 
 			uint64_t cur_tsc = rte_rdtsc();
 
 			/* get number of packets stored in txring */
 			nb_elems = rte_ring_get_size(task->txring[port_id]);
 
-			RTE_LOG(INFO, XDPD, "tx-task-%2u %u packets waiting for transmission for for port %u\n", lcore_id, nb_elems, port_id);
+			RTE_LOG(INFO, XDPD, "tx-task-%2u %u packets waiting for transmission for port %u\n", lcore_id, nb_elems, port_id);
 
 			/* not enough time elapsed since last tx-burst for this port or number of packets in ring does not exceed the threshold value for this port */
 			if (((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) && (nb_elems < task->txring_drain_threshold[port_id])) {
