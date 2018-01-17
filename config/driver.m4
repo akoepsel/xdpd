@@ -1,10 +1,10 @@
-#Setups the build enviornment for xDPd drivers
+#Setups the build environment for xDPd drivers
 
 #Assume relative path first
 XDPD_SRCDIR="$PWD/$srcdir/../../../../"
 XDPD_BUILDDIR="$PWD/../../../../"
 
-AC_MSG_CHECKING(and setting xDPd driver enviornment...)
+AC_MSG_CHECKING(and setting xDPd driver environment...)
 if test ! -d "$XDPD_SRCDIR" ; then
 	#Try absolute
 	XDPD_SRCDIR="$srcdir/../../../../"
