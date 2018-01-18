@@ -935,7 +935,7 @@ int processing_packet_reception(void* not_used){
 		RTE_LOG(INFO, XDPD, " -- RX lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
 	}
 
-	RTE_LOG(INFO, XDPD, "rx-task-%2u started\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "rx-task-%02u started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1003,7 +1003,7 @@ int processing_packet_reception(void* not_used){
 		}
 	}
 
-	RTE_LOG(INFO, XDPD, "rx-task-%2u terminated\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "rx-task-%02u terminated\n", lcore_id);
 
 	return (int)ROFL_SUCCESS;
 }
@@ -1029,7 +1029,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 
 
-	RTE_LOG(INFO, XDPD, "wk-task-%2u: started\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "wk-task-%02u: started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1071,7 +1071,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 	destroy_datapacket_dpdk(pkt_state);
 
-	RTE_LOG(INFO, XDPD, "wk-task-%2u: terminated\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "wk-task-%02u: terminated\n", lcore_id);
 
 	return (int)ROFL_SUCCESS;
 }
@@ -1099,7 +1099,7 @@ int processing_packet_transmission(void* not_used){
 		task->txring_last_tx_time[port_id] = rte_rdtsc();
 	}
 
-	RTE_LOG(INFO, XDPD, "tx-task-%2u: started\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "tx-task-%02u: started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1113,7 +1113,7 @@ int processing_packet_transmission(void* not_used){
 			continue;
 		}
 
-		RTE_LOG(INFO, XDPD, "tx-task-%2u: read %u events from worker event queue\n", lcore_id, nb_rx);
+		RTE_LOG(INFO, XDPD, "tx-task-%02u: read %u events from worker event queue\n", lcore_id, nb_rx);
 
 		/* interate over all received events */
 		for (i = 0; i < nb_rx; i++) {
@@ -1145,21 +1145,21 @@ int processing_packet_transmission(void* not_used){
 			/* store event.mbuf in txring assigned to outgoing port */
 			if (likely(task->txring[out_port_id] != NULL) && likely(events[i].mbuf != NULL)) {
 				unsigned int ret;
-				if ((ret = rte_ring_enqueue(task->txring[out_port_id], events[i].mbuf)) < 0) {
+				if ((ret = rte_ring_sp_enqueue(task->txring[out_port_id], events[i].mbuf)) < 0) {
 					switch (ret) {
 					case -ENOBUFS: {
-						RTE_LOG(WARNING, XDPD, "tx-task-%2u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
+						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
 								lcore_id, i, out_port_id);
 						rte_pktmbuf_free(events[i].mbuf);
 					} break;
 					default: {
-						RTE_LOG(WARNING, XDPD, "tx-task-%2u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
+						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
 								lcore_id, i, out_port_id);
 						rte_pktmbuf_free(events[i].mbuf);
 					};
 					}
 				}
-				RTE_LOG(INFO, XDPD, "tx-task-%2u: enqueued %u events to txring queue on port %u\n", lcore_id, ret, out_port_id);
+				RTE_LOG(INFO, XDPD, "tx-task-%02u: enqueued event to txring queue on port %u, size=%u\n", lcore_id, ret, out_port_id, rte_ring_count(task->txring[out_port_id]));
 			}
 		}
 
@@ -1186,11 +1186,11 @@ int processing_packet_transmission(void* not_used){
 			/* not enough time elapsed since last tx-burst for this port or number of packets in ring does not exceed the threshold value for this port */
 			if (((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) && (nb_elems < task->txring_drain_threshold[port_id])) {
 				if ((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) {
-					RTE_LOG(DEBUG, XDPD, "tx-task-%2u: draining for port %u, elapsed-time-since-last-tx(%" PRIu64 ") < drain-interval(%" PRIu64 ")\n",
+					RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, elapsed-time-since-last-tx(%" PRIu64 ") < drain-interval(%" PRIu64 ")\n",
 							lcore_id, port_id, cur_tsc - task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id]);
 				}
 				if (nb_elems < task->txring_drain_threshold[port_id]) {
-					RTE_LOG(DEBUG, XDPD, "tx-task-%2u: draining for port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
+					RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
 							lcore_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
 				}
 				continue;
@@ -1199,7 +1199,7 @@ int processing_packet_transmission(void* not_used){
 			/* get mbufs from txring */
 			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, PROC_ETH_TX_BURST_SIZE, &nb_elems_remaining);
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%2u: draining for port %u, received %u packets from txring[%u], %u packets remaining\n", lcore_id, port_id, nb_elems, port_id, nb_elems_remaining);
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, received %u packets from txring[%u], %u packets remaining\n", lcore_id, port_id, nb_elems, port_id, nb_elems_remaining);
 
 			/* no elements in txring */
 			if (nb_elems == 0) {
@@ -1209,7 +1209,7 @@ int processing_packet_transmission(void* not_used){
 			/* send tx-burst */
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, task->tx_pkts, nb_elems);
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%2u: eth-port-id: %u, eth-queue-id: %u, packets sent: %u\n",
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: eth-port-id: %u, eth-queue-id: %u, packets sent: %u\n",
 					lcore_id, port_id, task->tx_queues[port_id].queue_id, nb_tx);
 
 			/* adjust timestamp */
@@ -1222,14 +1222,14 @@ int processing_packet_transmission(void* not_used){
 
 			/* otherwise, release any unsent packets */
 			for(i = nb_tx; i < nb_elems; i++) {
-				RTE_LOG(WARNING, XDPD, "tx-task-%2u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
+				RTE_LOG(WARNING, XDPD, "tx-task-%02u: dropping task->tx_queues[%u].tx_pkts[%u] on port %u, queue %u\n",
 						lcore_id, port_id, i, port_id, task->tx_queues[port_id].queue_id);
 				rte_pktmbuf_free(task->tx_pkts[i]);
 			}
 		}
 	}
 
-	RTE_LOG(INFO, XDPD, "tx-task-%2u terminated\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "tx-task-%02u: terminated\n", lcore_id);
 
 	return (int)ROFL_SUCCESS;
 }
