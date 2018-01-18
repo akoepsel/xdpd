@@ -1087,9 +1087,17 @@ int processing_packet_transmission(void* not_used){
 	uint32_t out_port_id;
 	int socket_id = rte_lcore_to_socket_id(lcore_id);
 	struct rte_event events[PROC_ETH_TX_BURST_SIZE];
+	uint64_t cur_tsc;
 
 	//Set flag to active
 	task->active = true;
+
+
+	/* initialize port related parameters */
+	cur_tsc = rte_rdtsc();
+	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id){
+		task->txring_last_tx_time[port_id] = rte_rdtsc();
+	}
 
 	RTE_LOG(INFO, XDPD, "tx-task-%2u started\n", lcore_id);
 
@@ -1173,7 +1181,7 @@ int processing_packet_transmission(void* not_used){
 				continue;
 			}
 
-			uint64_t cur_tsc = rte_rdtsc();
+			cur_tsc = rte_rdtsc();
 
 			RTE_LOG(INFO, XDPD, "tx-task-%2u, draining port %u => %u packets waiting for transmission\n", lcore_id, port_id, nb_elems);
 
