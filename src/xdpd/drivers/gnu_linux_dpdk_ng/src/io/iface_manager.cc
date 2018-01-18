@@ -1141,11 +1141,15 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 
 			/* store txring-drain-interval parameter for this port */
+			uint64_t txring_drain_interval;
 			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-interval")) {
-				tx_core_tasks[lcore_id].txring_drain_interval[port_id] = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring-drain-interval");
+				//tx_core_tasks[lcore_id].txring_drain_interval[port_id] = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring-drain-interval");
+				txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring-drain-interval") * /*number of cycles in 1ms for default timer=*/(rte_get_timer_hz() / 1e3);
 			} else {
-				tx_core_tasks[lcore_id].txring_drain_interval[port_id] = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT;
+				//tx_core_tasks[lcore_id].txring_drain_interval[port_id] = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT;
+				txring_drain_interval = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT * /*number of cycles in 1ms for default timer=*/(rte_get_timer_hz() / 1e3);
 			}
+			tx_core_tasks[lcore_id].txring_drain_interval[port_id] = txring_drain_interval;
 
 			/* store txring-drain-threshold parameter for this port */
 			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-threshold")) {
