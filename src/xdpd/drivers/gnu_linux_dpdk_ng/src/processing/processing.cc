@@ -249,6 +249,12 @@ rofl_result_t processing_init_lcores(void){
 */
 rofl_result_t processing_init_task_structures(void) {
 
+	bool lead_task[RTE_MAX_NUMA_NODES];
+
+	for (unsigned int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
+		lead_task[i] = true;
+	}
+
 	YAML::Node mbuf_elems_node = y_config_dpdk_ng["dpdk"]["mbuf_elems_in_pool"];
 	if (mbuf_elems_node && mbuf_elems_node.IsScalar()) {
 		mbuf_elems_in_pool = mbuf_elems_node.as<unsigned int>();
@@ -264,6 +270,9 @@ rofl_result_t processing_init_task_structures(void) {
 		enum rte_lcore_role_t role = rte_eal_lcore_role(lcore_id);
 		if(role == ROLE_RTE){
 
+			//Recover CPU socket for the lcore
+			unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
+
 			if (lcores[lcore_id].is_master){
 				continue;
 			}
@@ -276,7 +285,8 @@ rofl_result_t processing_init_task_structures(void) {
 			}
 			if (lcores[lcore_id].is_tx_lcore) {
 				tx_core_tasks[lcore_id].available = true;
-				tx_core_tasks[lcore_id].lead_task = true;
+				tx_core_tasks[lcore_id].lead_task = lead_task[socket_id]; //the first core on a socket is the lead-task, that will never stop in idle phases
+				lead_task[socket_id] = false;
 				continue;
 			}
 			if (lcores[lcore_id].is_rx_lcore) {
@@ -285,9 +295,6 @@ rofl_result_t processing_init_task_structures(void) {
 			}
 
 			//XDPD_DEBUG(DRIVER_NAME"[processing][init] marking core %u as available\n", lcore_id);
-
-			//Recover CPU socket for the lcore
-			unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
 
 			/*
 			 * Initialize memory for NUMA socket (socket_id)
