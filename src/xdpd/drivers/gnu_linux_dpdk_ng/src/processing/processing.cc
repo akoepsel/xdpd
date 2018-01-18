@@ -1112,7 +1112,7 @@ int processing_packet_transmission(void* not_used){
 
 		if (nb_rx==0){
 			task->idle_loops++;
-			if ((not task->lead_task) && (unlikely(task->idle_loops > 64))){
+			if ((not task->lead_task) && (task->idle_loops > 64)){
 				task->active = false;
 			}
 			continue;
