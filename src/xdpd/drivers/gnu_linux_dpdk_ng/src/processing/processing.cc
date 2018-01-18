@@ -1183,16 +1183,21 @@ int processing_packet_transmission(void* not_used){
 
 			cur_tsc = rte_get_tsc_cycles();
 
-			if (nb_elems < task->txring_drain_threshold[port_id]) {
-				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: skipping port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
-						lcore_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
+			if ((nb_elems < task->txring_drain_threshold[port_id]) && (cur_tsc < (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]))) {
+				if (nb_elems < task->txring_drain_threshold[port_id]) {
+#if 1
+					RTE_LOG(DEBUG, XDPD, "tx-task-%02u: skipping port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
+							lcore_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
+#endif
+				}
 
 				if (cur_tsc < (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id])) {
+#if 1
 					RTE_LOG(DEBUG, XDPD, "tx-task-%02u: skipping port %u, elapsed-time-since-last-tx(%" PRIu64 ") < drain-interval(%" PRIu64 ")\n",
 							lcore_id, port_id, cur_tsc - task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id]);
-
-					continue;
+#endif
 				}
+				continue;
 			}
 
 			/* get mbufs from txring */
