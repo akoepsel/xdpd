@@ -1113,7 +1113,7 @@ int processing_packet_transmission(void* not_used){
 			continue;
 		}
 
-		RTE_LOG(INFO, XDPD, "tx-task-%02u: read %u events from worker event queue\n", lcore_id, nb_rx);
+		RTE_LOG(INFO, XDPD, "tx-task-%02u: read %u event(s) from worker event queue\n", lcore_id, nb_rx);
 
 		/* interate over all received events */
 		for (i = 0; i < nb_rx; i++) {
@@ -1184,11 +1184,11 @@ int processing_packet_transmission(void* not_used){
 			cur_tsc = rte_get_tsc_cycles();
 
 			if (nb_elems < task->txring_drain_threshold[port_id]) {
-				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
+				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: skipping port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
 						lcore_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
 
 				if (cur_tsc < (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id])) {
-					RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, elapsed-time-since-last-tx(%" PRIu64 ") < drain-interval(%" PRIu64 ")\n",
+					RTE_LOG(DEBUG, XDPD, "tx-task-%02u: skipping port %u, elapsed-time-since-last-tx(%" PRIu64 ") < drain-interval(%" PRIu64 ")\n",
 							lcore_id, port_id, cur_tsc - task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id]);
 
 					continue;
@@ -1208,7 +1208,7 @@ int processing_packet_transmission(void* not_used){
 			/* send tx-burst */
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, task->tx_pkts, nb_elems);
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: rth-tx-burst sent => eth-port-id: %u, eth-queue-id: %u, packets sent: %u\n",
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: eth-tx-burst sent => eth-port-id: %u, eth-queue-id: %u, packets sent: %u\n",
 					lcore_id, port_id, task->tx_queues[port_id].queue_id, nb_tx);
 
 			/* adjust timestamp */
