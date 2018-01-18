@@ -1157,7 +1157,7 @@ int processing_packet_transmission(void* not_used){
 		 */
 		for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id) {
 
-			unsigned int nb_elems;
+			unsigned int nb_elems, nb_elems_remaining;
 
 			/* port not enabled in this tx-task */
 			if (not task->tx_queues[port_id].enabled) {
@@ -1192,9 +1192,9 @@ int processing_packet_transmission(void* not_used){
 			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, PT 2 => task->txring_last_tx_time=%" PRIu64 ", task->txring_drain_interval=%" PRIu64 ", cur_tsc=%" PRIu64 ", task->txring_drain_threshold=%u, nb_elems=%u\n",
 					lcore_id, port_id, task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id], cur_tsc, task->txring_drain_threshold[port_id], nb_elems);
 			/* get mbufs from txring */
-			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, PROC_ETH_TX_BURST_SIZE, NULL);
+			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, PROC_ETH_TX_BURST_SIZE, &nb_elems_remaining);
 
-			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, received %u packets from txring[%u]\n", lcore_id, port_id, nb_elems, port_id);
+			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, received %u packets from txring[%u], %u packets remaining\n", lcore_id, port_id, nb_elems, port_id, nb_elems_remaining);
 
 			/* no elements in txring */
 			if (nb_elems == 0) {
