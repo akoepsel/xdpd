@@ -276,6 +276,7 @@ rofl_result_t processing_init_task_structures(void) {
 			}
 			if (lcores[lcore_id].is_tx_lcore) {
 				tx_core_tasks[lcore_id].available = true;
+				tx_core_tasks[lcore_id].lead_task = true;
 				continue;
 			}
 			if (lcores[lcore_id].is_rx_lcore) {
@@ -1110,8 +1111,13 @@ int processing_packet_transmission(void* not_used){
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, events, sizeof(events), timeout);
 
 		if (nb_rx==0){
+			task->idle_loops++;
+			if ((not task->lead_task) && (unlikely(task->idle_loops > 64))){
+				task->active = false;
+			}
 			continue;
 		}
+		task->idle_loops = 0;
 
 		RTE_LOG(INFO, XDPD, "tx-task-%02u: read %u event(s) from worker event queue\n", lcore_id, nb_rx);
 

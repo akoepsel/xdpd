@@ -80,6 +80,8 @@ typedef struct rx_core_task {
 typedef struct tx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
+	bool lead_task; // true: first tx-task on this NUMA socket (will never be switched off in idle phases)
+	unsigned int idle_loops; // number of idle loops for reading events from event device
 
 	/*
 	 * dequeuing from event device
