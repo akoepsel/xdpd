@@ -1173,7 +1173,7 @@ int processing_packet_transmission(void* not_used){
 
 			RTE_LOG(INFO, XDPD, "tx-task-%2u %u packets waiting for transmission for port %u\n", lcore_id, nb_elems, port_id);
 
-			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, PT 1 => task->txring_last_tx_time=%" PRIu64 ", task->txring_drain_interval=%" PRIu64 ", cur_tsc=%" PRIu64 ", task->txring_drain_threshold=%" PRIu64 ", nb_elems=%u\n",
+			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, PT 1 => task->txring_last_tx_time=%" PRIu64 ", task->txring_drain_interval=%" PRIu64 ", cur_tsc=%" PRIu64 ", task->txring_drain_threshold=%u, nb_elems=%u\n",
 					lcore_id, port_id, task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id], cur_tsc, task->txring_drain_threshold[port_id], nb_elems);
 
 			/* not enough time elapsed since last tx-burst for this port or number of packets in ring does not exceed the threshold value for this port */
@@ -1189,7 +1189,7 @@ int processing_packet_transmission(void* not_used){
 				continue;
 			}
 
-			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, PT 2 => task->txring_last_tx_time=%" PRIu64 ", task->txring_drain_interval=%" PRIu64 ", cur_tsc=%" PRIu64 ", task->txring_drain_threshold=%" PRIu64 ", nb_elems=%u\n",
+			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, PT 2 => task->txring_last_tx_time=%" PRIu64 ", task->txring_drain_interval=%" PRIu64 ", cur_tsc=%" PRIu64 ", task->txring_drain_threshold=%u, nb_elems=%u\n",
 					lcore_id, port_id, task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id], cur_tsc, task->txring_drain_threshold[port_id], nb_elems);
 			/* get mbufs from txring */
 			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, sizeof(task->tx_pkts)/sizeof(struct rte_mbuf*), NULL);
