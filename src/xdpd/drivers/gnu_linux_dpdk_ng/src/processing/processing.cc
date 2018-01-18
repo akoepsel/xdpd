@@ -1164,18 +1164,16 @@ int processing_packet_transmission(void* not_used){
 				continue;
 			}
 
-			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u\n", lcore_id, port_id);
-
-			uint64_t cur_tsc = rte_rdtsc();
-
 			/* get number of packets stored in txring */
 			if (unlikely((nb_elems=rte_ring_count(task->txring[port_id]))==0)){
 				continue;
 			}
 
-			RTE_LOG(INFO, XDPD, "tx-task-%2u %u packets waiting for transmission for port %u\n", lcore_id, nb_elems, port_id);
+			uint64_t cur_tsc = rte_rdtsc();
 
-			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, PT 1 => task->txring_last_tx_time=%" PRIu64 ", task->txring_drain_interval=%" PRIu64 ", cur_tsc=%" PRIu64 ", task->txring_drain_threshold=%u, nb_elems=%u\n",
+			RTE_LOG(INFO, XDPD, "tx-task-%2u, draining port %u => %u packets waiting for transmission\n", lcore_id, port_id, nb_elems);
+
+			RTE_LOG(INFO, XDPD, "tx-task-%2u draining port %u, PT 1 => task->txring_last_tx_time=%" PRIu64 ", task->txring_drain_interval=%" PRIu64 ", cur_tsc=%" PRIu64 ", task->txring_drain_threshold=%u, nb_elems=%u\n",
 					lcore_id, port_id, task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id], cur_tsc, task->txring_drain_threshold[port_id], nb_elems);
 
 			/* not enough time elapsed since last tx-burst for this port or number of packets in ring does not exceed the threshold value for this port */
@@ -1191,7 +1189,7 @@ int processing_packet_transmission(void* not_used){
 				continue;
 			}
 
-			RTE_LOG(INFO, XDPD, "tx-task-%2u draining for port %u, PT 2 => task->txring_last_tx_time=%" PRIu64 ", task->txring_drain_interval=%" PRIu64 ", cur_tsc=%" PRIu64 ", task->txring_drain_threshold=%u, nb_elems=%u\n",
+			RTE_LOG(INFO, XDPD, "tx-task-%2u draining port %u, PT 2 => task->txring_last_tx_time=%" PRIu64 ", task->txring_drain_interval=%" PRIu64 ", cur_tsc=%" PRIu64 ", task->txring_drain_threshold=%u, nb_elems=%u\n",
 					lcore_id, port_id, task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id], cur_tsc, task->txring_drain_threshold[port_id], nb_elems);
 			/* get mbufs from txring */
 			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, PROC_ETH_TX_BURST_SIZE, &nb_elems_remaining);
