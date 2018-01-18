@@ -1093,10 +1093,10 @@ int processing_packet_transmission(void* not_used){
 	task->active = true;
 
 	/* initialize port related parameters */
-	cur_tsc = rte_rdtsc();
+	cur_tsc = rte_get_tsc_cycles();
 	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id){
 		/* set txring-last-tx-time for each port to current time */
-		task->txring_last_tx_time[port_id] = rte_rdtsc();
+		task->txring_last_tx_time[port_id] = cur_tsc;
 	}
 
 	RTE_LOG(INFO, XDPD, "tx-task-%02u: started\n", lcore_id);
@@ -1181,7 +1181,10 @@ int processing_packet_transmission(void* not_used){
 				continue;
 			}
 
-			cur_tsc = rte_rdtsc();
+			cur_tsc = rte_get_tsc_cycles();
+
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, cur-tsc(%" PRIu64 "), elapsed-time-since-last-tx(%" PRIu64 "), drain-interval(%" PRIu64 ")\n",
+					lcore_id, port_id, cur_tsc, task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id]);
 
 			/* not enough time elapsed since last tx-burst for this port or number of packets in ring does not exceed the threshold value for this port */
 			if (((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) && (nb_elems < task->txring_drain_threshold[port_id])) {
