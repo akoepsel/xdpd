@@ -1197,7 +1197,7 @@ int processing_packet_transmission(void* not_used){
 			}
 
 			/* get mbufs from txring */
-			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, RTE_MIN(nb_elems, PROC_ETH_TX_BURST_SIZE), &nb_elems_remaining);
+			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, RTE_MIN(nb_elems, (unsigned int)PROC_ETH_TX_BURST_SIZE), &nb_elems_remaining);
 
 			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, received %u packets from txring[%u], %u packets remaining\n", lcore_id, port_id, nb_elems, port_id, nb_elems_remaining);
 
