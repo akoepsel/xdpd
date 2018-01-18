@@ -1101,6 +1101,10 @@ int processing_packet_transmission(void* not_used){
 		int timeout = 0;
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, events, sizeof(events), timeout);
 
+		if (nb_rx==0){
+			continue;
+		}
+
 		RTE_LOG(INFO, XDPD, "tx-task-%2u read %u events from worker event queue\n", lcore_id, nb_rx);
 
 		/* interate over all received events */
