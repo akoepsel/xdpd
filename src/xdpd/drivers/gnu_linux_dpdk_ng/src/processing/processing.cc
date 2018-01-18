@@ -1169,7 +1169,9 @@ int processing_packet_transmission(void* not_used){
 			uint64_t cur_tsc = rte_rdtsc();
 
 			/* get number of packets stored in txring */
-			nb_elems = rte_ring_get_size(task->txring[port_id]);
+			if (unlikely((nb_elems=rte_ring_count(task->txring[port_id]))==0)){
+				continue;
+			}
 
 			RTE_LOG(INFO, XDPD, "tx-task-%2u %u packets waiting for transmission for port %u\n", lcore_id, nb_elems, port_id);
 
