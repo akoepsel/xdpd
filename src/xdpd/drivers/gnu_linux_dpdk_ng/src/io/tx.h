@@ -74,19 +74,19 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 		tx_events[0].mbuf->udata64 = (uint64_t)port_id;
 
-		RTE_LOG(INFO, USER1, "wk task %2u => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
+		RTE_LOG(INFO, XDPD, "wk task %2u => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
 				lcore_id, ps->port_id, ev_port_id, event_queues[ps->socket_id][EVENT_QUEUE_TXCORES], 0);
 
 		int i = 0, nb_rx = 1;
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, 1);
 		if (nb_tx) {
-			RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, packets enqueued: %u\n",
+			RTE_LOG(INFO, XDPD, "wk task %2u => event-port-id: %u, packets enqueued: %u\n",
 					lcore_id, ev_port_id, nb_tx);
 		}
 		/* release mbufs not queued in event device */
 		if (nb_tx != nb_rx) {
 			for(i = nb_tx; i < nb_rx; i++) {
-				RTE_LOG(WARNING, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
+				RTE_LOG(WARNING, XDPD, "wk task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
 						lcore_id, ev_port_id, tx_events[i].queue_id, i);
 				rte_pktmbuf_free(tx_events[i].mbuf);
 			}
@@ -127,19 +127,19 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 		tx_events[0].mbuf->udata64 = (uint64_t)port_id;
 
-		RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, event[%u] for eth-port: %u\n",
+		RTE_LOG(INFO, XDPD, "wk task %2u => event-port-id: %u, event-queue-id: %u, event[%u] for eth-port: %u\n",
 				lcore_id, task->ev_port_id, task->tx_ev_queue_id[ps->socket_id], 0, port_id);
 
 		int i = 0, nb_rx = 1;
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, task->ev_port_id, tx_events, 1);
 		if (nb_tx) {
-			RTE_LOG(INFO, USER1, "wk task %2u => event-port-id: %u, packets enqueued: %u\n",
+			RTE_LOG(INFO, XDPD, "wk task %2u => event-port-id: %u, packets enqueued: %u\n",
 					lcore_id, task->ev_port_id, nb_tx);
 		}
 		/* release mbufs not queued in event device */
 		if (nb_tx != nb_rx) {
 			for(i = nb_tx; i < nb_rx; i++) {
-				RTE_LOG(WARNING, USER1, "wk task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
+				RTE_LOG(WARNING, XDPD, "wk task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
 						lcore_id, task->ev_port_id, tx_events[i].queue_id, i);
 				rte_pktmbuf_free(tx_events[i].mbuf);
 			}

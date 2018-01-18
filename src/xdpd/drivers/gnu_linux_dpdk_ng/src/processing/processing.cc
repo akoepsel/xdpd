@@ -1029,7 +1029,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 
 
-	RTE_LOG(INFO, XDPD, "wk-task-%2u started\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "wk-task-%2u: started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1059,7 +1059,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
-			RTE_LOG(INFO, XDPD, "wk task %2u => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u], packets dequeued: %u\n",
+			RTE_LOG(INFO, XDPD, "wk task %2u: => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u], packets dequeued: %u\n",
 					lcore_id, in_port_id, task->ev_port_id, task->rx_ev_queue_id, i, nb_rx);
 
 			/* inject packet into openflow pipeline */
@@ -1071,7 +1071,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 	destroy_datapacket_dpdk(pkt_state);
 
-	RTE_LOG(INFO, XDPD, "wk-task-%2u terminated\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "wk-task-%2u: terminated\n", lcore_id);
 
 	return (int)ROFL_SUCCESS;
 }
@@ -1099,7 +1099,7 @@ int processing_packet_transmission(void* not_used){
 		task->txring_last_tx_time[port_id] = rte_rdtsc();
 	}
 
-	RTE_LOG(INFO, XDPD, "tx-task-%2u started\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "tx-task-%2u: started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -1113,7 +1113,7 @@ int processing_packet_transmission(void* not_used){
 			continue;
 		}
 
-		RTE_LOG(INFO, XDPD, "tx-task-%2u read %u events from worker event queue\n", lcore_id, nb_rx);
+		RTE_LOG(INFO, XDPD, "tx-task-%2u: read %u events from worker event queue\n", lcore_id, nb_rx);
 
 		/* interate over all received events */
 		for (i = 0; i < nb_rx; i++) {
@@ -1136,7 +1136,7 @@ int processing_packet_transmission(void* not_used){
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
 			if (phyports[out_port_id].socket_id != socket_id) {
-				RTE_LOG(WARNING, XDPD, "tx task %2u => on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
+				RTE_LOG(WARNING, XDPD, "tx task %2u: on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
 						lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
 				rte_pktmbuf_free(events[i].mbuf);
 				continue;
@@ -1159,7 +1159,7 @@ int processing_packet_transmission(void* not_used){
 					};
 					}
 				}
-				RTE_LOG(INFO, XDPD, "tx-task-%2u enqueued %u events to txring queue on port %u\n", lcore_id, ret, out_port_id);
+				RTE_LOG(INFO, XDPD, "tx-task-%2u: enqueued %u events to txring queue on port %u\n", lcore_id, ret, out_port_id);
 			}
 		}
 
@@ -1186,11 +1186,11 @@ int processing_packet_transmission(void* not_used){
 			/* not enough time elapsed since last tx-burst for this port or number of packets in ring does not exceed the threshold value for this port */
 			if (((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) && (nb_elems < task->txring_drain_threshold[port_id])) {
 				if ((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) {
-					RTE_LOG(DEBUG, XDPD, "tx-task-%2u draining for port %u, elapsed-time-since-last-tx(%" PRIu64 ") < cur_tsc(%" PRIu64 ")\n",
+					RTE_LOG(DEBUG, XDPD, "tx-task-%2u: draining for port %u, elapsed-time-since-last-tx(%" PRIu64 ") < cur_tsc(%" PRIu64 ")\n",
 							lcore_id, port_id, task->txring_drain_interval[port_id] - task->txring_last_tx_time[port_id], cur_tsc);
 				}
 				if (nb_elems < task->txring_drain_threshold[port_id]) {
-					RTE_LOG(DEBUG, XDPD, "tx-task-%2u draining for port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
+					RTE_LOG(DEBUG, XDPD, "tx-task-%2u: draining for port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
 							lcore_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
 				}
 				continue;
@@ -1199,7 +1199,7 @@ int processing_packet_transmission(void* not_used){
 			/* get mbufs from txring */
 			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts, PROC_ETH_TX_BURST_SIZE, &nb_elems_remaining);
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%2u draining for port %u, received %u packets from txring[%u], %u packets remaining\n", lcore_id, port_id, nb_elems, port_id, nb_elems_remaining);
+			RTE_LOG(DEBUG, XDPD, "tx-task-%2u: draining for port %u, received %u packets from txring[%u], %u packets remaining\n", lcore_id, port_id, nb_elems, port_id, nb_elems_remaining);
 
 			/* no elements in txring */
 			if (nb_elems == 0) {
