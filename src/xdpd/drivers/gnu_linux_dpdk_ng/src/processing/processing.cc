@@ -1183,31 +1183,14 @@ int processing_packet_transmission(void* not_used){
 
 			cur_tsc = rte_get_tsc_cycles();
 
-#if 0
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, cur-tsc(%" PRIu64 "), elapsed-time-since-last-tx(%" PRIu64 "), diff(%" PRIu64 "), drain-interval(%" PRIu64 ")\n",
-					lcore_id, port_id, cur_tsc, task->txring_last_tx_time[port_id], cur_tsc-task->txring_last_tx_time[port_id] , task->txring_drain_interval[port_id]);
+			if (nb_elems < task->txring_drain_threshold[port_id]) {
+				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
+						lcore_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
 
-			/* not enough time elapsed since last tx-burst for this port or number of packets in ring does not exceed the threshold value for this port */
-			if (((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) && (nb_elems < task->txring_drain_threshold[port_id])) {
-				if ((task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]) < cur_tsc) {
+				if (cur_tsc < (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id])) {
 					RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, elapsed-time-since-last-tx(%" PRIu64 ") < drain-interval(%" PRIu64 ")\n",
 							lcore_id, port_id, cur_tsc - task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id]);
-				}
-				if (nb_elems < task->txring_drain_threshold[port_id]) {
-					RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
-							lcore_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
-				}
-				continue;
-			}
-#endif
 
-			if ((cur_tsc - task->txring_last_tx_time[port_id]) < task->txring_drain_interval[port_id]) {
-				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, elapsed-time-since-last-tx(%" PRIu64 ") < drain-interval(%" PRIu64 ")\n",
-						lcore_id, port_id, cur_tsc - task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id]);
-
-				if (nb_elems < task->txring_drain_threshold[port_id]) {
-					RTE_LOG(DEBUG, XDPD, "tx-task-%02u: draining for port %u, nb_elems(%u) < txring_drain_threshold(%u)\n",
-							lcore_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
 					continue;
 				}
 			}
