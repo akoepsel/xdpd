@@ -19,6 +19,7 @@ extern "C" {
 #include <rte_bus_pci.h>
 #include <rte_ethdev.h>
 #include <rte_bus_vdev.h>
+#include <rte_cycles.h>
 
 #ifdef RTE_LIBRTE_IXGBE_PMD
 #include <rte_pmd_ixgbe.h>
