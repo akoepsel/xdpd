@@ -1159,7 +1159,7 @@ int processing_packet_transmission(void* not_used){
 					};
 					}
 				}
-				RTE_LOG(INFO, XDPD, "tx-task-%02u: enqueued event to txring queue on port %u, size=%u\n", lcore_id, ret, out_port_id, rte_ring_count(task->txring[out_port_id]));
+				RTE_LOG(INFO, XDPD, "tx-task-%02u: enqueued event to txring queue on port %u, size=%u\n", lcore_id, out_port_id, rte_ring_count(task->txring[out_port_id]));
 			}
 		}
 
