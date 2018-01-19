@@ -789,8 +789,8 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 
 		for (auto it : rings_node) {
 			YAML::Node& ring_name_node = it.first;
-			YAML::Node  ring_peer_node = it.second["peer"];
-			YAML::Node  ring_size_node = it.second["size"];
+			YAML::Node  ring_peer_node = it.second["ring_peer"];
+			YAML::Node  ring_size_node = it.second["ring_size"];
 			YAML::Node  socket_id_node = it.second["socket_id"];
 			YAML::Node  ring_enabled_node = it.second["enabled"];
 
