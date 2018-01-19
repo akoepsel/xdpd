@@ -12,26 +12,30 @@ dpdk:
     name: event_sw0
     args: sched_quanta=64,credit_quanta=32
   knis:
-    kni0: 
+    bvg0:
       enabled: true
-      args: ""
       socket_id: 0
-    kni1: 
-      enabled: true
       args: ""
+    bvg1:
+      enabled: true
       socket_id: 1
+      args: ""
   rings:
-    ring0: 
+    veth0:
       enabled: true
-      args: "nodeaction=ring_A:0:CREATE"
-    ring1: 
+      socket_id: 0
+      ring_peer: "veth0p"
+      ring_size: 256
+    veth1:
       enabled: true
-      args: "nodeaction=ring_B:0:CREATE"
+      socket_id: 0
+      ring_peer: "veth1p"
+      ring_size: 256
   pcaps:
-    pcap0:
+    dummy0:
       enabled: true
-      args: "iface=veth0"
       socket_id: 1
+      args: "iface=dummy0"
   interfaces:
     ens1f1: 
       enabled: true
