@@ -5,8 +5,8 @@ dpdk:
     coremask:     0x0fffffffffffff
   lcores:
     svc_coremask: 0x00000000004000
-    rx_coremask:  0x00000000010004
-    tx_coremask:  0x00000000008002
+    rx_coremask:  0x00000000010002
+    tx_coremask:  0x00000000100004
     wk_coremask:  0x00000000060018
   eventdev:
     name: event_sw0
@@ -26,17 +26,12 @@ dpdk:
       args: "nodeaction=ring_A:0:CREATE"
     ring1: 
       enabled: true
-      args: "nodeaction=ring_A:0:ATTACH"
-    ring2: 
-      enabled: false
-      args: "nodeaction=ring_B:1:CREATE"
-    ring3: 
-      enabled: false
-      args: "nodeaction=ring_B:1:ATTACH"
+      args: "nodeaction=ring_B:0:CREATE"
   pcaps:
     pcap0:
       enabled: true
-      args: "iface=wlan0;socket_id=0"
+      args: "iface=veth0"
+      socket_id: 1
   interfaces:
     ens1f1: 
       enabled: true
@@ -44,15 +39,15 @@ dpdk:
       txring-drain-queue-capacity: 128
       txring-drain-threshold: 16
       txring-drain-interval: 100
-      tx_loopback: true
+      tx_loopback: false
       promisc: true
-      allmulticast: false
+      allmulticast: true
       vlan_filter:
         - vlan_id: 101
-          vf_mask: 0x1
+          vf_mask: 0xffffffffffffffff
           enabled: true
         - vlan_id: 102
-          vf_mask: 0x2
+          vf_mask: 0xffffffffffffffff
           enabled: true
     ens1f1vf0:
       enabled: true
@@ -65,8 +60,9 @@ dpdk:
       mac_addr: 
         - "00:11:11:11:01:01"
         - "00:11:11:11:01:11"
-      mac_anti_spoof: true
-      vlan_anti_spoof: true
+      mac_anti_spoof: false
+      vlan_anti_spoof: false
+      tx_loopback: true
       unicast_promisc: true
       multicast_promisc: true
       broadcast: true
@@ -83,8 +79,8 @@ dpdk:
       mac_addr: 
         - "00:11:11:11:01:02"
         - "00:11:11:11:01:12"
-      mac_anti_spoof: true
-      vlan_anti_spoof: true
+      mac_anti_spoof: false
+      vlan_anti_spoof: false
       tx_loopback: true
       unicast_promisc: true
       multicast_promisc: true
@@ -98,51 +94,13 @@ dpdk:
       txring-drain-queue-capacity: 128
       txring-drain-threshold: 16
       txring-drain-interval: 100
-      tx_loopback: true
+      tx_loopback: false
       promisc: true
-      allmulticast: false
+      allmulticast: true
       vlan_filter:
         - vlan_id: 101
-          vf_mask: 0x0000000000000001
+          vf_mask: 0xffffffffffffffff
           enabled: true
         - vlan_id: 102
-          vf_mask: 0x0000000000000002
+          vf_mask: 0xffffffffffffffff
           enabled: true
-    ens3f1vf0:
-      enabled: true
-      pci_address: "0000:03:0a.0"
-      parent: "0000:03:00.1"
-      txring-drain-queue-capacity: 128
-      txring-drain-threshold: 16
-      txring-drain-interval: 100
-      enabled: true
-      mac_addr: 
-        - "00:11:11:11:01:03"
-        - "00:11:11:11:01:13"
-      mac_anti_spoof: true
-      vlan_anti_spoof: true
-      unicast_promisc: true
-      multicast_promisc: true
-      broadcast: true
-      vlan_stripq: true
-      vlan_tag: true
-      vlan_insert: 101
-    ens3f1vf1:
-      enabled: true
-      pci_address: "0000:03:0a.1"
-      parent: "0000:03:00.1"
-      txring-drain-queue-capacity: 128
-      txring-drain-threshold: 16
-      txring-drain-interval: 100
-      mac_addr: 
-        - "00:11:11:11:01:04"
-        - "00:11:11:11:01:14"
-      mac_anti_spoof: true
-      vlan_anti_spoof: true
-      tx_loopback: true
-      unicast_promisc: true
-      multicast_promisc: true
-      broadcast: true
-      vlan_stripq: true
-      vlan_tag: true
-      vlan_insert: 102
