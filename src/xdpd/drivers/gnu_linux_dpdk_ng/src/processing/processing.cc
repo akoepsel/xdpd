@@ -929,8 +929,10 @@ int processing_packet_reception(void* not_used){
 	switch_port_t* port;
 	rx_core_task_t* task = &rx_core_tasks[lcore_id];
 
+	RTE_LOG(INFO, XDPD, "rx-task-%02u: started\n", lcore_id);
+
 	if (task->nb_rx_queues == 0) {
-		RTE_LOG(INFO, XDPD, "lcore %u has no rx-queues assigned, terminating\n", lcore_id);
+		RTE_LOG(INFO, XDPD, "rx-task-%02u: task has no rx-queues assigned, terminating\n", lcore_id);
 		return ROFL_SUCCESS;
 	}
 
@@ -940,10 +942,8 @@ int processing_packet_reception(void* not_used){
 	for (i = 0; i < task->nb_rx_queues; i++) {
 		port_id = task->rx_queues[i].port_id;
 		queue_id = task->rx_queues[i].queue_id;
-		RTE_LOG(INFO, XDPD, " -- RX lcore_id=%u port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
+		RTE_LOG(INFO, XDPD, "rx-task-%02u:  port-queue mappings => port_id=%hhu rx_queue_id=%hhu\n", lcore_id, port_id, queue_id);
 	}
-
-	RTE_LOG(INFO, XDPD, "rx-task-%02u started\n", lcore_id);
 
 	while(likely(task->active)) {
 
@@ -952,6 +952,7 @@ int processing_packet_reception(void* not_used){
 			/* read from ethdev queue "queue-id" on port "port-id" */
 			port_id = task->rx_queues[index].port_id;
 			queue_id = task->rx_queues[index].queue_id;
+
 			/* write event to evdev queue "ev-queue-id" via port "ev-port-id" */
 			ev_port_id = task->ev_port_id;
 			ev_queue_id = task->tx_ev_queue_id;
@@ -962,56 +963,56 @@ int processing_packet_reception(void* not_used){
 				continue;
 			}
 
-			if (likely(port->up)) { // This CAN happen while deschedulings
-
-				struct rte_mbuf* mbufs[PROC_ETH_RX_BURST_SIZE];
-				struct rte_event event[PROC_ETH_RX_BURST_SIZE];
-
-				const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, PROC_ETH_RX_BURST_SIZE);
-
-				if (nb_rx) {
-					RTE_LOG(DEBUG, XDPD, "rx task %2u => eth-port-id: %u => eth-queue: %u, packets rcvd: %u\n",
-							lcore_id, port_id, queue_id, nb_rx);
-
-					for (i = 0; i < nb_rx; i++) {
-						event[i].flow_id = mbufs[i]->hash.rss;
-						event[i].op = RTE_EVENT_OP_NEW;
-						event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
-						event[i].queue_id = ev_queue_id;
-						event[i].event_type = RTE_EVENT_TYPE_ETHDEV;
-						event[i].sub_event_type = 0;
-						event[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
-						event[i].mbuf = mbufs[i];
-						mbufs[i]->udata64 = (uint64_t)port_id;
-
-						if (mbufs[i]->port == MBUF_INVALID_PORT) {
-							mbufs[i]->port = port_id;
-						}
-
-						RTE_LOG(INFO, XDPD, "rx task %2u => eth-port-id: %u, eth-queue-id: %u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
-								lcore_id, port_id, queue_id, ev_port_id, ev_queue_id, i);
-					}
-
-					const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
-					if (nb_tx) {
-						RTE_LOG(INFO, XDPD, "rx task %2u => event-port-id: %u, packets enqueued: %u\n",
-								lcore_id, ev_port_id, nb_tx);
-					}
-					/* release mbufs not queued in event device */
-					if (nb_tx != nb_rx) {
-						for(i = nb_tx; i < nb_rx; i++) {
-							RTE_LOG(WARNING, XDPD, "rx task %2u => event-port-id: %u, event-queue-id: %u, dropping mbuf[%u]\n",
-									lcore_id, ev_port_id, event[i].queue_id, i);
-							rte_pktmbuf_free(mbufs[i]);
-						}
-					}
-				}
+			if (unlikely(not port->up)) { // This CAN happen while deschedulings
+				rte_rwlock_read_unlock(&port_list_rwlock);
+				continue;
 			}
 			rte_rwlock_read_unlock(&port_list_rwlock);
+
+			struct rte_mbuf* mbufs[PROC_ETH_RX_BURST_SIZE];
+			struct rte_event event[PROC_ETH_RX_BURST_SIZE];
+
+			/* read burst from ethdev */
+			const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, PROC_ETH_RX_BURST_SIZE);
+
+			/* no packets received => continue with next port */
+			if (nb_rx==0){
+				continue;
+			}
+
+			/* map received mbufs to event structure */
+			for (i = 0; i < nb_rx; i++) {
+				event[i].flow_id = mbufs[i]->hash.rss;
+				event[i].op = RTE_EVENT_OP_NEW;
+				event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
+				event[i].queue_id = ev_queue_id;
+				event[i].event_type = RTE_EVENT_TYPE_ETHDEV;
+				event[i].sub_event_type = 0;
+				event[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
+				event[i].mbuf = mbufs[i];
+				mbufs[i]->udata64 = (uint64_t)port_id;
+
+				if (mbufs[i]->port == MBUF_INVALID_PORT) {
+					mbufs[i]->port = port_id;
+				}
+			}
+
+			/* enqueue events to event device */
+			const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
+
+			/* release mbufs not queued in event device */
+			if (nb_tx < nb_rx) {
+				RTE_LOG(WARNING, XDPD, "rx-task-%02u: dropping %u packets, worker event receive queue full on socket %u\n",
+						lcore_id, nb_rx - nb_tx, rte_lcore_to_socket_id(lcore_id));
+				for(i = nb_tx; i < nb_rx; i++) {
+					rte_pktmbuf_free(mbufs[i]);
+				}
+			}
+
 		}
 	}
 
-	RTE_LOG(INFO, XDPD, "rx-task-%02u terminated\n", lcore_id);
+	RTE_LOG(INFO, XDPD, "rx-task-%02u: terminated\n", lcore_id);
 
 	return (int)ROFL_SUCCESS;
 }
@@ -1126,12 +1127,15 @@ int processing_packet_transmission(void* not_used){
 		}
 		task->idle_loops = 0;
 
-		RTE_LOG(INFO, XDPD, "tx-task-%02u: read %u event(s) from worker event queue\n", lcore_id, nb_rx);
-
 		/* interate over all received events */
 		for (i = 0; i < nb_rx; i++) {
 			switch_port_t* port;
 			dpdk_port_state_t *ps;
+			unsigned int ret;
+
+			 if (unlikely(events[i].mbuf == NULL)){
+				 continue;
+			 }
 
 			/* process mbuf using events[i].queue_id as pipeline stage */
 			out_port_id = (uint32_t)(events[i].mbuf->udata64 & 0x00000000ffffffff);
@@ -1148,31 +1152,36 @@ int processing_packet_transmission(void* not_used){
 
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
-			if (phyports[out_port_id].socket_id != socket_id) {
-				RTE_LOG(WARNING, XDPD, "tx task %2u: on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
+			if (unlikely(phyports[out_port_id].socket_id != socket_id)) {
+				RTE_LOG(WARNING, XDPD, "tx-task-%02u: on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
 						lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
 				rte_pktmbuf_free(events[i].mbuf);
 				continue;
 			}
 
+			if (unlikely(task->txring[out_port_id] == NULL)) {
+				RTE_LOG(WARNING, XDPD, "tx-task-%02u: no txring allocated on port %u, dropping packet, internal error\n",
+						lcore_id, out_port_id);
+				rte_pktmbuf_free(events[i].mbuf);
+				continue;
+			}
+
 			/* store event.mbuf in txring assigned to outgoing port */
-			if (likely(task->txring[out_port_id] != NULL) && likely(events[i].mbuf != NULL)) {
-				unsigned int ret;
-				if ((ret = rte_ring_enqueue(task->txring[out_port_id], events[i].mbuf)) < 0) {
-					switch (ret) {
-					case -ENOBUFS: {
-						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
-								lcore_id, i, out_port_id);
-						rte_pktmbuf_free(events[i].mbuf);
-					} break;
-					default: {
-						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
-								lcore_id, i, out_port_id);
-						rte_pktmbuf_free(events[i].mbuf);
-					};
-					}
+			if ((ret = rte_ring_enqueue(task->txring[out_port_id], events[i].mbuf)) < 0) {
+				switch (ret) {
+				case -ENOBUFS: {
+					RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
+							lcore_id, i, out_port_id);
+					rte_pktmbuf_free(events[i].mbuf);
+					continue;
+				} break;
+				default: {
+					RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
+							lcore_id, i, out_port_id);
+					rte_pktmbuf_free(events[i].mbuf);
+					continue;
+				};
 				}
-				RTE_LOG(INFO, XDPD, "tx-task-%02u: enqueued event to txring queue on port %u, size=%u\n", lcore_id, out_port_id, rte_ring_count(task->txring[out_port_id]));
 			}
 		}
 
@@ -1196,7 +1205,9 @@ int processing_packet_transmission(void* not_used){
 
 			cur_tsc = rte_get_tsc_cycles();
 
-			/* if the number of pending packets is lower than txring_drain_threshold or less time than txring_drain_interval cycles elapsed since last transmission, skip the port */
+			/* if the number of pending packets is lower than txring_drain_threshold or
+			 * less time than txring_drain_interval cycles elapsed since
+			 * last transmission, skip the port */
 			if ((nb_elems < task->txring_drain_threshold[port_id]) && (cur_tsc < (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]))) {
 #if 1
 				if (nb_elems < task->txring_drain_threshold[port_id]) {
