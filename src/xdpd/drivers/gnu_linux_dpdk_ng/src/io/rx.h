@@ -47,7 +47,6 @@ namespace gnu_linux_dpdk_ng {
 inline void
 rx_pkt(unsigned int lcore_id, of_switch_t* sw, struct rte_mbuf* mbuf, datapacket_t* pkt, datapacket_dpdk_t* pkt_state){
 
-	unsigned int i = 0;
 	switch_port_t* tmp_port;
 	datapacket_dpdk_t* pkt_dpdk = pkt_state;
 
@@ -77,8 +76,6 @@ rx_pkt(unsigned int lcore_id, of_switch_t* sw, struct rte_mbuf* mbuf, datapacket
 
 	//Init&classify
 	init_datapacket_dpdk(pkt_dpdk, mbuf, sw, tmp_port->of_port_num, 0, true, false);
-
-	XDPD_DEBUG("calling of_process_packet_pipeline i=%d core_id=%d (%p)\n", i, lcore_id, pkt);
 
 	//Send to pipeline
 	of_process_packet_pipeline(lcore_id, sw, pkt);

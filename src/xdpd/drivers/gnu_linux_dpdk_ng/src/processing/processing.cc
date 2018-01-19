@@ -1022,6 +1022,9 @@ int processing_packet_reception(void* not_used){
 }
 
 
+/**
+ * Packet pipeline processing
+ */
 int processing_packet_pipeline_processing(void* not_used){
 
 	unsigned int i, lcore_id = rte_lcore_id();
