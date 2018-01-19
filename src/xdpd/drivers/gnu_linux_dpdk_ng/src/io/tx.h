@@ -153,15 +153,6 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 }
 
-//
-// vlink specific functions
-//
-
-/**
-* Transmit a packet through a vlink
-*/
-void tx_pkt_vlink(switch_port_t* vlink, datapacket_t* pkt);
-
 }// namespace xdpd::gnu_linux_dpdk_ng
 }// namespace xdpd
 
