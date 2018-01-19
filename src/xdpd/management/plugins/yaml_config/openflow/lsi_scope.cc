@@ -97,7 +97,7 @@ void lsi_scope::parse_pirl(YAML::Node& node, bool* pirl_enabled, int* pirl_rate)
 
 	}
 }
-void lsi_scope::parse_ports(YAML::Node& node, std::vector<std::string>& ports, bool dry_run){
+void lsi_scope::parse_ports(YAML::Node& node, std::vector<std::tuple<std::string, uint32_t> >& ports, bool dry_run){
 
 	//TODO: improve conf file to be able to control the OF port number when attaching
 
@@ -108,10 +108,17 @@ void lsi_scope::parse_ports(YAML::Node& node, std::vector<std::string>& ports, b
 		throw eYamlConfParseError();
 	}
 
+	uint32_t of_port_num = 0;
 	for(auto it : node[LSI_PORTS]){
 		std::string port = it.first.as<std::string>();
 		YAML::Node port_node = it.second;
+		of_port_num++;
+
 		if(port != ""){
+			//Get openflow port number
+			if(port_node && port_node["portno"] && port_node["portno"].IsScalar()){
+				of_port_num = port_node["portno"].as<uint32_t>();
+			}
 			//Check if blacklisted to print a nice trace
 			if(port_manager::is_blacklisted(port)){
 				XDPD_ERR(YAML_PLUGIN_ID "%s: invalid port '%s'. Port is BLACKLISTED!\n", name.c_str(), port.c_str());
@@ -122,15 +129,20 @@ void lsi_scope::parse_ports(YAML::Node& node, std::vector<std::string>& ports, b
 				XDPD_ERR(YAML_PLUGIN_ID "%s: invalid port '%s'. Port does not exist!\n", name.c_str(), port.c_str());
 				throw eYamlConfParseError();
 			}
-			if((std::find(ports.begin(), ports.end(), port) != ports.end())){
+			if(find_if(ports.begin(), ports.end(), find_port_tuple_by_name(port))!=ports.end()){
 				XDPD_ERR(YAML_PLUGIN_ID "%s: attempting to attach twice port '%s'!\n", name.c_str(), port.c_str());
 				throw eYamlConfParseError();
 			}
+			if(find_if(ports.begin(), ports.end(), find_port_tuple_by_portno(of_port_num))!=ports.end()){
+				XDPD_ERR(YAML_PLUGIN_ID "%s: attempting to use portno '%u' twice!\n", name.c_str(), of_port_num);
+				throw eYamlConfParseError();
+			}
+
 		}
 
 		//Then push it to the list of ports
 		//Note empty ports are valid (empty, ignore slot)
-		ports.push_back(port);
+		ports.push_back(std::make_tuple(port, of_port_num));
 	}
 
 	if(ports.size() < 2 && dry_run){
@@ -205,7 +217,7 @@ void lsi_scope::post_validate(YAML::Node& node, bool dry_run){
 	unsigned int reconnect_time = 5;
 	//std::string bind_address_ip = "0.0.0.0";
 	//caddress bind_address;
-	std::vector<std::string> ports;
+	std::vector<std::tuple<std::string, uint32_t> > ports;
 	int ma_list[OF1X_MAX_FLOWTABLES] = { 0 };
 	bool pirl_enabled = true;
 	int pirl_rate=pirl::PIRL_DEFAULT_MAX_RATE;
@@ -259,21 +271,23 @@ void lsi_scope::post_validate(YAML::Node& node, bool dry_run){
 		}
 
 		//Attach ports
-		std::vector<std::string>::iterator port_it;
-		unsigned int i;
-		for(port_it = ports.begin(), i=1; port_it != ports.end(); ++port_it, ++i){
+		std::vector<std::tuple<std::string, uint32_t> >::iterator port_it;
+		for(port_it = ports.begin(); port_it != ports.end(); ++port_it){
+
+			std::string portname = std::get<0>(*port_it);
+			uint32_t of_port_num = std::get<1>(*port_it);
 
 			//Ignore empty ports
-			if(*port_it == "")
+			if(portname == "")
 				continue;
 
 			try{
 				//Attach
-				port_manager::attach_port_to_switch(dpid, *port_it, &i);
+				port_manager::attach_port_to_switch(dpid, portname, &of_port_num);
 				//Bring up
-				port_manager::bring_up(*port_it);
+				port_manager::bring_up(portname);
 			}catch(...){
-				XDPD_ERR(YAML_PLUGIN_ID "%s: unable to attach port '%s'. Unknown error.\n", name.c_str(), (*port_it).c_str());
+				XDPD_ERR(YAML_PLUGIN_ID "%s: unable to attach port '%s'. Unknown error.\n", name.c_str(), portname.c_str());
 				throw;
 			}
 		}
