@@ -51,6 +51,9 @@ typedef struct port_bursts{
 }port_bursts_t;
 #endif
 
+typedef struct task_statistics {
+	uint64_t pkts_dropped; // number of packets dropped
+} __rte_cache_aligned task_statistics_t;
 
 
 /**
@@ -59,6 +62,7 @@ typedef struct port_bursts{
 typedef struct rx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
+	task_statistics_t stats;
 
 	/*
 	 * enqueuing on event device
@@ -73,8 +77,6 @@ typedef struct rx_core_task {
 	rx_port_queue_t rx_queues[PROC_MAX_RX_QUEUES_PER_LCORE];  // (port_id, queue_id) = rx_queues[i] for i in (0...PROC_MAX_RX_QUEUES_PER_LCORE-1)
 	uint16_t nb_rx_queues; // number of valid fields in rx_queues (0, nb_rx_queues-1)
 
-	/* task statistics */
-	uint64_t pkts_dropped; // number of packets dropped
 } __rte_cache_aligned rx_core_task_t;
 
 /**
@@ -83,6 +85,7 @@ typedef struct rx_core_task {
 typedef struct tx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
+	task_statistics_t stats;
 	bool lead_task; // true: first tx-task on this NUMA socket (will never be switched off in idle phases)
 	unsigned int idle_loops; // number of idle loops for reading events from event device
 
@@ -120,8 +123,6 @@ typedef struct tx_core_task {
 	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id] => for all ports in the system
 	uint16_t nb_tx_queues; // number if valid tx_queues
 
-	/* task statistics */
-	uint64_t pkts_dropped; // number of packets dropped
 } __rte_cache_aligned tx_core_task_t;
 
 /**
@@ -130,6 +131,7 @@ typedef struct tx_core_task {
 typedef struct wk_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
+	task_statistics_t stats;
 	
 	unsigned int socket_id; /* NUMA node socket-id */
 	uint8_t ev_port_id; /* event port-id */
@@ -142,8 +144,6 @@ typedef struct wk_core_task {
 	uint8_t tx_queue_id[RTE_MAX_ETHPORTS]; // tx_queue_id[port_id] = queue_id => transmission queue for outgoing packets
 	uint16_t tx_port_id[RTE_MAX_ETHPORTS];
 
-	/* task statistics */
-	uint64_t pkts_dropped; // number of packets dropped
 } __rte_cache_aligned wk_core_task_t;
 
 /**

@@ -797,7 +797,7 @@ rofl_result_t processing_run(void){
 			}
 
 			tx_core_tasks[lcore_id].active = true;
-			tx_core_tasks[lcore_id].pkts_dropped = 0;
+			tx_core_tasks[lcore_id].stats.pkts_dropped = 0;
 		}
 
 		/* receiving lcores */
@@ -823,7 +823,7 @@ rofl_result_t processing_run(void){
 			}
 
 			rx_core_tasks[lcore_id].active = true;
-			tx_core_tasks[lcore_id].pkts_dropped = 0;
+			tx_core_tasks[lcore_id].stats.pkts_dropped = 0;
 		}
 
 		/* worker lcores */
@@ -849,7 +849,7 @@ rofl_result_t processing_run(void){
 			}
 
 			wk_core_tasks[lcore_id].active = true;
-			wk_core_tasks[lcore_id].pkts_dropped = 0;
+			wk_core_tasks[lcore_id].stats.pkts_dropped = 0;
 		}
 	}
 
@@ -1007,7 +1007,7 @@ int processing_packet_reception(void* not_used){
 			if (nb_tx < nb_rx) {
 				RTE_LOG(WARNING, XDPD, "rx-task-%02u: dropping %u packets, worker event receive queue full on socket %u\n",
 						lcore_id, nb_rx - nb_tx, rte_lcore_to_socket_id(lcore_id));
-				task->pkts_dropped++;
+				task->stats.pkts_dropped++;
 				for(i = nb_tx; i < nb_rx; i++) {
 					rte_pktmbuf_free(mbufs[i]);
 				}
@@ -1153,7 +1153,7 @@ int processing_packet_transmission(void* not_used){
 			if (unlikely(phyports[out_port_id].socket_id != socket_id)) {
 				RTE_LOG(WARNING, XDPD, "tx-task-%02u: on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
 						lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
-				task->pkts_dropped++;
+				task->stats.pkts_dropped++;
 				rte_pktmbuf_free(tx_events[i].mbuf);
 				continue;
 			}
@@ -1161,7 +1161,7 @@ int processing_packet_transmission(void* not_used){
 			if (unlikely(task->txring[out_port_id] == NULL)) {
 				RTE_LOG(WARNING, XDPD, "tx-task-%02u: no txring allocated on port %u, dropping packet, internal error\n",
 						lcore_id, out_port_id);
-				task->pkts_dropped++;
+				task->stats.pkts_dropped++;
 				rte_pktmbuf_free(tx_events[i].mbuf);
 				continue;
 			}
@@ -1172,14 +1172,14 @@ int processing_packet_transmission(void* not_used){
 				case -ENOBUFS: {
 					RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
 							lcore_id, i, out_port_id);
-					task->pkts_dropped++;
+					task->stats.pkts_dropped++;
 					rte_pktmbuf_free(tx_events[i].mbuf);
 					continue;
 				} break;
 				default: {
 					RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
 							lcore_id, i, out_port_id);
-					task->pkts_dropped++;
+					task->stats.pkts_dropped++;
 					rte_pktmbuf_free(tx_events[i].mbuf);
 					continue;
 				};
@@ -1239,7 +1239,7 @@ int processing_packet_transmission(void* not_used){
 			/* otherwise, release any unsent packets */
 			RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue packets on ethdev, dropping %u packets destined to port %u\n",
 					lcore_id, nb_elems - nb_tx, port_id);
-			task->pkts_dropped+=(nb_elems-nb_tx);
+			task->stats.pkts_dropped+=(nb_elems-nb_tx);
 			for(i = nb_tx; i < nb_elems; i++) {
 				rte_pktmbuf_free(task->tx_pkts[i]);
 			}
