@@ -747,8 +747,7 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 			std::string ifname(vport_names[port_name_index]);
 
 			/* assumption: ifname = "kni0", "kni1", ..., TODO: add check for "kniN" */
-			std::string knidev_name("net_");
-			knidev_name.append(ifname);
+			std::string knidev_name = std::string("net_kni_") + ifname;
 
 			std::string knidev_args;
 			if (kni_args_node && kni_args_node.IsScalar()) {
@@ -878,8 +877,7 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 			std::string ifname(vport_names[port_name_index]);
 
 			/* assumption: ifname = "pcap0", "pcap1", ..., TODO: add check for "pcapN" */
-			std::string pcapdev_name("net_");
-			pcapdev_name.append(ifname);
+			std::string pcapdev_name = std::string("net_pcap_") + ifname;
 
 			std::string pcapdev_args;
 			if (pcap_args_node && pcap_args_node.IsScalar()) {
@@ -1662,12 +1660,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		/* net_kni PMD */
 		if (dev_info.driver_name == std::string("net_kni")) {
 			//snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
-			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname+4); //strip off "net_"
+			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname+8); //strip off "net_"
 		} else
 		/* net_pcap PMD */
 		if (dev_info.driver_name == std::string("net_pcap")) {
 			//snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
-			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname+4); //strip off "net_"
+			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname+9); //strip off "net_"
 		} else
 		/* net_ring PMD */
 		if (dev_info.driver_name == std::string("net_ring")) {
