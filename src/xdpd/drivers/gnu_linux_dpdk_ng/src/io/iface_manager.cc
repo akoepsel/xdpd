@@ -1672,7 +1672,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		/* net_ring PMD */
 		if (dev_info.driver_name == std::string("net_ring")) {
 			//snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, vport_names[vport_name_index++]);
-			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname);
+			snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, ifname+9);
 		} else
 		/* physical ports */
 		if (true) {
