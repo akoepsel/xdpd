@@ -59,8 +59,8 @@ using namespace xdpd::gnu_linux;
 #define GNU_LINUX_DPDK_NG_CODE_NAME "gnu-linux-dpdk-ng"
 #define GNU_LINUX_DPDK_NG_VERSION VERSION
 #define GNU_LINUX_DPDK_NG_DESC \
-"GNU/Linux DPDK-ng driver.\n\n"\
-"The GNU/Linux DPDK driver is a user-space software driver that uses Data Plane Development Kit(DPDK)[1] as the I/O Framework.\n\n"\
+"GNU/Linux dpdk-ng driver.\n\n"\
+"The GNU/Linux dpdk-ng driver is a user-space software driver that uses Data Plane Development Kit(DPDK)[1] as the I/O Framework.\n\n"\
 "\n\n"\
 "[1] http://www.dpdk.org"
 #define GNU_LINUX_DPDK_NG_USAGE "specify driver configuration file: config=/path/to/gnu_linux_dpdk_ng.conf"

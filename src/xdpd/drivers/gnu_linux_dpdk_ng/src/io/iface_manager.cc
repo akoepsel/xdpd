@@ -19,6 +19,7 @@ extern "C" {
 #include <rte_ethdev.h>
 #include <rte_bus_vdev.h>
 #include <rte_cycles.h>
+#include <rte_eth_ring.h>
 
 #ifdef RTE_LIBRTE_IXGBE_PMD
 #include <rte_pmd_ixgbe.h>
@@ -788,55 +789,72 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 
 		for (auto it : rings_node) {
 			YAML::Node& ring_name_node = it.first;
-			YAML::Node  ring_args_node = it.second["args"];
+			YAML::Node  ring_peer_node = it.second["peer"];
+			YAML::Node  ring_size_node = it.second["size"];
+			YAML::Node  socket_id_node = it.second["socket_id"];
 			YAML::Node  ring_enabled_node = it.second["enabled"];
 
 			if (not ring_name_node || not ring_name_node.IsScalar()) {
 				continue;
 			}
+			std::string ifname(ring_name_node.as<std::string>());
 
 			if (ring_enabled_node && ring_enabled_node.IsScalar() && (ring_enabled_node.as<bool>() == false)) {
 				continue;
 			}
 
-			strncpy(vport_names[port_name_index], ring_name_node.as<std::string>().c_str(), SWITCH_PORT_MAX_LEN_NAME);
-			std::string ifname(vport_names[port_name_index]);
+			std::string peername = ifname + "p";
+			if (ring_peer_node && ring_peer_node.IsScalar()) {
+				peername = ring_peer_node.as<std::string>();
+			}
+			strncpy(vport_names[port_name_index++], ifname.c_str(), SWITCH_PORT_MAX_LEN_NAME);
+			strncpy(vport_names[port_name_index++], peername.c_str(), SWITCH_PORT_MAX_LEN_NAME);
 
-			/* assumption: ifname = "ring0", "ring1", ..., TODO: add check for "ringN" */
-			std::string ringdev_name("net_");
-			ringdev_name.append(ifname);
-
-			std::string ringdev_args;
-			if (ring_args_node && ring_args_node.IsScalar()) {
-				ringdev_args = ring_args_node.as<std::string>();
+			unsigned int ring_size = 256; //default ring size
+			if (ring_size_node && ring_size_node.IsScalar()) {
+				ring_size = ring_size_node.as<unsigned int>();
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual PMD ring port: %s with args: %s\n", ringdev_name.c_str(), ringdev_args.c_str());
+			unsigned int socket_id = 0; //default socket id
+			if (socket_id_node && socket_id_node.IsScalar()) {
+				socket_id = socket_id_node.as<unsigned int>();
+			}
 
-			/* initialize ring pmd device */
-			if ((ret = rte_vdev_init(ringdev_name.c_str(), ringdev_args.c_str())) < 0) {
-				switch (ret) {
-				case -EINVAL: {
-					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of ring dev %s with args \"%s\" failed (EINVAL)\n",
-							ifname.c_str(), ringdev_args.c_str());
-				} break;
-				case -EEXIST: {
-					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of ring dev %s with args \"%s\" failed (EEXIST)\n",
-							ifname.c_str(), ringdev_args.c_str());
-				} break;
-				case -ENOMEM: {
-					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of ring dev %s with args \"%s\" failed (ENOMEM)\n",
-							ifname.c_str(), ringdev_args.c_str());
-				} break;
-				default: {
-					XDPD_ERR(DRIVER_NAME"[ifaces] initialization of ring dev %s with args \"%s\" failed\n",
-							ifname.c_str(), ringdev_args.c_str());
-				};
+			std::string ring_name_0 = std::string("ring") + ifname + std::string("r0");
+			std::string ring_name_1 = std::string("ring") + ifname + std::string("r1");
+
+			struct rte_ring *ring[2];
+			ring[0] = rte_ring_create(ring_name_0.c_str(), ring_size, socket_id, RING_F_SP_ENQ|RING_F_SC_DEQ);
+			ring[1] = rte_ring_create(ring_name_1.c_str(), ring_size, socket_id, RING_F_SP_ENQ|RING_F_SC_DEQ);
+
+			std::string ethdev_name_0 = std::string("net_") + ifname;
+			std::string ethdev_name_1 = std::string("net_") + peername;
+
+			if((ret=rte_eth_from_rings(ethdev_name_0.c_str(), &ring[0], 1, &ring[1], 1, socket_id)) < 0){
+				switch (rte_errno){
+				case EINVAL:{
+					XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual PMD ring port: %s failed (EINVAL)\n", ifname.c_str());
+				}break;
+				default:{
+					XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual PMD ring port: %s failed\n", ifname.c_str());
+				}break;
 				}
 				return ROFL_FAILURE;
 			}
 
-			port_name_index++;
+			if((ret=rte_eth_from_rings(ethdev_name_1.c_str(), &ring[1], 1, &ring[0], 1, socket_id)) < 0){
+				switch (rte_errno){
+				case EINVAL:{
+					XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual PMD ring port: %s failed (EINVAL)\n", ifname.c_str());
+				}break;
+				default:{
+					XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual PMD ring port: %s failed\n", ifname.c_str());
+				}break;
+				}
+				return ROFL_FAILURE;
+			}
+
+			XDPD_INFO(DRIVER_NAME"[ifaces] adding virtual PMD ring port %s with peer %s\n", ifname.c_str(), peername.c_str());
 		}
 	}
 
