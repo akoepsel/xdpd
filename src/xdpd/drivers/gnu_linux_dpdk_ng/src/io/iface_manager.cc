@@ -819,15 +819,15 @@ rofl_result_t iface_manager_setup_virtual_ports(void){
 				socket_id = socket_id_node.as<unsigned int>();
 			}
 
-			std::string ring_name_0 = std::string("ring_") + ifname + std::string("_r0");
-			std::string ring_name_1 = std::string("ring_") + ifname + std::string("_r1");
+			std::string ring_name_0 = std::string("ring_") + ifname;
+			std::string ring_name_1 = std::string("ring_") + peername;
 
+			/* TODO: Do we have to keep pointers to these ring backends created for the two ports
+			 * for later deallocation? Or are those simply free'd once the ethernet devices
+			 * are removed? */
 			struct rte_ring *ring[2];
 			ring[0] = rte_ring_create(ring_name_0.c_str(), ring_size, socket_id, RING_F_SP_ENQ|RING_F_SC_DEQ);
 			ring[1] = rte_ring_create(ring_name_1.c_str(), ring_size, socket_id, RING_F_SP_ENQ|RING_F_SC_DEQ);
-
-			//std::string ethdev_name_0 = std::string("net_") + ifname;
-			//std::string ethdev_name_1 = std::string("net_") + peername;
 
 			if((ret=rte_eth_from_rings(ifname.c_str(), &ring[0], 1, &ring[1], 1, socket_id)) < 0){
 				switch (rte_errno){
