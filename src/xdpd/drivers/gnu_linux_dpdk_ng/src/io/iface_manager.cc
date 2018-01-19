@@ -7,7 +7,6 @@
 #include <rofl/datapath/pipeline/physical_switch.h>
 
 #include "port_state.h"
-#include "nf_iface_manager.h"
 
 #include <assert.h> 
 extern "C" {
@@ -1872,37 +1871,6 @@ rofl_result_t iface_manager_bring_up(switch_port_t* port){
 			port->state |= PORT_STATE_LINK_DOWN;
 			port_pair->state |= PORT_STATE_LINK_DOWN;
 		}
-	}
-	else if(port->type == PORT_TYPE_NF_SHMEM)
-	{
-		/*
-		*  DPDK SECONDARY NF
-		*/
-		if(!port->up)
-		{
-			//Was down
-			if(nf_iface_manager_bring_up_port(port) != ROFL_SUCCESS)
-			{
-				XDPD_ERR(DRIVER_NAME"[port_manager] Cannot start DPDK SECONDARY NF port: %s\n",port->name);
-				assert(0);
-				return ROFL_FAILURE; 
-			}
-		}
-	}else if(port->type == PORT_TYPE_NF_EXTERNAL)
-	{
-		/*
-		*	DPDK KNI NF
-		*/
-		if(!port->up)
-		{
-			//Was down
-			if(nf_iface_manager_bring_up_port(port) != ROFL_SUCCESS)
-			{
-				XDPD_ERR(DRIVER_NAME"[port_manager] Cannot start DPDK KNI NF port: %s\n",port->name);
-				assert(0);
-				return ROFL_FAILURE; 
-			}
-		}
 	}else{
 		/*
 		*  PHYSICAL
@@ -1946,31 +1914,6 @@ rofl_result_t iface_manager_bring_down(switch_port_t* port){
 		//Set links as down	
 		port->state |= PORT_STATE_LINK_DOWN;
 		port_pair->state |= PORT_STATE_LINK_DOWN;
-	}
-	else if(port->type == PORT_TYPE_NF_SHMEM) {
-		/*
-		* NF port
-		*/
-		if(port->up) {
-			if(nf_iface_manager_bring_down_port(port) != ROFL_SUCCESS) {
-				XDPD_ERR(DRIVER_NAME"[port_manager] Cannot stop DPDK SECONDARY NF port: %s\n",port->name);
-				assert(0);
-				return ROFL_FAILURE; 
-			}
-		}		
-		port->up = false;
-	}else if(port->type == PORT_TYPE_NF_EXTERNAL) {
-		/*
-		*	KNI NF
-		*/
-		if(port->up){
-			if(nf_iface_manager_bring_down_port(port) != ROFL_SUCCESS) {
-				XDPD_ERR(DRIVER_NAME"[port_manager] Cannot stop DPDK KNI NF port: %s\n",port->name);
-				assert(0);
-				return ROFL_FAILURE; 
-			}
-		}
-		port->up = false;
 	}else {
 		/*
 		*  PHYSICAL

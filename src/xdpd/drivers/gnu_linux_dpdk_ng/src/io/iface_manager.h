@@ -32,7 +32,6 @@ extern "C" {
 
 #include "port_state.h"
 #include "../processing/processing.h"
-#include "nf_iface_manager.h"
 
 //Maximum number of ports (preallocation of port_mapping)
 #define PORT_MANAGER_MAX_PORTS PROCESSING_MAX_PORTS 
