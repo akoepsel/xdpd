@@ -45,10 +45,10 @@ namespace gnu_linux_dpdk_ng {
 * Processes RX in a specific port. The function will process up to MAX_BURST_SIZE
 */
 inline void
-process_pipeline_rx(unsigned int lcore_id, switch_port_t* port, struct rte_mbuf* mbuf, datapacket_t* pkt, datapacket_dpdk_t* pkt_state){
+process_pipeline_rx(unsigned int lcore_id, of_switch_t* sw, struct rte_mbuf* mbuf, datapacket_t* pkt, datapacket_dpdk_t* pkt_state){
 
 	unsigned int i = 0;
-	of_switch_t* sw = port->attached_sw;
+	//of_switch_t* sw = port->attached_sw;
 	datapacket_dpdk_t* pkt_dpdk = pkt_state;
 
 
