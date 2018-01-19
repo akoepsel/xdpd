@@ -1070,7 +1070,7 @@ int processing_packet_pipeline_processing(void* not_used){
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
 			/* inject packet into openflow pipeline */
-			process_pipeline_rx(lcore_id, sw, rx_events[i].mbuf, &pkt, pkt_state);
+			rx_pkt(lcore_id, sw, rx_events[i].mbuf, &pkt, pkt_state);
 
 			/* see packet_inline.h and src/io/tx.h for transmission of packets */
 		}

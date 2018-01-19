@@ -45,49 +45,29 @@ namespace gnu_linux_dpdk_ng {
 * Processes RX in a specific port. The function will process up to MAX_BURST_SIZE
 */
 inline void
-process_pipeline_rx(unsigned int lcore_id, of_switch_t* sw, struct rte_mbuf* mbuf, datapacket_t* pkt, datapacket_dpdk_t* pkt_state){
+rx_pkt(unsigned int lcore_id, of_switch_t* sw, struct rte_mbuf* mbuf, datapacket_t* pkt, datapacket_dpdk_t* pkt_state){
 
 	unsigned int i = 0;
-	//of_switch_t* sw = port->attached_sw;
+	switch_port_t* tmp_port;
 	datapacket_dpdk_t* pkt_dpdk = pkt_state;
 
+	if(unlikely(mbuf == NULL)){
+		return;
+	}
 
-#ifdef DEBUG
-		if(unlikely(sw == NULL)){
-			rte_pktmbuf_free(mbuf);
-			return;
-		}
-#endif
+	if(unlikely(sw == NULL)){
+		rte_pktmbuf_free(mbuf);
+		return;
+	}
 
 	//set mbuf pointer in the state so that it can be recovered afterwards when going
 	//out from the pipeline
 	pkt_state->mbuf = mbuf;
 
-	//Increment port RX statistics
-#ifdef GNU_LINUX_DPDK_ENABLE_NF
-	if(port->type != PORT_TYPE_PHYSICAL){
-		port->stats.rx_packets++;
-		port->stats.rx_bytes += mbuf->pkt_len;
-	}
-#endif
-
 	//We only support nb_segs == 1. TODO: can it be that NICs send us pkts with more than one segment?
 	assert(mbuf->nb_segs == 1);
 
-	//tmp_port is used to avoid to repeat code for both kinds of port
-	//(note that the port_mapping used is different
-	switch_port_t *tmp_port;
-#ifdef GNU_LINUX_DPDK_ENABLE_NF
-	if(port->type == PORT_TYPE_NF_SHMEM) {
-		tmp_port = port;
-	}
-	else if(port->type == PORT_TYPE_NF_EXTERNAL) {
-		tmp_port = port;
-	}else
-#endif
-	{
-		tmp_port = phy_port_mapping[mbuf->port];
-	}
+	tmp_port = phy_port_mapping[mbuf->port];
 
 	if(unlikely(!tmp_port)){
 		//Not attached
@@ -100,140 +80,10 @@ process_pipeline_rx(unsigned int lcore_id, of_switch_t* sw, struct rte_mbuf* mbu
 
 	XDPD_DEBUG("calling of_process_packet_pipeline i=%d core_id=%d (%p)\n", i, lcore_id, pkt);
 
-#if 0
-	unsigned char *tmp = rte_pktmbuf_mtod(pkts_burst[i], unsigned char *);
-	fprintf(stderr, "%d(%d):#%d %x:%x:%x:%x:%x:%x->%x:%x:%x:%x:%x:%x\n", portid, lcore_id, i, tmp[6], tmp[7],
-		tmp[8], tmp[9], tmp[10], tmp[11], tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);
-#endif
-	//Send to process
+	//Send to pipeline
 	of_process_packet_pipeline(lcore_id, sw, pkt);
 }
 
-
-/*
-* Processes RX in a specific port. The function will process up to MAX_BURST_SIZE
-*/
-inline void
-process_port_rx(unsigned int core_id, switch_port_t* port, uint8_t portid, uint8_t queueid, struct rte_mbuf** pkts_burst, datapacket_t* pkt, datapacket_dpdk_t* pkt_state){
-
-	unsigned int i, burst_len = 0;
-	of_switch_t* sw = port->attached_sw;
-	struct rte_mbuf* mbuf;
-	datapacket_dpdk_t* pkt_dpdk = pkt_state;
-
-	if(unlikely(port->drop_received)) //Ignore if port is marked as "drop received"
-		return;
-
-	//Read a burst
-#ifdef GNU_LINUX_DPDK_ENABLE_NF
-	if(port->type == PORT_TYPE_NF_SHMEM)
-	{
-		//DPDK NF port - pkts received through an rte_ring
-		dpdk_shmem_port_state *port_state = (dpdk_shmem_port_state_t*)port->platform_port_state;
-		burst_len = rte_ring_mc_dequeue_burst(port_state->to_xdpd_queue, (void **)pkts_burst, IO_IFACE_MAX_PKT_BURST, NULL);
-	}
-	else if(port->type == PORT_TYPE_NF_EXTERNAL)
-	{
-		//KNI NF port - pkts received through a KNI interface
-		dpdk_kni_port_state *port_state = (dpdk_kni_port_state_t*)port->platform_port_state;
-		assert(port_state->kni != NULL);
-
-		burst_len = rte_kni_rx_burst(port_state->kni, pkts_burst, IO_IFACE_MAX_PKT_BURST);
-
-#if DEBUG
-		if(burst_len != 0)
-		{
-			XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io] Read burst from %s (%u pkts)\n", port->name, burst_len);
-
-			for(i=0;i<burst_len;i++)
-			{
-				unsigned char *tmp = rte_pktmbuf_mtod(pkts_burst[i],unsigned char *);
-				unsigned int tmp_len = rte_pktmbuf_pkt_len(pkts_burst[i]);	
-				XDPD_DEBUG_VERBOSE("#%d length: %d\n",i,tmp_len);
-				XDPD_DEBUG_VERBOSE("#%d %x:%x:%x:%x:%x:%x->%x:%x:%x:%x:%x:%x\n",i,tmp[6],tmp[7],tmp[8],tmp[9],tmp[10],tmp[11],tmp[0],tmp[1],tmp[2],tmp[3],tmp[4],tmp[5]);
-			}
-		}
-#endif
-	}else
-#endif
-	{
-		//Physical port - pkts received through an ethernet port
-		//XDPD_DEBUG(DRIVER_NAME "[io] Read burst from %s portid=%d queueid=%d\n", port->name, portid, queueid);
-		burst_len = rte_eth_rx_burst(portid, queueid, pkts_burst, IO_IFACE_MAX_PKT_BURST);
-	}
-
-
-	// Prefetch
-	if (burst_len) {
-		rte_prefetch0(rte_pktmbuf_mtod(pkts_burst[0], void *));
-		XDPD_DEBUG(DRIVER_NAME"[io] Read burst from %s (%u pkts) portid=%d queueid=%d\n", port->name, burst_len, portid, queueid);
-	}
-
-	//Process them
-	for(i=0;i<burst_len;++i){
-		mbuf = pkts_burst[i];
-
-#ifdef DEBUG
-		if(unlikely(sw == NULL)){
-			rte_pktmbuf_free(mbuf);
-			continue;
-		}
-#endif
-
-		//set mbuf pointer in the state so that it can be recovered afterwards when going
-		//out from the pipeline
-		pkt_state->mbuf = mbuf;
-
-		//Increment port RX statistics
-#ifdef GNU_LINUX_DPDK_ENABLE_NF
-		if(port->type != PORT_TYPE_PHYSICAL){
-			port->stats.rx_packets++;
-			port->stats.rx_bytes += mbuf->pkt_len;
-		}
-#endif
-
-		//We only support nb_segs == 1. TODO: can it be that NICs send us pkts with more than one segment?
-		assert(mbuf->nb_segs == 1);
-
-		//tmp_port is used to avoid to repeat code for both kinds of port
-		//(note that the port_mapping used is different
-		switch_port_t *tmp_port;
-#ifdef GNU_LINUX_DPDK_ENABLE_NF
-		if(port->type == PORT_TYPE_NF_SHMEM) {
-			tmp_port = port;
-		}
-		else if(port->type == PORT_TYPE_NF_EXTERNAL) {
-			tmp_port = port;
-		}else
-#endif
-		{
-			tmp_port = phy_port_mapping[mbuf->port];
-		}
-
-		if(unlikely(!tmp_port)){
-			//Not attached
-			rte_pktmbuf_free(mbuf);
-			continue;
-		}
-
-		//Init&classify
-		init_datapacket_dpdk(pkt_dpdk, mbuf, sw, tmp_port->of_port_num, 0, true, false);
-
-		//Prefetch next pkt
-		if( (i+1) < burst_len )
-			rte_prefetch0(rte_pktmbuf_mtod(pkts_burst[i+1], void *));
-
-		XDPD_DEBUG("calling of_process_packet_pipeline i=%d core_id=%d (%p)\n", i, core_id, pkt);
-
-#if 0
-		unsigned char *tmp = rte_pktmbuf_mtod(pkts_burst[i], unsigned char *);
-		fprintf(stderr, "%d(%d):#%d %x:%x:%x:%x:%x:%x->%x:%x:%x:%x:%x:%x\n", portid, core_id, i, tmp[6], tmp[7],
-			tmp[8], tmp[9], tmp[10], tmp[11], tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);
-#endif
-		//Send to process
-		of_process_packet_pipeline(core_id, sw, pkt);
-	}
-}
 
 }// namespace xdpd::gnu_linux_dpdk_ng
 }// namespace xdpd
