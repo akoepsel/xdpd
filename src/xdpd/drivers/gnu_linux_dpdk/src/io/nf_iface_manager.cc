@@ -50,7 +50,7 @@ void iface_manager_handle_kni_commands(){
 /*
 * Handle external requests to bring up/down a KNI interface
 */
-static int kni_config_network_interface(uint8_t port_id, uint8_t if_up){
+static int kni_config_network_interface(uint16_t port_id, uint8_t if_up){
 
 	switch_port_t* port = nf_port_mapping[port_id];
 

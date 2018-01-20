@@ -28,7 +28,7 @@ namespace plugins {
 namespace yaml_config {
 
 //Macro for C logging
-#define YAML_PLUGIN_ID "[xdpd][plugins][yaml_config] "
+#define YAML_PLUGIN_ID "[xdpd][plugins][config][yaml] "
 
 /**
 * @brief libyaml based yamluration plugin

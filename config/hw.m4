@@ -8,6 +8,7 @@ AC_ARG_WITH(hw-support, AS_HELP_STRING([--with-hw-support="driver-name"],[Compil
 			  [Available platforms:]
 				[gnu-linux: compile GNU/Linux hardware support]
 				[gnu-linux-dpdk: compile GNU/Linux Intel DPDK support]
+				[gnu-linux-dpdk-ng: compile GNU/Linux Intel DPDK-ng support]
 				[bcm: compile Broadcom hardware support]
 				[octeon: compile OCTEON hardware support]
 				[netfpga10g: compile NetFPGA 10G hardware code (HW code not included)]
@@ -50,6 +51,44 @@ if ( test "$HW" = "gnu-linux-dpdk");then
 		-Wl,-lrte_pmd_vmxnet3_uio \
 		-Wl,-lrte_pmd_ring \
 		-Wl,-lrte_mempool \
+		-Wl,-lrte_mempool_ring \
+		-Wl,-lrte_bus_pci \
+		-Wl,-lrte_bus_vdev \
+		-Wl,-lrte_pci \
+		-Wl,-lnuma \
+		-Wl,--no-whole-archive"
+
+	#Onboard DPDK compilation
+	WITH_DPDK="yes"
+fi
+if ( test "$HW" = "gnu-linux-dpdk-ng");then
+	msg="$msg GNU/Linux Intel DPDK-ng"
+	AC_DEFINE(HW_GNU_LINUX_DPDK_NG)
+	PLATFORM=gnu_linux_dpdk_ng
+	AC_CONFIG_SUBDIRS([src/xdpd/drivers/gnu_linux_dpdk_ng])
+#In DPDK-1.7, Poll Mode Drivers (PMD) register with DPDK from static constructors. If linker decides
+#not to include the corresponding object file (which is usually the case since PMDs mostly contain
+#static functions, only accessed indirectly), then the PMD is not registered.
+#To fix this, PMDs have to be linked in using the --whole-archive linker flag.
+#Unfortunately, autoconf+libtool don't seem to provide a way to include these extra linker flags in
+#the .la file. Hence, they have to be provided here at the top-level...
+	xdpd_HW_LDFLAGS=" -Wl,--whole-archive \
+		-Wl,-lrte_pmd_sw_event \
+		-Wl,-lrte_pmd_pcap \
+		-Wl,-lrte_pmd_ring \
+		-Wl,-lrte_pmd_kni \
+		-Wl,-lrte_pmd_e1000 \
+		-Wl,-lrte_pmd_ixgbe \
+		-Wl,-lrte_pmd_i40e \
+		-Wl,-lrte_pmd_fm10k \
+		-Wl,-lrte_pmd_vmxnet3_uio \
+		-Wl,-lrte_mempool_ring \
+		-Wl,-lrte_mempool \
+		-Wl,-lrte_bus_pci \
+		-Wl,-lrte_bus_vdev \
+		-Wl,-lrte_pci \
+		-Wl,-lnuma \
+		-Wl,-lpcap \
 		-Wl,--no-whole-archive"
 
 	#Onboard DPDK compilation

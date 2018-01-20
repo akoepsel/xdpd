@@ -159,7 +159,7 @@ static void processing_wait_for_cores_to_sync(){
 	}
 }
 
-int processing_core_process_packets(void* not_used){
+int processing_packet_pipeline_processing(void* not_used){
 
 	unsigned int i, l, core_id;
 	int j;
@@ -473,7 +473,7 @@ rofl_result_t processing_schedule_port(switch_port_t* port){
 
 		//Launch
 		XDPD_DEBUG_VERBOSE("Pre-launching core %u due to scheduling action of port %p\n", lcore_sel, port);
-		if( rte_eal_remote_launch(processing_core_process_packets, NULL, lcore_sel) < 0)
+		if( rte_eal_remote_launch(processing_packet_pipeline_processing, NULL, lcore_sel) < 0)
 			rte_panic("Unable to launch core %u! Status was NOT wait (race-condition?)", lcore_sel);
 		XDPD_DEBUG_VERBOSE("Post-launching core %u due to scheduling action of port %p\n", lcore_sel, port);
 	}

@@ -29,6 +29,7 @@ void config::get_config_file_contents(Config* cfg){
 
 	try{
 		conf_file = system_manager::get_option_value(CONFIG_FILE_OPT_FULL_NAME).c_str();
+		XDPD_INFO(CONF_PLUGIN_ID "Loading configuration file %s\n", conf_file.c_str());
 		cfg->readFile(conf_file.c_str());
 	}catch(const FileIOException &fioex){
 		XDPD_ERR(CONF_PLUGIN_ID "Config file %s not found. Aborting...\n",conf_file.c_str());
