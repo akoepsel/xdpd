@@ -38,7 +38,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 	struct rte_mbuf* mbuf;
 	dpdk_port_state_t* ps;
 	unsigned int port_id, lcore_id;
-	struct rte_event tx_events[PROC_ETH_TX_BURST_SIZE];
+	struct rte_event tx_events[MAX_ETH_TX_BURST_SIZE_DEFAULT];
 
 	//Get mbuf pointer
 	mbuf = ((datapacket_dpdk_t*)pkt->platform_state)->mbuf;

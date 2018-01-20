@@ -5,12 +5,19 @@ dpdk:
     coremask:     0x0fffffffffffff
   lcores:
     svc_coremask: 0x00000000004000
-    rx_coremask:  0x00000000010002
-    tx_coremask:  0x00000000100004
+    rx_coremask:  0x00000000008002
+    tx_coremask:  0x00000000010004
     wk_coremask:  0x00000000060018
   eventdev:
     name: event_sw0
-    args: sched_quanta=64,credit_quanta=32
+    args: sched_quanta=1024,credit_quanta=32
+  memory:
+    mem_pool_size: 0
+    mbuf_dataroom: 2048
+  processing:
+    max_evdev_burst_size: 128
+    max_eth_rx_burst_size: 128
+    max_eth_tx_burst_size: 128
   knis:
     bvg0:
       enabled: true

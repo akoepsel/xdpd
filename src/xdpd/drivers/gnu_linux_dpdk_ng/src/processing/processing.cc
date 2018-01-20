@@ -27,8 +27,12 @@ using namespace xdpd::gnu_linux_dpdk_ng;
 
 
 //Number of MBUFs per pool (per CPU socket)
-unsigned int mbuf_elems_in_pool = DEFAULT_NB_MBUF;
-unsigned int mbuf_data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE;
+unsigned int mem_pool_size = 0;
+unsigned int mbuf_dataroom = RTE_MBUF_DEFAULT_DATAROOM;
+unsigned int mbuf_buf_size = RTE_MBUF_DEFAULT_BUF_SIZE;
+unsigned int max_evdev_burst_size = MAX_EVDEV_BURST_SIZE_DEFAULT;
+unsigned int max_eth_rx_burst_size = MAX_ETH_RX_BURST_SIZE_DEFAULT;
+unsigned int max_eth_tx_burst_size = MAX_ETH_TX_BURST_SIZE_DEFAULT;
 
 //
 // Processing state
@@ -37,9 +41,6 @@ static unsigned int max_cores;
 
 
 static unsigned total_num_of_ports = 0;
-
-struct rte_mempool* direct_pools[RTE_MAX_NUMA_NODES];
-struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
 
 switch_port_t* port_list[PROCESSING_MAX_PORTS];
 rte_rwlock_t port_list_rwlock;
@@ -120,6 +121,20 @@ rofl_result_t processing_init_lcores(void){
 	//Get master lcore
 	unsigned int master_lcore_id = rte_get_master_lcore();
 
+	/* number of mbufs to allocate per NUMA socket
+	 * if unspecified, calculate automatically */
+	YAML::Node mem_pool_size_node = y_config_dpdk_ng["dpdk"]["memory"]["mem_pool_size"];
+	if (mem_pool_size_node && mem_pool_size_node.IsScalar()) {
+		mem_pool_size = mem_pool_size_node.as<unsigned int>();
+	}
+
+	/* mbuf data room size = size per packet (default: 2048) */
+	YAML::Node mbuf_dataroom_node = y_config_dpdk_ng["dpdk"]["memory"]["mbuf_dataroom"];
+	if (mbuf_dataroom_node && mbuf_dataroom_node.IsScalar()) {
+		mbuf_dataroom = mbuf_dataroom_node.as<unsigned int>();
+		mbuf_buf_size = mbuf_dataroom + RTE_PKTMBUF_HEADROOM;
+	}
+
 	/* get svc coremask */
 	YAML::Node svc_coremask_node = y_config_dpdk_ng["dpdk"]["lcores"]["svc_coremask"];
 	if (svc_coremask_node && svc_coremask_node.IsScalar()) {
@@ -143,6 +158,27 @@ rofl_result_t processing_init_lcores(void){
 	if (wk_coremask_node && wk_coremask_node.IsScalar()) {
 		wk_coremask = wk_coremask_node.as<uint64_t>();
 	}
+
+	/* get max_evdev_burst_size */
+	YAML::Node max_evdev_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_evdev_burst_size"];
+	if (max_evdev_burst_size_node && max_evdev_burst_size_node.IsScalar()) {
+		max_evdev_burst_size = max_evdev_burst_size_node.as<unsigned int>();
+	}
+	XDPD_INFO(DRIVER_NAME"[processing][init] max_evdev_burst_size=%u\n", max_evdev_burst_size);
+
+	/* get max_eth_rx_burst_size */
+	YAML::Node max_eth_rx_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_eth_rx_burst_size"];
+	if (max_eth_rx_burst_size_node && max_eth_rx_burst_size_node.IsScalar()) {
+		max_eth_rx_burst_size = max_eth_rx_burst_size_node.as<unsigned int>();
+	}
+	XDPD_INFO(DRIVER_NAME"[processing][init] max_eth_rx_burst_size=%u\n", max_eth_rx_burst_size);
+
+	/* get max_eth_tx_burst_size */
+	YAML::Node max_eth_tx_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_eth_tx_burst_size"];
+	if (max_eth_tx_burst_size_node && max_eth_tx_burst_size_node.IsScalar()) {
+		max_eth_tx_burst_size = max_eth_tx_burst_size_node.as<unsigned int>();
+	}
+	XDPD_INFO(DRIVER_NAME"[processing][init] max_eth_tx_burst_size=%u\n", max_eth_tx_burst_size);
 
 	/* detect all lcores and their state */
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
@@ -255,16 +291,6 @@ rofl_result_t processing_init_task_structures(void) {
 		lead_task[i] = true;
 	}
 
-	YAML::Node mbuf_elems_node = y_config_dpdk_ng["dpdk"]["mbuf_elems_in_pool"];
-	if (mbuf_elems_node && mbuf_elems_node.IsScalar()) {
-		mbuf_elems_in_pool = mbuf_elems_node.as<unsigned int>();
-	}
-
-	YAML::Node mbuf_data_node = y_config_dpdk_ng["dpdk"]["mbuf_data_room_size"];
-	if (mbuf_data_node && mbuf_data_node.IsScalar()) {
-		mbuf_data_room_size = mbuf_data_node.as<unsigned int>();
-	}
-
 	//Define available cores
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 		enum rte_lcore_role_t role = rte_eal_lcore_role(lcore_id);
@@ -295,58 +321,6 @@ rofl_result_t processing_init_task_structures(void) {
 			}
 
 			//XDPD_DEBUG(DRIVER_NAME"[processing][init] marking core %u as available\n", lcore_id);
-
-			/*
-			 * Initialize memory for NUMA socket (socket_id)
-			 */
-
-			/* direct mbufs */
-			if(direct_pools[socket_id] == NULL){
-
-				/**
-				*  create the mbuf pool for that socket id
-				*/
-				char pool_name[RTE_MEMPOOL_NAMESIZE];
-				snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_direct_%u", socket_id);
-				XDPD_INFO(DRIVER_NAME"[processing][init][memory] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
-
-				direct_pools[socket_id] = rte_pktmbuf_pool_create(
-						pool_name,
-						/*number of elements in pool=*/mbuf_elems_in_pool,
-						/*cache_size=*/0,
-						/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
-						/*data_room_size=*/mbuf_data_room_size,
-						socket_id);
-
-				if (direct_pools[socket_id] == NULL) {
-					XDPD_INFO(DRIVER_NAME"[processing][init][memory] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
-					rte_panic("Cannot initialize direct mbuf pool for CPU socket: %u\n", socket_id);
-				}
-			}
-
-			/* indirect mbufs */
-			if(indirect_pools[socket_id] == NULL){
-
-				/**
-				*  create the mbuf pool for that socket id
-				*/
-				char pool_name[RTE_MEMPOOL_NAMESIZE];
-				snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_indirect_%u", socket_id);
-				XDPD_INFO(DRIVER_NAME"[processing][init][memory] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mbuf_elems_in_pool, mbuf_data_room_size, socket_id);
-
-				indirect_pools[socket_id] = rte_pktmbuf_pool_create(
-						pool_name,
-						/*number of elements in pool=*/mbuf_elems_in_pool,
-						/*cache_size=*/0,
-						/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
-						/*data_room_size=*/mbuf_data_room_size,
-						socket_id);
-
-				if (indirect_pools[socket_id] == NULL) {
-					XDPD_INFO(DRIVER_NAME"[processing][init][memory] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
-					rte_panic("Cannot initialize indirect mbuf pool for CPU socket: %u\n", socket_id);
-				}
-			}
 		}
 	}
 
@@ -931,6 +905,8 @@ int processing_packet_reception(void* not_used){
 	uint8_t ev_queue_id;
 	switch_port_t* port;
 	rx_core_task_t* task = &rx_core_tasks[lcore_id];
+	struct rte_mbuf* mbufs[max_eth_rx_burst_size];
+	struct rte_event event[max_eth_rx_burst_size];
 
 	RTE_LOG(INFO, XDPD, "rx-task-%02u: started\n", lcore_id);
 
@@ -972,11 +948,8 @@ int processing_packet_reception(void* not_used){
 			}
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
-			struct rte_mbuf* mbufs[PROC_ETH_RX_BURST_SIZE];
-			struct rte_event event[PROC_ETH_RX_BURST_SIZE];
-
 			/* read burst from ethdev */
-			const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, PROC_ETH_RX_BURST_SIZE);
+			const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, max_eth_rx_burst_size);
 
 			/* no packets received => continue with next port */
 			if (nb_rx==0){
@@ -1028,7 +1001,7 @@ int processing_packet_reception(void* not_used){
 int processing_packet_pipeline_processing(void* not_used){
 
 	unsigned int i, lcore_id = rte_lcore_id();
-	struct rte_event rx_events[PROC_EVDEV_BURST_SIZE];
+	struct rte_event rx_events[max_evdev_burst_size];
 	wk_core_task_t* task = &wk_core_tasks[lcore_id];
 	switch_port_t* port;
 	of_switch_t* sw;
@@ -1049,7 +1022,7 @@ int processing_packet_pipeline_processing(void* not_used){
 	while(likely(task->active)) {
 
 		int timeout = 0;
-		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, rx_events, sizeof(rx_events), timeout);
+		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, rx_events, max_evdev_burst_size, timeout);
 
 		if (nb_rx == 0) {
 			rte_pause();
@@ -1096,7 +1069,8 @@ int processing_packet_transmission(void* not_used){
 	tx_core_task_t* task = &tx_core_tasks[lcore_id];
 	uint32_t out_port_id;
 	int socket_id = rte_lcore_to_socket_id(lcore_id);
-	struct rte_event tx_events[PROC_EVDEV_BURST_SIZE];
+	struct rte_event tx_events[max_evdev_burst_size];
+	struct rte_mbuf* tx_pkts[max_eth_tx_burst_size];
 	uint64_t cur_tsc;
 
 	//Set flag to active
@@ -1117,7 +1091,7 @@ int processing_packet_transmission(void* not_used){
 		 * read events from event queue
 		 */
 		int timeout = 0;
-		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, tx_events, sizeof(tx_events), timeout);
+		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, tx_events, max_evdev_burst_size, timeout);
 
 		if (nb_rx==0){
 			task->idle_loops++;
@@ -1220,8 +1194,8 @@ int processing_packet_transmission(void* not_used){
 			}
 
 			/* get mbufs from txring */
-			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)task->tx_pkts,
-								RTE_MIN(nb_elems, (unsigned int)PROC_ETH_TX_BURST_SIZE), &nb_elems_remaining);
+			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)tx_pkts,
+								RTE_MIN(nb_elems, (unsigned int)max_eth_tx_burst_size), &nb_elems_remaining);
 
 			/* no elements in txring */
 			if (unlikely(nb_elems==0)) {
@@ -1229,7 +1203,7 @@ int processing_packet_transmission(void* not_used){
 			}
 
 			/* send tx-burst */
-			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, task->tx_pkts, nb_elems);
+			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, tx_pkts, nb_elems);
 
 			/* adjust timestamp */
 			task->txring_last_tx_time[port_id] = cur_tsc;
@@ -1244,7 +1218,7 @@ int processing_packet_transmission(void* not_used){
 					lcore_id, nb_elems - nb_tx, port_id);
 			task->stats.pkts_dropped+=(nb_elems-nb_tx);
 			for(i = nb_tx; i < nb_elems; i++) {
-				rte_pktmbuf_free(task->tx_pkts[i]);
+				rte_pktmbuf_free(tx_pkts[i]);
 			}
 		}
 	}

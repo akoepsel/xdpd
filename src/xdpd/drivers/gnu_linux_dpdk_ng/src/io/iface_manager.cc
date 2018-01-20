@@ -1,4 +1,5 @@
 #include "iface_manager.h"
+#include "../processing/mem_manager.h"
 #include <math.h>
 #include <rofl/datapath/hal/cmm.h>
 #include <utils/c_logger.h>
@@ -69,18 +70,14 @@ uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 //a set of available NUMA sockets (socket_id)
 static std::set<int> sockets;
 
-/* a map of available event logical cores per NUMA socket (set of lcore_id) */
-extern std::map<unsigned int, std::set<unsigned int> > svc_lcores;
-/* a map of available event logical cores per NUMA socket (set of lcore_id) */
-extern std::map<unsigned int, std::set<unsigned int> > ev_lcores;
 /* a map of available RX logical cores per NUMA socket (set of lcore_id) */
 extern std::map<unsigned int, std::set<unsigned int> > rx_lcores;
 /* a map of available TX logical cores per NUMA socket (set of lcore_id) */
 extern std::map<unsigned int, std::set<unsigned int> > tx_lcores;
-/* a map of available worker logical cores per NUMA socket (set of lcore_id) */
-extern std::map<unsigned int, std::set<unsigned int> > wk_lcores;
 
-
+extern unsigned int mem_pool_size;
+extern unsigned int mbuf_dataroom;
+extern unsigned int max_eth_rx_burst_size;
 
 
 static int set_vf_vlan_filter(uint16_t port_id, uint16_t vlan_id, uint64_t vf_mask, uint8_t on)
@@ -924,13 +921,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	struct rte_eth_dev_info dev_info;
 	char s_fw_version[256];
 	char s_pci_addr[64];
-	size_t nb_mbuf[RTE_MAX_NUMA_NODES]; //The required space per NUMA node
+	size_t nb_mbuf[RTE_MAX_NUMA_NODES]; //The required number of mbufs per NUMA node
 	YAML::Node node;
 	int ret = 0;
-
-	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
-		nb_mbuf[socket_id] = rte_eth_dev_count() * rx_lcores.size() * IO_IFACE_MAX_PKT_BURST + rx_lcores.size() * MEMPOOL_CACHE_SIZE;
-	}
 
 	//Initialize physical port structure: all phyports disabled
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
@@ -969,10 +962,15 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		int socket_id = rte_eth_dev_socket_id(port_id);
 		unsigned int nb_rx_queues = rx_lcores[socket_id].size() < dev_info.max_rx_queues ? rx_lcores[socket_id].size() : dev_info.max_rx_queues;
+		unsigned int nb_tx_queues = tx_lcores[socket_id].size() < dev_info.max_tx_queues ? tx_lcores[socket_id].size() : dev_info.max_tx_queues;
 
-		nb_mbuf[socket_id] += /*rx*/nb_rx_queues * dev_info.rx_desc_lim.nb_max + /*tx*/nb_rx_queues * dev_info.tx_desc_lim.nb_max;
+		nb_mbuf[socket_id] += /*rx*/nb_rx_queues * dev_info.rx_desc_lim.nb_max + /*tx*/nb_tx_queues * dev_info.tx_desc_lim.nb_max;
 	}
 
+	//Allocate mempools on all NUMA sockets
+	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
+		memory_init(socket_id, (mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size, mbuf_dataroom);
+	}
 
 	//Iterate over all available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {

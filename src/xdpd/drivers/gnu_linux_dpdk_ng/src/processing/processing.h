@@ -112,10 +112,6 @@ typedef struct tx_core_task {
 	/* timestamp of last tx-burst */
 	uint64_t txring_last_tx_time[RTE_MAX_ETHPORTS];
 
-	/* mbuf table of packets to be sent out (shared by all ports!) */
-	struct rte_mbuf *tx_pkts[PROC_ETH_TX_BURST_SIZE];
-
-
 	/*
 	 * transmitting to ethdevs
 	 */
