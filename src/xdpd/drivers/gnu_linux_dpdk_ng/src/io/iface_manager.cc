@@ -921,7 +921,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	struct rte_eth_dev_info dev_info;
 	char s_fw_version[256];
 	char s_pci_addr[64];
-	size_t nb_mbuf[RTE_MAX_NUMA_NODES]; //The required number of mbufs per NUMA node
+	std::map<unsigned int, size_t> nb_mbuf; //The required number of mbufs per NUMA node => <socket_id, nb_mbuf>
 	YAML::Node node;
 	int ret = 0;
 
@@ -938,10 +938,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].is_virtual = 0;
 	}
 
-	memset(nb_mbuf, 0, sizeof(nb_mbuf));
-
 	//Calculate size of rte_mempool for rxqueue/txqueue configuration based on available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+
+		char ifname[IF_NAMESIZE];
+		if ((ret = rte_eth_dev_get_name_by_port(port_id, ifname)) < 0) {
+			continue;
+		}
+
 		rte_eth_dev_info_get(port_id, &dev_info);
 		if (dev_info.pci_dev) {
 			memset(s_pci_addr, 0, sizeof(s_pci_addr));
@@ -963,57 +967,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		int socket_id = rte_eth_dev_socket_id(port_id);
-		unsigned int nb_rx_queues = RTE_MIN(rx_lcores[socket_id].size(), dev_info.max_rx_queues);
-		unsigned int nb_tx_queues = RTE_MIN(tx_lcores[socket_id].size(), dev_info.max_tx_queues);
-
-		if (socket_id == SOCKET_ID_ANY){
-			XDPD_INFO(DRIVER_NAME"[ifaces] calculating memory needs for port %u, nb_rx_queues=%u, nb_tx_queues=%u, rx_desc_lim.nb_max=%u, tx_desc_lim.nb_max=%u => ignoring port located on SOCKET_ID_ANY\n",
-					port_id, nb_rx_queues, nb_tx_queues, dev_info.rx_desc_lim.nb_max, dev_info.tx_desc_lim.nb_max, socket_id);
-			continue;
-		}
-
-		nb_mbuf[socket_id] += /*rx*/nb_rx_queues * dev_info.rx_desc_lim.nb_max + /*tx*/nb_tx_queues * dev_info.tx_desc_lim.nb_max;
-		XDPD_INFO(DRIVER_NAME"[ifaces] calculating memory needs for port %u, nb_rx_queues=%u, nb_tx_queues=%u, rx_desc_lim.nb_max=%u, tx_desc_lim.nb_max=%u => nb_mbuf[socket_id=%u]=%u\n",
-				port_id, nb_rx_queues, nb_tx_queues, dev_info.rx_desc_lim.nb_max, dev_info.tx_desc_lim.nb_max, socket_id, nb_mbuf[socket_id]);
-	}
-
-	//Allocate mempools on all NUMA sockets
-	for (auto socket_id : numa_nodes) {
-		unsigned int pool_size = RTE_MIN(pow(2, log2(((mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size))), UINT32_C(1<<31));
-		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, pool_size: %u, data_room: %u\n", pool_size, mbuf_dataroom);
-		memory_init(socket_id, pool_size, mbuf_dataroom);
-	}
-
-	//Iterate over all available physical ports
-	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
-
-		char ifname[IF_NAMESIZE];
-		if ((ret = rte_eth_dev_get_name_by_port(port_id, ifname)) < 0) {
-			continue;
-		}
-
-		rte_eth_dev_info_get(port_id, &dev_info);
-		memset(s_pci_addr, 0, sizeof(s_pci_addr));
-		if (dev_info.pci_dev) {
-			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
-		}
-
-		if (port_id >= RTE_MAX_ETHPORTS) {
-			return ROFL_FAILURE;
-		}
-
-		unsigned int socket_id = rte_eth_dev_socket_id(port_id);
-
-
 
 		/* virtual ports appear as physical ones here (including kni, ring, ...)
-		 * However, they are bound to NUMA node LCORE_ID_ANY. We bind all those
-		 * virtual devices to the NUMA socket the master lcore is running on.
-		 * Thus, all virtual devices use the same NUMA node. It may be necessary to
-		 * change this static mapping in the future to avoid high load on the
-		 * master lcore NUMA node. */
+		 * However, they are bound to NUMA node SOCKET_ID_ANY. We bind all those
+		 * virtual devices to the NUMA socket specified in the configuration file. */
 
-		/* for ports bound to LCORE_ID_ANY (virtual interfaces, e.g., kni), use socket_id as specified or that of master lcore as default */
+		/* for ports bound to SOCKET_ID_ANY (virtual interfaces, e.g., kni), use socket_id as specified in configuration file or master lcore as default */
 		if (dev_info.driver_name == std::string("net_kni")) {
 			YAML::Node kni_node = y_config_dpdk_ng["dpdk"]["knis"][ifname]["socket_id"];
 			if (kni_node && kni_node.IsScalar()) {
@@ -1058,7 +1017,49 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		phyports[port_id].socket_id = socket_id;
+
+		unsigned int nb_rx_queues = RTE_MIN(rx_lcores[socket_id].size(), dev_info.max_rx_queues);
+		unsigned int nb_tx_queues = RTE_MIN(tx_lcores[socket_id].size(), dev_info.max_tx_queues);
+
+		// initialize nb_mbuf for socket_id
+		if (nb_mbuf.find(socket_id)==nb_mbuf.end()){
+			nb_mbuf[socket_id] = 0;
+		}
+
+		nb_mbuf[socket_id] += /*rx*/nb_rx_queues * dev_info.rx_desc_lim.nb_max + /*tx*/nb_tx_queues * dev_info.tx_desc_lim.nb_max;
+		XDPD_INFO(DRIVER_NAME"[ifaces] calculating memory needs for port %u, nb_rx_queues=%u, nb_tx_queues=%u, rx_desc_lim.nb_max=%u, tx_desc_lim.nb_max=%u => nb_mbuf[socket_id=%u]=%u\n",
+				port_id, nb_rx_queues, nb_tx_queues, dev_info.rx_desc_lim.nb_max, dev_info.tx_desc_lim.nb_max, socket_id, nb_mbuf[socket_id]);
+	}
+
+
+	//Allocate mempools on all NUMA sockets
+	for (auto socket_id : numa_nodes) {
+		unsigned int pool_size = RTE_MIN(pow(2, floor(log2(((mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size)))), UINT32_C(1<<31));
+		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, pool_size: %u, data_room: %u\n", pool_size, mbuf_dataroom);
+		memory_init(socket_id, pool_size, mbuf_dataroom);
+	}
+
+
+	//Iterate over all available physical ports
+	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+
+		char ifname[IF_NAMESIZE];
+		if ((ret = rte_eth_dev_get_name_by_port(port_id, ifname)) < 0) {
+			continue;
+		}
+
+		rte_eth_dev_info_get(port_id, &dev_info);
+		memset(s_pci_addr, 0, sizeof(s_pci_addr));
+		if (dev_info.pci_dev) {
+			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		}
+
+		if (port_id >= RTE_MAX_ETHPORTS) {
+			return ROFL_FAILURE;
+		}
+
 		phyports[port_id].is_enabled = 0;
+		unsigned int socket_id = phyports[port_id].socket_id;
 
 		rte_eth_dev_info_get(port_id, &dev_info);
 		strncpy(s_fw_version, "none", sizeof(s_fw_version)-1);
