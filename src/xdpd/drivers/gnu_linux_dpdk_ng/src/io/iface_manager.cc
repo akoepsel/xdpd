@@ -963,11 +963,17 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		int socket_id = rte_eth_dev_socket_id(port_id);
-		unsigned int nb_rx_queues = rx_lcores[socket_id].size() < dev_info.max_rx_queues ? rx_lcores[socket_id].size() : dev_info.max_rx_queues;
-		unsigned int nb_tx_queues = tx_lcores[socket_id].size() < dev_info.max_tx_queues ? tx_lcores[socket_id].size() : dev_info.max_tx_queues;
+		unsigned int nb_rx_queues = RTE_MIN(rx_lcores[socket_id].size(), dev_info.max_rx_queues);
+		unsigned int nb_tx_queues = RTE_MIN(tx_lcores[socket_id].size(), dev_info.max_tx_queues);
+
+		if (socket_id == SOCKET_ID_ANY){
+			XDPD_INFO(DRIVER_NAME"[ifaces] calculating memory needs for port %u, nb_rx_queues=%u, nb_tx_queues=%u, rx_desc_lim.nb_max=%u, tx_desc_lim.nb_max=%u => ignoring port located on SOCKET_ID_ANY\n",
+					port_id, nb_rx_queues, nb_tx_queues, dev_info.rx_desc_lim.nb_max, dev_info.tx_desc_lim.nb_max, socket_id);
+			continue;
+		}
 
 		nb_mbuf[socket_id] += /*rx*/nb_rx_queues * dev_info.rx_desc_lim.nb_max + /*tx*/nb_tx_queues * dev_info.tx_desc_lim.nb_max;
-		XDPD_DEBUG(DRIVER_NAME"[ifaces] calculating memory needs for port %u, nb_rx_queues=%u, nb_tx_queues=%u, rx_desc_lim.nb_max=%u, tx_desc_lim.nb_max=%u => nb_mbuf[socket_id=%u]=%u\n",
+		XDPD_INFO(DRIVER_NAME"[ifaces] calculating memory needs for port %u, nb_rx_queues=%u, nb_tx_queues=%u, rx_desc_lim.nb_max=%u, tx_desc_lim.nb_max=%u => nb_mbuf[socket_id=%u]=%u\n",
 				port_id, nb_rx_queues, nb_tx_queues, dev_info.rx_desc_lim.nb_max, dev_info.tx_desc_lim.nb_max, socket_id, nb_mbuf[socket_id]);
 	}
 
