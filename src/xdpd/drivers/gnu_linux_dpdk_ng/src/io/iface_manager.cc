@@ -968,7 +968,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	}
 
 	//Allocate mempools on all NUMA sockets
-	for (unsigned int socket_id = 0; socket_id < RTE_MAX_NUMA_NODES; ++socket_id) {
+	for (auto socket_id : sockets) {
 		memory_init(socket_id, (mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size, mbuf_dataroom);
 	}
 
