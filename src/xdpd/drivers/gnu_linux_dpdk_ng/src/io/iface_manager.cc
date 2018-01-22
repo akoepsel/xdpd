@@ -1030,7 +1030,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			nb_mbuf[socket_id] = 0;
 		}
 
-		nb_mbuf[socket_id] += /*rx*/nb_rx_queues * dev_info.rx_desc_lim.nb_max + /*tx*/nb_tx_queues * dev_info.tx_desc_lim.nb_max;
+		//nb_mbuf[socket_id] += /*rx*/nb_rx_queues * dev_info.rx_desc_lim.nb_max + /*tx*/nb_tx_queues * dev_info.tx_desc_lim.nb_max;
+		nb_mbuf[socket_id] += /*rx*/dev_info.rx_desc_lim.nb_max + /*tx*/dev_info.tx_desc_lim.nb_max;
 		XDPD_INFO(DRIVER_NAME"[ifaces] calculating memory needs for port %u, nb_rx_queues=%u, nb_tx_queues=%u, rx_desc_lim.nb_max=%u, tx_desc_lim.nb_max=%u => nb_mbuf[socket_id=%u]=%u\n",
 				port_id, nb_rx_queues, nb_tx_queues, dev_info.rx_desc_lim.nb_max, dev_info.tx_desc_lim.nb_max, socket_id, nb_mbuf[socket_id]);
 	}
