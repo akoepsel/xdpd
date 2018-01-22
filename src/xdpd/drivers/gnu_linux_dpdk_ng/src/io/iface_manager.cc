@@ -1041,7 +1041,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, UINT32_C(1<<31)=%u\n", UINT32_C(1<<31));
 		unsigned int nbmbufs = (unsigned int)pow(2, ceil(log2((mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size)));
 		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, nbmbufs=%u\n", nbmbufs);
-		unsigned int pool_size = RTE_MIN(nbmbufs, UINT32_C(1<<31));
+		unsigned int pool_size = RTE_MIN(nbmbufs, (uint32_t)UINT32_C(1<<31));
 		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, pool_size: %u, data_room: %u\n", pool_size, mbuf_dataroom);
 		memory_init(socket_id, pool_size, mbuf_dataroom);
 	}
