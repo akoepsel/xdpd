@@ -938,6 +938,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		phyports[port_id].is_virtual = 0;
 	}
 
+	memset(nb_mbuf, 0, sizeof(nb_mbuf));
+
 	//Calculate size of rte_mempool for rxqueue/txqueue configuration based on available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 		rte_eth_dev_info_get(port_id, &dev_info);
@@ -969,7 +971,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 	//Allocate mempools on all NUMA sockets
 	for (auto socket_id : numa_nodes) {
-		unsigned int pool_size = RTE_MIN(pow(2, log2(((mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size))), UINT32_C(1<<31))-1;
+		unsigned int pool_size = RTE_MIN(pow(2, log2(((mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size))), UINT32_C(1<<31));
 		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, pool_size: %u, data_room: %u\n", pool_size, mbuf_dataroom);
 		memory_init(socket_id, pool_size, mbuf_dataroom);
 	}
