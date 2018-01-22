@@ -371,8 +371,8 @@ rofl_result_t processing_init_eventdev(void){
 		}
 		return ROFL_FAILURE;
 	}
-	uint8_t nb_event_devs = rte_event_dev_count();
-	XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] %u eventdev device(s) available\n", nb_event_devs);
+
+	XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] %u eventdev device(s) available\n", rte_event_dev_count());
 
 	/* get eventdev id */
 	eventdev_id = rte_event_dev_get_dev_id(eventdev_name.c_str());
