@@ -68,7 +68,7 @@ uint16_t nb_txd = RTE_TX_DESC_DEFAULT;
 uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 
 //a set of available NUMA sockets (socket_id)
-static std::set<int> sockets;
+extern std::set<int> numa_nodes;
 
 /* a map of available RX logical cores per NUMA socket (set of lcore_id) */
 extern std::map<unsigned int, std::set<unsigned int> > rx_lcores;
@@ -968,7 +968,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	}
 
 	//Allocate mempools on all NUMA sockets
-	for (auto socket_id : sockets) {
+	for (auto socket_id : numa_nodes) {
 		memory_init(socket_id, (mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size, mbuf_dataroom);
 	}
 
@@ -1006,7 +1006,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			YAML::Node kni_node = y_config_dpdk_ng["dpdk"]["knis"][ifname]["socket_id"];
 			if (kni_node && kni_node.IsScalar()) {
 				socket_id = kni_node.as<int>();
-				if (sockets.find(socket_id) == sockets.end()) {
+				if (numa_nodes.find(socket_id) == numa_nodes.end()) {
 					XDPD_ERR(DRIVER_NAME"[ifaces] virtual port: %u, invalid socket %u specified, ignoring\n", port_id, socket_id);
 					continue;
 				}
@@ -1020,7 +1020,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			YAML::Node pcap_node = y_config_dpdk_ng["dpdk"]["pcaps"][ifname]["socket_id"];
 			if (pcap_node && pcap_node.IsScalar()) {
 				socket_id = pcap_node.as<int>();
-				if (sockets.find(socket_id) == sockets.end()) {
+				if (numa_nodes.find(socket_id) == numa_nodes.end()) {
 					XDPD_ERR(DRIVER_NAME"[ifaces] virtual port: %u, invalid socket %u specified, ignoring\n", port_id, socket_id);
 					continue;
 				}
@@ -1034,7 +1034,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			YAML::Node ring_node = y_config_dpdk_ng["dpdk"]["rings"][ifname]["socket_id"];
 			if (ring_node && ring_node.IsScalar()) {
 				socket_id = ring_node.as<int>();
-				if (sockets.find(socket_id) == sockets.end()) {
+				if (numa_nodes.find(socket_id) == numa_nodes.end()) {
 					XDPD_ERR(DRIVER_NAME"[ifaces] virtual port: %u, invalid socket %u specified, ignoring\n", port_id, socket_id);
 					continue;
 				}

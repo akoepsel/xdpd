@@ -19,6 +19,8 @@
 #include "../io/port_state.h"
 #include "../io/iface_manager.h"
 #include <rofl/datapath/pipeline/openflow/of_switch.h>
+
+#include <set>
 #include <yaml-cpp/yaml.h>
 
 extern YAML::Node y_config_dpdk_ng;
