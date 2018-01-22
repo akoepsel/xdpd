@@ -1107,7 +1107,6 @@ int processing_packet_transmission(void* not_used){
 		/* interate over all received events */
 		for (i = 0; i < nb_rx; i++) {
 			switch_port_t* port;
-			dpdk_port_state_t *ps;
 			unsigned int ret;
 
 			 if (unlikely(tx_events[i].mbuf == NULL)){
@@ -1123,9 +1122,13 @@ int processing_packet_transmission(void* not_used){
 				continue;
 			}
 
-			ps = (dpdk_port_state_t *)port->platform_port_state;
-
-			assert(out_port_id == ps->port_id);
+#ifdef DEBUG
+			{
+				dpdk_port_state_t *ps;
+				ps = (dpdk_port_state_t *)port->platform_port_state;
+				assert(out_port_id == ps->port_id);
+			}
+#endif
 
 			rte_rwlock_read_unlock(&port_list_rwlock);
 
