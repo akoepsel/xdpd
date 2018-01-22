@@ -941,7 +941,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	//Calculate size of rte_mempool for rxqueue/txqueue configuration based on available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
 
-		char ifname[IF_NAMESIZE];
+		char ifname[32];
+		char portname[IF_NAMESIZE];
 		if ((ret = rte_eth_dev_get_name_by_port(port_id, ifname)) < 0) {
 			continue;
 		}
@@ -974,7 +975,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		/* for ports bound to SOCKET_ID_ANY (virtual interfaces, e.g., kni), use socket_id as specified in configuration file or master lcore as default */
 		if (dev_info.driver_name == std::string("net_kni")) {
-			YAML::Node kni_node = y_config_dpdk_ng["dpdk"]["knis"][ifname]["socket_id"];
+			snprintf (portname, SWITCH_PORT_MAX_LEN_NAME, ifname+8); //strip off "net_kni_"
+			YAML::Node kni_node = y_config_dpdk_ng["dpdk"]["knis"][portname]["socket_id"];
 			if (kni_node && kni_node.IsScalar()) {
 				socket_id = kni_node.as<int>();
 				if (numa_nodes.find(socket_id) == numa_nodes.end()) {
@@ -988,7 +990,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			phyports[port_id].is_virtual = true;
 		} else
 		if (dev_info.driver_name == std::string("net_pcap")) {
-			YAML::Node pcap_node = y_config_dpdk_ng["dpdk"]["pcaps"][ifname]["socket_id"];
+			snprintf (portname, SWITCH_PORT_MAX_LEN_NAME, ifname+9); //strip off "net_pcap_"
+			YAML::Node pcap_node = y_config_dpdk_ng["dpdk"]["pcaps"][portname]["socket_id"];
 			if (pcap_node && pcap_node.IsScalar()) {
 				socket_id = pcap_node.as<int>();
 				if (numa_nodes.find(socket_id) == numa_nodes.end()) {
@@ -1002,7 +1005,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			phyports[port_id].is_virtual = true;
 		} else
 		if (dev_info.driver_name == std::string("net_ring")) {
-			YAML::Node ring_node = y_config_dpdk_ng["dpdk"]["rings"][ifname]["socket_id"];
+			snprintf (portname, SWITCH_PORT_MAX_LEN_NAME, ifname+9); //strip off "net_ring_"
+			YAML::Node ring_node = y_config_dpdk_ng["dpdk"]["rings"][portname]["socket_id"];
 			if (ring_node && ring_node.IsScalar()) {
 				socket_id = ring_node.as<int>();
 				if (numa_nodes.find(socket_id) == numa_nodes.end()) {
