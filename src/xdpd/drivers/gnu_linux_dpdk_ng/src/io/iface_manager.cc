@@ -1034,13 +1034,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 	//Allocate mempools on all NUMA sockets
 	for (auto socket_id : numa_nodes) {
-		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, nb_mbuf[socket_id=%u]=%u\n", socket_id, nb_mbuf[socket_id]);
-		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, log2(%u)=%f\n", nb_mbuf[socket_id], log2(nb_mbuf[socket_id]));
-		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, ceil(log2(%u))=%f\n", nb_mbuf[socket_id], ceil(log2(nb_mbuf[socket_id])));
-		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, 2^floor(log2(%u))=%f\n", nb_mbuf[socket_id], pow(2, ceil(log2(nb_mbuf[socket_id]))));
-		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, UINT32_C(1<<31)=%u\n", UINT32_C(1<<31));
 		unsigned int nbmbufs = (unsigned int)pow(2, ceil(log2((mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size)));
-		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, nbmbufs=%u\n", nbmbufs);
 		unsigned int pool_size = RTE_MIN(nbmbufs, (uint32_t)UINT32_C(1<<31));
 		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, pool_size: %u, data_room: %u\n", pool_size, mbuf_dataroom);
 		memory_init(socket_id, pool_size, mbuf_dataroom);
