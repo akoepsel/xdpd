@@ -478,9 +478,9 @@ rofl_result_t processing_init_eventdev(void){
 		event_queues[socket_id][EVENT_QUEUE_WORKERS] = ev_queue_id++;
 		event_queues[socket_id][EVENT_QUEUE_TXCORES] = ev_queue_id++;
 
-		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, event_queues[socket_id=%u][%u(WORKERS)] => ev_queue_id: %u (wk-tasks)\n",
+		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, event_queues[socket_id=%u][%u(WORKERS)] => ev_queue_id: %u (dequeued by wk-tasks)\n",
 				eventdev_name.c_str(), socket_id, EVENT_QUEUE_WORKERS, event_queues[socket_id][EVENT_QUEUE_WORKERS]);
-		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, event_queues[socket_id=%u][%u(TXCORES)] => ev_queue_id: %u (tx-tasks)\n",
+		XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, event_queues[socket_id=%u][%u(TXCORES)] => ev_queue_id: %u (dequeued by tx-tasks)\n",
 				eventdev_name.c_str(), socket_id, EVENT_QUEUE_TXCORES, event_queues[socket_id][EVENT_QUEUE_TXCORES]);
 
 		if (ev_queue_id > eventdev_conf.nb_event_queues) {
