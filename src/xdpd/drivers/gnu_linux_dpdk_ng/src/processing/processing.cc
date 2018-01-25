@@ -1199,9 +1199,6 @@ int processing_packet_transmission(void* not_used){
 				continue;
 			}
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => txring size %u\n",
-					lcore_id, socket_id, port_id, nb_elems);
-
 			cur_tsc = rte_get_tsc_cycles();
 
 			/* if the number of pending packets is lower than txring_drain_threshold or
