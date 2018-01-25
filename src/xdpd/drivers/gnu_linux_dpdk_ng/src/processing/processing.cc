@@ -523,12 +523,12 @@ rofl_result_t processing_init_eventdev(void){
 			port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
 			if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
-				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", eventdev_name.c_str(), port_id);
 				return ROFL_FAILURE;
 			}
 
 			/* no event queue/port linking for RX cores */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %2u, rx lcore %3u\n", eventdev_name.c_str(), port_id, lcore_id);
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, ev_port_id: %2u, rx lcore %3u\n", eventdev_name.c_str(), port_id, lcore_id);
 
 			port_id++;
 		} else
@@ -545,18 +545,18 @@ rofl_result_t processing_init_eventdev(void){
 			port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
 			if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
-				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", eventdev_name.c_str(), port_id);
 				return ROFL_FAILURE;
 			}
 
 			/* link up event TX core port and associated queue */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %2u, tx lcore %3u, linked to queue_id: %2u\n",
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, ev_port_id: %2u, tx lcore %3u, linked to ev_queue_id: %2u\n",
 					eventdev_name.c_str(), port_id, lcore_id, tx_core_tasks[lcore_id].rx_ev_queue_id);
 
 			uint8_t queues[] = { tx_core_tasks[lcore_id].rx_ev_queue_id };
 
 			if (rte_event_port_link(eventdev_id, port_id, queues, NULL, sizeof(queues)) < 0) {
-				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n", eventdev_name.c_str(), port_id);
 				return ROFL_FAILURE;
 			}
 
@@ -580,18 +580,18 @@ rofl_result_t processing_init_eventdev(void){
 			port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
 
 			if (rte_event_port_setup(eventdev_id, port_id, &port_conf) < 0) {
-				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", eventdev_name.c_str(), port_id);
 				return ROFL_FAILURE;
 			}
 
 			/* link up event worker core port and associated queue */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s,  port_id: %2u, wk lcore %3u, linked to queue_id: %2u\n",
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, ev_port_id: %2u, wk lcore %3u, linked to ev_queue_id: %2u\n",
 					eventdev_name.c_str(), port_id, lcore_id, wk_core_tasks[lcore_id].rx_ev_queue_id);
 
 			uint8_t queues[] = { wk_core_tasks[lcore_id].rx_ev_queue_id };
 
 			if (rte_event_port_link(eventdev_id, port_id, queues, NULL, sizeof(queues)) < 0) {
-				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on port_id: %u failed\n", eventdev_name.c_str(), port_id);
+				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n", eventdev_name.c_str(), port_id);
 				return ROFL_FAILURE;
 			}
 
