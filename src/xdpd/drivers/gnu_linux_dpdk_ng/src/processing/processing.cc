@@ -528,7 +528,7 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* no event queue/port linking for RX cores */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%2u, ev_port_id: %2u\n", eventdev_name.c_str(), lcore_id, ev_port_id);
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u\n", eventdev_name.c_str(), lcore_id, ev_port_id);
 
 			ev_port_id++;
 		} else
@@ -550,7 +550,7 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* link up event TX core port and associated queue */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%2u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
 					eventdev_name.c_str(), lcore_id, ev_port_id, tx_core_tasks[lcore_id].rx_ev_queue_id);
 
 			uint8_t queues[] = { tx_core_tasks[lcore_id].rx_ev_queue_id };
@@ -569,7 +569,7 @@ rofl_result_t processing_init_eventdev(void){
 			wk_core_tasks[lcore_id].rx_ev_queue_id = event_queues[socket_id][EVENT_QUEUE_WORKERS];
 			for (auto i : numa_nodes) {
 				wk_core_tasks[lcore_id].tx_ev_queue_id[i] = event_queues[i][EVENT_QUEUE_TXCORES];
-				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk_core_tasks[%2u].tx_ev_queue_id[%u] = %u\n",
+				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk_core_tasks[%02u].tx_ev_queue_id[%u] = %u\n",
 						eventdev_name.c_str(), lcore_id, i, wk_core_tasks[lcore_id].tx_ev_queue_id[i]);
 			}
 
@@ -585,7 +585,7 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* link up event worker core port and associated queue */
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%2u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
+			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
 					eventdev_name.c_str(), lcore_id, ev_port_id, wk_core_tasks[lcore_id].rx_ev_queue_id);
 
 			uint8_t queues[] = { wk_core_tasks[lcore_id].rx_ev_queue_id };
