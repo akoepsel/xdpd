@@ -569,7 +569,7 @@ rofl_result_t processing_init_eventdev(void){
 			wk_core_tasks[lcore_id].rx_ev_queue_id = event_queues[socket_id][EVENT_QUEUE_WORKERS];
 			for (auto i : numa_nodes) {
 				wk_core_tasks[lcore_id].tx_ev_queue_id[i] = event_queues[i][EVENT_QUEUE_TXCORES];
-				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk_core_tasks[%02u].tx_ev_queue_id[%u] = %u\n",
+				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk_core_tasks[%02u].tx_ev_queue_id[socket_id=%u] => ev_queue_id: %u\n",
 						eventdev_name.c_str(), lcore_id, i, wk_core_tasks[lcore_id].tx_ev_queue_id[i]);
 			}
 
