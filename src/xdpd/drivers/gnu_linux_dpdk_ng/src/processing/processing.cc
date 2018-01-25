@@ -382,8 +382,8 @@ rofl_result_t processing_init_eventdev(void){
 		XDPD_ERR(DRIVER_NAME"[processing][init][evdev] unable to retrieve info struct for eventdev %s\n", eventdev_name.c_str());
 	}
 
-	XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev: %s, max_event_ports: %u, max_event_queues: %u\n",
-			eventdev_name.c_str(), eventdev_info.max_event_ports, eventdev_info.max_event_queues);
+	XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev: %s, max_event_ports: %u, max_event_queues: %u, max_num_events: %u\n",
+			eventdev_name.c_str(), eventdev_info.max_event_ports, eventdev_info.max_event_queues, eventdev_info.max_num_events);
 
 
 	/* configure event device */
