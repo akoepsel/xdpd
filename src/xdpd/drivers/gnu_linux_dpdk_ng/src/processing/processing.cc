@@ -958,9 +958,6 @@ int processing_packet_reception(void* not_used){
 				continue;
 			}
 
-			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, receiving on port %u => rcvd rx-eth-burst of %u pkts\n",
-					lcore_id, rte_lcore_to_socket_id(lcore_id), port_id, nb_rx);
-
 			/* map received mbufs to event structure */
 			for (i = 0; i < nb_rx; i++) {
 				event[i].flow_id = mbufs[i]->hash.rss;
@@ -980,6 +977,9 @@ int processing_packet_reception(void* not_used){
 
 			/* enqueue events to event device */
 			const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
+
+			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, receiving on port %u => emitted %u events for %u pkts rcvd in rx-eth-burst\n",
+					lcore_id, rte_lcore_to_socket_id(lcore_id), port_id, nb_tx, nb_rx);
 
 			/* release mbufs not queued in event device */
 			if (nb_tx < nb_rx) {
