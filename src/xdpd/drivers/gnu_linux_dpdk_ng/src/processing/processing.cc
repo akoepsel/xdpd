@@ -952,6 +952,8 @@ int processing_packet_reception(void* not_used){
 
 			/* read burst from ethdev */
 			const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, max_eth_rx_burst_size);
+			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, receiving on port %u => %u pkts rcvd in rx-eth-burst\n",
+					lcore_id, rte_lcore_to_socket_id(lcore_id), port_id, nb_rx);
 
 			/* no packets received => continue with next port */
 			if (nb_rx==0){
