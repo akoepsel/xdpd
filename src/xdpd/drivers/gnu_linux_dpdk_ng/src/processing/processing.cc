@@ -1104,6 +1104,9 @@ int processing_packet_transmission(void* not_used){
 		}
 		task->idle_loops = 0;
 
+		RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events\n",
+				lcore_id, socket_id, nb_rx);
+
 		/* interate over all received events */
 		for (i = 0; i < nb_rx; i++) {
 			switch_port_t* port;
@@ -1121,6 +1124,9 @@ int processing_packet_transmission(void* not_used){
 				rte_rwlock_read_unlock(&port_list_rwlock);
 				continue;
 			}
+
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events to be sent out on port %u\n",
+					lcore_id, socket_id, nb_rx, out_port_id);
 
 #ifdef DEBUG
 			{
@@ -1167,6 +1173,8 @@ int processing_packet_transmission(void* not_used){
 				};
 				}
 			}
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, port %u => txring size %u\n",
+					lcore_id, socket_id, out_port_id, rte_ring_count(task->txring[out_port_id]));
 		}
 
 
@@ -1187,6 +1195,9 @@ int processing_packet_transmission(void* not_used){
 				continue;
 			}
 
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => txring size %u\n",
+					lcore_id, socket_id, port_id, nb_elems);
+
 			cur_tsc = rte_get_tsc_cycles();
 
 			/* if the number of pending packets is lower than txring_drain_threshold or
@@ -1202,6 +1213,9 @@ int processing_packet_transmission(void* not_used){
 			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)tx_pkts,
 								RTE_MIN(nb_elems, (unsigned int)max_eth_tx_burst_size), &nb_elems_remaining);
 
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => retrieved %u pkts from txring, remaining txring size: %u\n",
+					lcore_id, socket_id, port_id, nb_elems, rte_ring_count(task->txring[port_id]));
+
 			/* no elements in txring */
 			if (unlikely(nb_elems==0)) {
 				continue;
@@ -1209,6 +1223,9 @@ int processing_packet_transmission(void* not_used){
 
 			/* send tx-burst */
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, tx_pkts, nb_elems);
+
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => sent tx-eth-burst of %u pkts from %u available pkts\n",
+					lcore_id, socket_id, port_id, nb_tx, nb_elems);
 
 			/* adjust timestamp */
 			task->txring_last_tx_time[port_id] = cur_tsc;
