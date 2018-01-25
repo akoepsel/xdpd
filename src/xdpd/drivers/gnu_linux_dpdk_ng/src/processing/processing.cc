@@ -1209,6 +1209,17 @@ int processing_packet_transmission(void* not_used){
 				continue;
 			}
 
+#ifdef DEBUG
+			if (nb_elems >= task->txring_drain_threshold[port_id]){
+				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => txring size: %u exceeds txring-drain-threshold: %u, starting tx-eth-burst\n",
+						lcore_id, socket_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
+			}
+			if (cur_tsc >= (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id])){
+				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => elapsed time %" PRIu64 " exceeds txring-drain-interval: %" PRIu64 ", starting tx-eth-burst\n",
+										lcore_id, socket_id, port_id, cur_tsc - task->txring_last_tx_time[port_id], task->txring_drain_interval[port_id]);
+			}
+#endif
+
 			/* get mbufs from txring */
 			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)tx_pkts,
 								RTE_MIN(nb_elems, (unsigned int)max_eth_tx_burst_size), &nb_elems_remaining);
@@ -1224,7 +1235,7 @@ int processing_packet_transmission(void* not_used){
 			/* send tx-burst */
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, tx_pkts, nb_elems);
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => sent tx-eth-burst of %u pkts from %u available pkts\n",
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => sent tx-eth-burst of %u pkts from %u pkts pending for transmission\n",
 					lcore_id, socket_id, port_id, nb_tx, nb_elems);
 
 			/* adjust timestamp */
