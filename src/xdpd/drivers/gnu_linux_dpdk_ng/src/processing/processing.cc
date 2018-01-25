@@ -457,7 +457,7 @@ rofl_result_t processing_init_eventdev(void){
 		/* nb_atomic_order_sequences */
 		YAML::Node nb_atomic_order_sequences_node = y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][queue_id]["nb_atomic_order_sequences"];
 		if (nb_atomic_order_sequences_node && nb_atomic_order_sequences_node.IsScalar()) {
-			queue_conf.nb_atomic_order_sequences = nb_atomic_order_sequences_node.as<uint8_t>();
+			queue_conf.nb_atomic_order_sequences = nb_atomic_order_sequences_node.as<uint32_t>();
 		} else {
 			queue_conf.nb_atomic_order_sequences = eventdev_conf.nb_event_queue_flows;
 		}
