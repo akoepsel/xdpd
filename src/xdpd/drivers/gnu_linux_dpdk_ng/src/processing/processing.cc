@@ -1095,6 +1095,7 @@ int processing_packet_transmission(void* not_used){
 		int timeout = 0;
 		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, tx_events, max_evdev_burst_size, timeout);
 
+#if 0
 		if (nb_rx==0){
 			task->idle_loops++;
 			if ((not task->lead_task) && (task->idle_loops > 64)){
@@ -1102,79 +1103,82 @@ int processing_packet_transmission(void* not_used){
 			}
 			continue;
 		}
-		task->idle_loops = 0;
+#endif
+		if (nb_rx>0){
+			task->idle_loops = 0;
 
-		RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events\n",
-				lcore_id, socket_id, nb_rx);
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events\n",
+					lcore_id, socket_id, nb_rx);
 
-		/* interate over all received events */
-		for (i = 0; i < nb_rx; i++) {
-			switch_port_t* port;
-			unsigned int ret;
+			/* interate over all received events */
+			for (i = 0; i < nb_rx; i++) {
+				switch_port_t* port;
+				unsigned int ret;
 
-			 if (unlikely(tx_events[i].mbuf == NULL)){
-				 continue;
-			 }
+				 if (unlikely(tx_events[i].mbuf == NULL)){
+					 continue;
+				 }
 
-			/* process mbuf using events[i].queue_id as pipeline stage */
-			out_port_id = (uint32_t)(tx_events[i].mbuf->udata64 & 0x00000000ffffffff);
+				/* process mbuf using events[i].queue_id as pipeline stage */
+				out_port_id = (uint32_t)(tx_events[i].mbuf->udata64 & 0x00000000ffffffff);
 
-			rte_rwlock_read_lock(&port_list_rwlock);
-			if ((port = port_list[out_port_id]) == NULL) {
-				rte_rwlock_read_unlock(&port_list_rwlock);
-				continue;
-			}
+				rte_rwlock_read_lock(&port_list_rwlock);
+				if ((port = port_list[out_port_id]) == NULL) {
+					rte_rwlock_read_unlock(&port_list_rwlock);
+					continue;
+				}
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events to be sent out on port %u\n",
-					lcore_id, socket_id, nb_rx, out_port_id);
+				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events to be sent out on port %u\n",
+						lcore_id, socket_id, nb_rx, out_port_id);
 
 #ifdef DEBUG
-			{
-				dpdk_port_state_t *ps;
-				ps = (dpdk_port_state_t *)port->platform_port_state;
-				assert(out_port_id == ps->port_id);
-			}
+				{
+					dpdk_port_state_t *ps;
+					ps = (dpdk_port_state_t *)port->platform_port_state;
+					assert(out_port_id == ps->port_id);
+				}
 #endif
 
-			rte_rwlock_read_unlock(&port_list_rwlock);
+				rte_rwlock_read_unlock(&port_list_rwlock);
 
-			if (unlikely(phyports[out_port_id].socket_id != socket_id)) {
-				RTE_LOG(WARNING, XDPD, "tx-task-%02u: on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
-						lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
-				task->stats.pkts_dropped++;
-				rte_pktmbuf_free(tx_events[i].mbuf);
-				continue;
-			}
-
-			if (unlikely(task->txring[out_port_id] == NULL)) {
-				RTE_LOG(WARNING, XDPD, "tx-task-%02u: no txring allocated on port %u, dropping packet, internal error\n",
-						lcore_id, out_port_id);
-				task->stats.pkts_dropped++;
-				rte_pktmbuf_free(tx_events[i].mbuf);
-				continue;
-			}
-
-			/* store event.mbuf in txring assigned to outgoing port */
-			if ((ret = rte_ring_enqueue(task->txring[out_port_id], tx_events[i].mbuf)) < 0) {
-				switch (ret) {
-				case -ENOBUFS: {
-					RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
-							lcore_id, i, out_port_id);
+				if (unlikely(phyports[out_port_id].socket_id != socket_id)) {
+					RTE_LOG(WARNING, XDPD, "tx-task-%02u: on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
+							lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
 					task->stats.pkts_dropped++;
 					rte_pktmbuf_free(tx_events[i].mbuf);
 					continue;
-				} break;
-				default: {
-					RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
-							lcore_id, i, out_port_id);
-					task->stats.pkts_dropped++;
-					rte_pktmbuf_free(tx_events[i].mbuf);
-					continue;
-				};
 				}
+
+				if (unlikely(task->txring[out_port_id] == NULL)) {
+					RTE_LOG(WARNING, XDPD, "tx-task-%02u: no txring allocated on port %u, dropping packet, internal error\n",
+							lcore_id, out_port_id);
+					task->stats.pkts_dropped++;
+					rte_pktmbuf_free(tx_events[i].mbuf);
+					continue;
+				}
+
+				/* store event.mbuf in txring assigned to outgoing port */
+				if ((ret = rte_ring_enqueue(task->txring[out_port_id], tx_events[i].mbuf)) < 0) {
+					switch (ret) {
+					case -ENOBUFS: {
+						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
+								lcore_id, i, out_port_id);
+						task->stats.pkts_dropped++;
+						rte_pktmbuf_free(tx_events[i].mbuf);
+						continue;
+					} break;
+					default: {
+						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
+								lcore_id, i, out_port_id);
+						task->stats.pkts_dropped++;
+						rte_pktmbuf_free(tx_events[i].mbuf);
+						continue;
+					};
+					}
+				}
+				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, port %u => txring size %u\n",
+						lcore_id, socket_id, out_port_id, rte_ring_count(task->txring[out_port_id]));
 			}
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, port %u => txring size %u\n",
-					lcore_id, socket_id, out_port_id, rte_ring_count(task->txring[out_port_id]));
 		}
 
 
