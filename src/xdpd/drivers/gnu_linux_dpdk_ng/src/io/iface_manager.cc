@@ -986,7 +986,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			} else {
 				socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
 			}
-			XDPD_DEBUG(DRIVER_NAME"[ifaces] virtual port: %u, mapping SOCKET_ID_ANY to socket %u\n", port_id, socket_id);
+			XDPD_INFO(DRIVER_NAME"[ifaces] virtual port: %u, mapping SOCKET_ID_ANY to socket %u\n", port_id, socket_id);
 			phyports[port_id].is_virtual = true;
 		} else
 		if (dev_info.driver_name == std::string("net_pcap")) {
@@ -1001,7 +1001,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			} else {
 				socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
 			}
-			XDPD_DEBUG(DRIVER_NAME"[ifaces] virtual port: %u, mapping SOCKET_ID_ANY to socket %u\n", port_id, socket_id);
+			XDPD_INFO(DRIVER_NAME"[ifaces] virtual port: %u, mapping SOCKET_ID_ANY to socket %u\n", port_id, socket_id);
 			phyports[port_id].is_virtual = true;
 		} else
 		if (dev_info.driver_name == std::string("net_ring")) {
@@ -1016,7 +1016,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			} else {
 				socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
 			}
-			XDPD_DEBUG(DRIVER_NAME"[ifaces] virtual port: %u, mapping SOCKET_ID_ANY to socket %u\n", port_id, socket_id);
+			XDPD_INFO(DRIVER_NAME"[ifaces] virtual port: %u, mapping SOCKET_ID_ANY to socket %u\n", port_id, socket_id);
 			phyports[port_id].is_virtual = true;
 		}
 
@@ -1041,7 +1041,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 	for (auto socket_id : numa_nodes) {
 		unsigned int nbmbufs = (unsigned int)pow(2, ceil(log2((mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size)));
 		unsigned int pool_size = RTE_MIN(nbmbufs, (uint32_t)UINT32_C(1<<31));
-		XDPD_DEBUG(DRIVER_NAME"[ifaces] allocating memory, pool_size: %u, data_room: %u\n", pool_size, mbuf_dataroom);
+		XDPD_INFO(DRIVER_NAME"[ifaces] allocating memory, pool_size: %u, data_room: %u\n", pool_size, mbuf_dataroom);
 		memory_init(socket_id, pool_size, mbuf_dataroom);
 	}
 

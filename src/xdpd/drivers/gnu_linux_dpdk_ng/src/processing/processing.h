@@ -52,6 +52,8 @@ typedef struct port_bursts{
 #endif
 
 typedef struct task_statistics {
+	uint64_t rx_pkts;
+	uint64_t tx_pkts;
 	uint64_t pkts_dropped; // number of packets dropped
 } __rte_cache_aligned task_statistics_t;
 
