@@ -979,6 +979,7 @@ int processing_packet_reception(void* not_used){
 				event[i].flow_id = mbufs[i]->hash.rss;
 				event[i].op = RTE_EVENT_OP_NEW;
 				event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
+				//event[i].sched_type = RTE_SCHED_TYPE_PARALLEL;
 				event[i].queue_id = ev_queue_id;
 				event[i].event_type = RTE_EVENT_TYPE_ETHDEV;
 				event[i].sub_event_type = 0;
