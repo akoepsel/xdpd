@@ -1133,10 +1133,10 @@ int processing_packet_transmission(void* not_used){
 					rte_rwlock_read_unlock(&port_list_rwlock);
 					continue;
 				}
-
+#if 0
 				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events to be sent out on port %u\n",
 						lcore_id, socket_id, nb_rx, out_port_id);
-
+#endif
 #ifdef DEBUG
 				{
 					dpdk_port_state_t *ps;
@@ -1182,8 +1182,10 @@ int processing_packet_transmission(void* not_used){
 					};
 					}
 				}
+#if 0
 				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, port %u => txring size %u\n",
 						lcore_id, socket_id, out_port_id, rte_ring_count(task->txring[out_port_id]));
+#endif
 			}
 		}
 
