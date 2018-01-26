@@ -492,6 +492,17 @@ rofl_result_t processing_init_eventdev(void){
 
 	/* map event ports for TX/worker lcores on active NUMA nodes */
 	uint8_t ev_port_id = 0;
+	struct rte_event_port_conf port_conf;
+	memset(&port_conf, 0, sizeof(port_conf));
+	port_conf.dequeue_depth = eventdev_conf.nb_event_port_dequeue_depth;
+	port_conf.enqueue_depth = eventdev_conf.nb_event_port_enqueue_depth;
+	port_conf.new_event_threshold = eventdev_conf.nb_events_limit;
+
+	if (rte_event_port_setup(eventdev_id, ev_port_id, &port_conf) < 0) {
+		XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", eventdev_name.c_str(), ev_port_id);
+		return ROFL_FAILURE;
+	}
+	ev_port_id++;
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
 		if (ev_port_id > eventdev_conf.nb_event_ports) {
 			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, port_id %u not valid\n", eventdev_name.c_str(), ev_port_id);
