@@ -80,7 +80,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		int i = 0, nb_rx = 1;
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
 
-		if (lcores[lcore_id].is_master){
+		if (lcore_id != LCORE_ID_ANY && lcores[lcore_id].is_master){
 			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket MASTER, enqueued %u events\n",
 					lcore_id, nb_tx);
 		}
