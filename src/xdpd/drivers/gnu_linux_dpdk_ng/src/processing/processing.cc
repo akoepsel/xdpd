@@ -1037,6 +1037,9 @@ int processing_packet_pipeline_processing(void* not_used){
 			continue;
 		}
 
+		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, received %u events\n",
+				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx);
+
 		for (i = 0; i < nb_rx; i++) {
 
 			if (rx_events[i].mbuf == NULL) {
@@ -1113,7 +1116,7 @@ int processing_packet_transmission(void* not_used){
 		if (nb_rx>0){
 			task->idle_loops = 0;
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events\n",
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, received %u events\n",
 					lcore_id, socket_id, nb_rx);
 
 			/* interate over all received events */

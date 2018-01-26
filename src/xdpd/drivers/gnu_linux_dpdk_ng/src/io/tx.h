@@ -80,6 +80,9 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		int i = 0, nb_rx = 1;
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
 
+		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, enqueued %u events\n",
+				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_tx);
+
 		/* release mbufs not queued in event device */
 		if (nb_tx != nb_rx) {
 			RTE_LOG(WARNING, XDPD, "wk-task-%02u: dropping %u packets, TX task event queue full on socket %u\n",
@@ -128,6 +131,10 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 		int i = 0, nb_rx = 1;
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, task->ev_port_id, tx_events, nb_rx);
+
+		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, enqueued %u events\n",
+				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_tx);
+
 		/* release mbufs not queued in event device */
 		if (nb_tx != nb_rx) {
 			RTE_LOG(WARNING, XDPD, "wk-task-%02u: dropping %u packets, TX task event queue full on socket %u\n",
