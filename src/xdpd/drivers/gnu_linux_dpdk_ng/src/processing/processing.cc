@@ -974,9 +974,6 @@ int processing_packet_reception(void* not_used){
 				continue;
 			}
 
-			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, dequeued %u pkt(s) from ev_port_id=%u (rx-eth-burst)\n",
-					lcore_id, rte_lcore_to_socket_id(lcore_id), nb_rx, port_id);
-
 			/* map received mbufs to event structure */
 			for (i = 0; i < nb_rx; i++) {
 				event[i].flow_id = mbufs[i]->hash.rss;
@@ -997,8 +994,8 @@ int processing_packet_reception(void* not_used){
 			/* enqueue events to event device */
 			const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
 
-			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, receiving on port %u => enqueued %u events for %u pkts rcvd in rx-eth-burst via ev_port_id=%u\n",
-					lcore_id, rte_lcore_to_socket_id(lcore_id), port_id, nb_tx, nb_rx, ev_port_id);
+			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, dequeued %u pkt(s) from eth_port_id=%u and enqueued %u pkt(s) to ev_port_id=%u (rx-eth-burst)\n",
+					lcore_id, rte_lcore_to_socket_id(lcore_id), nb_rx, port_id, nb_tx, ev_port_id);
 
 			/* release mbufs not queued in event device */
 			if (nb_tx < nb_rx) {
@@ -1260,7 +1257,7 @@ int processing_packet_transmission(void* not_used){
 			/* send tx-burst */
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, tx_pkts, nb_elems);
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, enqueued %u pkt(s) to port_id=%u (tx-eth-burst), dropping %u pkt(s), remaining txring size: %u\n",
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, enqueued %u pkt(s) to eth_port_id=%u (tx-eth-burst), dropping %u pkt(s), remaining txring size: %u\n",
 					lcore_id, socket_id, nb_elems, port_id, nb_elems-nb_tx, rte_ring_count(task->txring[port_id]));
 
 			/* adjust timestamp */
