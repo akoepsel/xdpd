@@ -974,8 +974,8 @@ int processing_packet_reception(void* not_used){
 				continue;
 			}
 
-			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, receiving on port %u => %u pkts rcvd in rx-eth-burst\n",
-					lcore_id, rte_lcore_to_socket_id(lcore_id), port_id, nb_rx);
+			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, dequeued %u pkt(s) from ev_port_id=%u (rx-eth-burst)\n",
+					lcore_id, rte_lcore_to_socket_id(lcore_id), nb_rx, port_id);
 
 			/* map received mbufs to event structure */
 			for (i = 0; i < nb_rx; i++) {
@@ -1053,7 +1053,7 @@ int processing_packet_pipeline_processing(void* not_used){
 			continue;
 		}
 
-		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, dequeued %u event(s) via ev_port_id=%u\n",
+		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, dequeued %u event(s) from ev_port_id=%u\n",
 				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx, task->ev_port_id);
 
 		for (i = 0; i < nb_rx; i++) {
@@ -1132,7 +1132,7 @@ int processing_packet_transmission(void* not_used){
 		if (nb_rx>0){
 			task->idle_loops = 0;
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, dequeued %u event(s) via ev_port_id=%u\n",
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, dequeued %u event(s) from ev_port_id=%u\n",
 					lcore_id, socket_id, nb_rx, task->ev_port_id);
 
 			/* interate over all received events */
@@ -1252,9 +1252,6 @@ int processing_packet_transmission(void* not_used){
 			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)tx_pkts,
 								RTE_MIN(nb_elems, (unsigned int)max_eth_tx_burst_size), &nb_elems_remaining);
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => retrieved %u pkts from txring, remaining txring size: %u\n",
-					lcore_id, socket_id, port_id, nb_elems, rte_ring_count(task->txring[port_id]));
-
 			/* no elements in txring */
 			if (unlikely(nb_elems==0)) {
 				continue;
@@ -1263,8 +1260,8 @@ int processing_packet_transmission(void* not_used){
 			/* send tx-burst */
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, tx_pkts, nb_elems);
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => sent tx-eth-burst of %u pkts from %u pkts pending for transmission\n",
-					lcore_id, socket_id, port_id, nb_tx, nb_elems);
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, enqueued %u pkt(s) to port_id=%u (tx-eth-burst), dropping %u pkt(s), remaining txring size: %u\n",
+					lcore_id, socket_id, nb_elems, port_id, nb_elems-nb_tx, rte_ring_count(task->txring[port_id]));
 
 			/* adjust timestamp */
 			task->txring_last_tx_time[port_id] = cur_tsc;
@@ -1275,8 +1272,6 @@ int processing_packet_transmission(void* not_used){
 			}
 
 			/* otherwise, release any unsent packets */
-			RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue packets on ethdev, dropping %u packets destined to port %u\n",
-					lcore_id, nb_elems - nb_tx, port_id);
 			task->stats.pkts_dropped+=(nb_elems-nb_tx);
 			for(i = nb_tx; i < nb_elems; i++) {
 				rte_pktmbuf_free(tx_pkts[i]);
