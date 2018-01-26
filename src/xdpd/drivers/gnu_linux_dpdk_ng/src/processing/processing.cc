@@ -389,7 +389,7 @@ rofl_result_t processing_init_eventdev(void){
 	/* configure event device */
 	memset(&eventdev_conf, 0, sizeof(eventdev_conf));
 	eventdev_conf.nb_event_queues = 2 * numa_nodes.size(); /* RX(s) =(single queue)=> workers =(single queue)=> TX(s) : 2 queues per NUMA node */
-	eventdev_conf.nb_event_ports = 0;
+	eventdev_conf.nb_event_ports = 1; /* port_id=0 is reserved for Packet-Out from control plane */
 	unsigned int nb_wk_lcores = 0;
 	unsigned int nb_tx_lcores = 0;
 	unsigned int nb_rx_lcores = 0;
@@ -981,8 +981,8 @@ int processing_packet_reception(void* not_used){
 			/* enqueue events to event device */
 			const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, event, nb_rx);
 
-			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, receiving on port %u => emitted %u events for %u pkts rcvd in rx-eth-burst\n",
-					lcore_id, rte_lcore_to_socket_id(lcore_id), port_id, nb_tx, nb_rx);
+			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, receiving on port %u => emitted %u events for %u pkts rcvd in rx-eth-burst via ev_port_id=%u\n",
+					lcore_id, rte_lcore_to_socket_id(lcore_id), port_id, nb_tx, nb_rx, ev_port_id);
 
 			/* release mbufs not queued in event device */
 			if (nb_tx < nb_rx) {
@@ -1037,8 +1037,8 @@ int processing_packet_pipeline_processing(void* not_used){
 			continue;
 		}
 
-		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, received %u events\n",
-				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx);
+		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, received %u events via ev_port_id=%u\n",
+				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx, task->ev_port_id);
 
 		for (i = 0; i < nb_rx; i++) {
 
@@ -1116,8 +1116,8 @@ int processing_packet_transmission(void* not_used){
 		if (nb_rx>0){
 			task->idle_loops = 0;
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, received %u events\n",
-					lcore_id, socket_id, nb_rx);
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, received %u events from ev_port_id=%u\n",
+					lcore_id, socket_id, nb_rx, task->ev_port_id);
 
 			/* interate over all received events */
 			for (i = 0; i < nb_rx; i++) {
