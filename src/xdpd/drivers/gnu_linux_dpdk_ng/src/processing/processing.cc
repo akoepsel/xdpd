@@ -1053,7 +1053,7 @@ int processing_packet_pipeline_processing(void* not_used){
 			continue;
 		}
 
-		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, dequeued %u events via ev_port_id=%u\n",
+		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, dequeued %u event(s) via ev_port_id=%u\n",
 				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx, task->ev_port_id);
 
 		for (i = 0; i < nb_rx; i++) {
@@ -1132,7 +1132,7 @@ int processing_packet_transmission(void* not_used){
 		if (nb_rx>0){
 			task->idle_loops = 0;
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, dequeued %u events via ev_port_id=%u\n",
+			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, dequeued %u event(s) via ev_port_id=%u\n",
 					lcore_id, socket_id, nb_rx, task->ev_port_id);
 
 			/* interate over all received events */
