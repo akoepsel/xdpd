@@ -80,8 +80,14 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		int i = 0, nb_rx = 1;
 		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
 
-		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket LCORE_ID_ANY, enqueued %u events\n",
-				lcore_id, nb_tx);
+		if (lcores[lcore_id].is_master){
+			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket MASTER, enqueued %u events\n",
+					lcore_id, nb_tx);
+		}
+		if (lcore_id == LCORE_ID_ANY){
+			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket LCORE_ID_ANY, enqueued %u events\n",
+					lcore_id, nb_tx);
+		}
 
 		/* release mbufs not queued in event device */
 		if (nb_tx != nb_rx) {
