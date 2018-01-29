@@ -64,12 +64,12 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		//int socket_id = ps->socket_id;
 
 		tx_events[0].flow_id = mbuf->hash.rss;
-		tx_events[0].op = RTE_EVENT_OP_NEW;
-		tx_events[0].sched_type = RTE_SCHED_TYPE_ATOMIC;
+		tx_events[0].op = RTE_EVENT_OP_RELEASE;
+		tx_events[0].sched_type = RTE_SCHED_TYPE_PARALLEL;
 		tx_events[0].queue_id = event_queues[ps->socket_id][EVENT_QUEUE_TXCORES]; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
 		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
 		tx_events[0].sub_event_type = 0;
-		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
+		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
 		tx_events[0].mbuf = mbuf;
 
 		tx_events[0].mbuf->udata64 = (uint64_t)port_id;
@@ -122,12 +122,12 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		//int socket_id = rte_eth_dev_socket_id(ps->port_id);
 
 		tx_events[0].flow_id = mbuf->hash.rss;
-		tx_events[0].op = RTE_EVENT_OP_NEW;
-		tx_events[0].sched_type = RTE_SCHED_TYPE_ATOMIC;
+		tx_events[0].op = RTE_EVENT_OP_RELEASE;
+		tx_events[0].sched_type = RTE_SCHED_TYPE_PARALLEL;
 		tx_events[0].queue_id = task->tx_ev_queue_id[ps->socket_id]; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
 		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
 		tx_events[0].sub_event_type = 0;
-		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
+		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
 		tx_events[0].mbuf = mbuf;
 
 		tx_events[0].mbuf->udata64 = (uint64_t)port_id;
