@@ -32,8 +32,9 @@ using namespace xdpd::gnu_linux_dpdk_ng;
 unsigned int mem_pool_size = 0;
 unsigned int mbuf_dataroom = RTE_MBUF_DEFAULT_DATAROOM;
 unsigned int mbuf_buf_size = RTE_MBUF_DEFAULT_BUF_SIZE;
-unsigned int max_evdev_burst_size = MAX_EVDEV_BURST_SIZE_DEFAULT;
 unsigned int max_eth_rx_burst_size = MAX_ETH_RX_BURST_SIZE_DEFAULT;
+unsigned int max_evt_proc_burst_size = MAX_EVT_PROC_BURST_SIZE_DEFAULT;
+unsigned int max_evt_tx_burst_size = MAX_EVT_TX_BURST_SIZE_DEFAULT;
 unsigned int max_eth_tx_burst_size = MAX_ETH_TX_BURST_SIZE_DEFAULT;
 
 //
@@ -161,19 +162,26 @@ rofl_result_t processing_init_lcores(void){
 		wk_coremask = wk_coremask_node.as<uint64_t>();
 	}
 
-	/* get max_evdev_burst_size */
-	YAML::Node max_evdev_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_evdev_burst_size"];
-	if (max_evdev_burst_size_node && max_evdev_burst_size_node.IsScalar()) {
-		max_evdev_burst_size = max_evdev_burst_size_node.as<unsigned int>();
-	}
-	XDPD_INFO(DRIVER_NAME"[processing][init] max_evdev_burst_size=%u\n", max_evdev_burst_size);
-
 	/* get max_eth_rx_burst_size */
 	YAML::Node max_eth_rx_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_eth_rx_burst_size"];
 	if (max_eth_rx_burst_size_node && max_eth_rx_burst_size_node.IsScalar()) {
 		max_eth_rx_burst_size = max_eth_rx_burst_size_node.as<unsigned int>();
 	}
 	XDPD_INFO(DRIVER_NAME"[processing][init] max_eth_rx_burst_size=%u\n", max_eth_rx_burst_size);
+
+	/* get max_evt_proc_burst_size */
+	YAML::Node max_evt_proc_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_evt_proc_burst_size"];
+	if (max_evt_proc_burst_size_node && max_evt_proc_burst_size_node.IsScalar()) {
+		max_evt_proc_burst_size = max_evt_proc_burst_size_node.as<unsigned int>();
+	}
+	XDPD_INFO(DRIVER_NAME"[processing][init] max_evt_proc_burst_size=%u\n", max_evt_proc_burst_size);
+
+	/* get max_evt_tx_burst_size */
+	YAML::Node max_evt_tx_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_evt_tx_burst_size"];
+	if (max_evt_tx_burst_size_node && max_evt_tx_burst_size_node.IsScalar()) {
+		max_evt_tx_burst_size = max_evt_tx_burst_size_node.as<unsigned int>();
+	}
+	XDPD_INFO(DRIVER_NAME"[processing][init] max_evt_tx_burst_size=%u\n", max_evt_tx_burst_size);
 
 	/* get max_eth_tx_burst_size */
 	YAML::Node max_eth_tx_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_eth_tx_burst_size"];
@@ -1023,7 +1031,7 @@ int processing_packet_reception(void* not_used){
 int processing_packet_pipeline_processing(void* not_used){
 
 	unsigned int i, lcore_id = rte_lcore_id();
-	struct rte_event rx_events[max_evdev_burst_size];
+	struct rte_event rx_events[max_evt_proc_burst_size];
 	wk_core_task_t* task = &wk_core_tasks[lcore_id];
 	switch_port_t* port;
 	of_switch_t* sw;
@@ -1044,7 +1052,7 @@ int processing_packet_pipeline_processing(void* not_used){
 	while(likely(task->active)) {
 
 		int timeout = 0;
-		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, rx_events, max_evdev_burst_size, timeout);
+		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, rx_events, max_evt_proc_burst_size, timeout);
 
 		if (nb_rx == 0) {
 			rte_pause();
@@ -1094,7 +1102,7 @@ int processing_packet_transmission(void* not_used){
 	tx_core_task_t* task = &tx_core_tasks[lcore_id];
 	uint32_t out_port_id;
 	int socket_id = rte_lcore_to_socket_id(lcore_id);
-	struct rte_event tx_events[max_evdev_burst_size];
+	struct rte_event tx_events[max_evt_tx_burst_size];
 	struct rte_mbuf* tx_pkts[max_eth_tx_burst_size];
 	uint64_t cur_tsc;
 
@@ -1116,7 +1124,7 @@ int processing_packet_transmission(void* not_used){
 		 * read events from event queue
 		 */
 		int timeout = 0;
-		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, tx_events, max_evdev_burst_size, timeout);
+		uint16_t nb_rx = rte_event_dequeue_burst(eventdev_id, task->ev_port_id, tx_events, max_evt_tx_burst_size, timeout);
 
 #if 0
 		if (nb_rx==0){

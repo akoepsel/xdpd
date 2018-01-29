@@ -1,117 +1,151 @@
 dpdk:
   eal:
-    log_level:    8
-    master_lcore: 0
-    coremask:     0x0fffffffffffff
+    log_level:    7
+    master_lcore: 29
+    coremask:     0x000000ffffffff
   lcores:
-    svc_coremask: 0x00000000004000
-    rx_coremask:  0x00000000008002
-    tx_coremask:  0x00000000010004
-    wk_coremask:  0x00000000060018
+    svc_coremask: 0x00000000000001
+    rx_coremask:  0x0000000000c006
+    tx_coremask:  0x00000000030018
+    wk_coremask:  0x0000000ffc3fe0
   eventdev:
     name: event_sw0
-    args: sched_quanta=1024,credit_quanta=32
+    args: sched_quanta=4095,credit_quanta=127
+    queues:
+      0:
+        schedule_type: 2
+#       priority: 128
+        nb_atomic_flows: 1024
+        nb_atomic_order_sequences: 16384
+      1:
+        schedule_type: 2
+#       priority: 128
+        nb_atomic_flows: 1024
+        nb_atomic_order_sequences: 16384
+      2:
+        schedule_type: 2
+#       priority: 128
+        nb_atomic_flows: 1024
+        nb_atomic_order_sequences: 16384
+      3:
+        schedule_type: 2
+#       priority: 128
+        nb_atomic_flows: 1024
+        nb_atomic_order_sequences: 16384
   memory:
-    mem_pool_size: 0
+    mem_pool_size: 262144
+    #mem_pool_size: 0
     mbuf_dataroom: 2048
   processing:
-    max_evdev_burst_size: 128
-    max_eth_rx_burst_size: 128
-    max_eth_tx_burst_size: 128
-  knis:
-    bvg0:
-      enabled: true
-      socket_id: 0
-      args: ""
-    bvg1:
-      enabled: true
-      socket_id: 1
-      args: ""
-  rings:
-    veth0:
-      enabled: true
-      socket_id: 0
-      ring_peer: "veth0p"
-      ring_size: 256
-    veth1:
-      enabled: true
-      socket_id: 0
-      ring_peer: "veth1p"
-      ring_size: 256
-  pcaps:
-    dummy0:
-      enabled: true
-      socket_id: 1
-      args: "iface=dummy0"
+    max_eth_rx_burst_size: 64
+    max_evt_proc_burst_size: 1
+    max_evt_tx_burst_size: 64
+    max_eth_tx_burst_size: 4096
   interfaces:
     ens1f1: 
-      enabled: true
+      enabled: false
       pci_address: "0000:82:00.1"
-      txring-drain-queue-capacity: 128
-      txring-drain-threshold: 16
-      txring-drain-interval: 100
+      txring-drain-queue-capacity: 4096
+      txring-drain-threshold: 1024
+      txring-drain-interval: 10
       tx_loopback: false
       promisc: true
       allmulticast: true
       vlan_filter:
-        - vlan_id: 101
-          vf_mask: 0xffffffffffffffff
+        - vlan_id: 103
+          vf_mask: 0x0000000000000001
           enabled: true
-        - vlan_id: 102
-          vf_mask: 0xffffffffffffffff
+        - vlan_id: 104
+          vf_mask: 0x0000000000000002
           enabled: true
     ens1f1vf0:
-      enabled: true
+      enabled: false
       pci_address: "0000:82:0a.0"
       parent: "0000:82:00.1"
-      txring-drain-queue-capacity: 128
-      txring-drain-threshold: 16
-      txring-drain-interval: 100
+      txring-drain-queue-capacity: 4096
+      txring-drain-threshold: 1024
+      txring-drain-interval: 10
       enabled: true
       mac_addr: 
-        - "00:11:11:11:01:01"
-        - "00:11:11:11:01:11"
+        - "0a:11:11:11:01:01"
       mac_anti_spoof: false
       vlan_anti_spoof: false
-      tx_loopback: true
+      tx_loopback: false
       unicast_promisc: true
-      multicast_promisc: true
-      broadcast: true
+      multicast_promisc: false
+      broadcast: false
       vlan_stripq: true
       vlan_tag: true
-      vlan_insert: 101
+      vlan_insert: 103
     ens1f1vf1:
-      enabled: true
+      enabled: false
       pci_address: "0000:82:0a.1"
       parent: "0000:82:00.1"
-      txring-drain-queue-capacity: 128
-      txring-drain-threshold: 16
-      txring-drain-interval: 100
+      txring-drain-queue-capacity: 4096
+      txring-drain-threshold: 1024
+      txring-drain-interval: 10
       mac_addr: 
-        - "00:11:11:11:01:02"
-        - "00:11:11:11:01:12"
+        - "0a:11:11:11:01:02"
       mac_anti_spoof: false
-      vlan_anti_spoof: false
-      tx_loopback: true
-      unicast_promisc: true
-      multicast_promisc: true
-      broadcast: true
+      vlan_anti_spoof: true
+      tx_loopback: false
+      unicast_promisc: false
+      multicast_promisc: false
+      broadcast: false
       vlan_stripq: true
       vlan_tag: true
-      vlan_insert: 102
+      vlan_insert: 104
     ens3f1: 
       enabled: true
       pci_address: "0000:03:00.1"
-      txring-drain-queue-capacity: 128
-      txring-drain-threshold: 16
+      txring-drain-queue-capacity: 4096
+      txring-drain-threshold: 256
       txring-drain-interval: 100
       tx_loopback: false
       promisc: true
       allmulticast: true
       vlan_filter:
-        - vlan_id: 101
-          vf_mask: 0xffffffffffffffff
+        - vlan_id: 103
+          vf_mask: 0x0000000000000001
           enabled: true
-        - vlan_id: 102
-          vf_mask: 0xffffffffffffffff
+        - vlan_id: 104
+          vf_mask: 0x0000000000000002
           enabled: true
+    ens3f1vf0:
+      enabled: true
+      pci_address: "0000:03:0a.0"
+      parent: "0000:03:00.1"
+      txring-drain-queue-capacity: 4096
+      txring-drain-threshold: 256
+      txring-drain-interval: 100
+      enabled: true
+      mac_addr: 
+        - "0a:11:11:11:01:03"
+      mac_anti_spoof: false
+      vlan_anti_spoof: false
+      tx_loopback: false
+      unicast_promisc: true
+      multicast_promisc: true
+      broadcast: true
+      vlan_stripq: true
+      vlan_tag: true
+      vlan_insert: 103
+    ens3f1vf1:
+      enabled: true
+      pci_address: "0000:03:0a.1"
+      parent: "0000:03:00.1"
+      txring-drain-queue-capacity: 4096
+      txring-drain-threshold: 256
+      txring-drain-interval: 100
+      mac_addr: 
+        - "0a:11:11:11:01:04"
+      mac_anti_spoof: false
+      vlan_anti_spoof: false
+      tx_loopback: false
+      unicast_promisc: true
+      multicast_promisc: true
+      broadcast: true
+      vlan_stripq: true
+      vlan_tag: true
+      vlan_insert: 104
+
