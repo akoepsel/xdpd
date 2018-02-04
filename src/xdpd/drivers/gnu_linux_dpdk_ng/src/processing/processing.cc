@@ -434,7 +434,7 @@ rofl_result_t processing_init_eventdev(void){
 				/* schedule type */
 				YAML::Node schedule_type_node = y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][queue_id]["schedule_type"];
 				if (schedule_type_node && schedule_type_node.IsScalar()) {
-					std::string s_schedule_type = schedule_type_node.as<uint8_t>();
+					std::string s_schedule_type = schedule_type_node.as<std::string>();
 					std::transform(s_schedule_type.begin(), s_schedule_type.end(), s_schedule_type.begin(), std::tolower);
 					if (s_schedule_type == "ordered") {
 						queue_conf.schedule_type = RTE_SCHED_TYPE_ORDERED;
