@@ -1280,7 +1280,7 @@ int processing_packet_transmission(void* not_used){
 						lcore_id, socket_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
 			}
 			if (cur_tsc >= (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id])){
-				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => elapsed time %" PRIu64 " exceeds txring-drain-interval: %" PRIu64 ", starting tx-eth-burst\n",
+				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => elapsed time %lf exceeds txring-drain-interval: %lf, starting tx-eth-burst\n",
 										lcore_id, socket_id, port_id,
 										(cur_tsc - task->txring_last_tx_time[port_id]) * (rte_get_timer_hz() / 1e3),
 										(task->txring_drain_interval[port_id]) * (rte_get_timer_hz() / 1e3));
