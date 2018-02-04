@@ -84,12 +84,12 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		const int nb_tx = rte_event_enqueue_burst(eventdevs[socket_id]->eventdev_id, ev_port_id, tx_events, nb_rx);
 
 		if (lcore_id != LCORE_ID_ANY && lcores[lcore_id].is_master){
-			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket MASTER, enqueued %u event(s) via ev_port_id=%u\n",
-					lcore_id, nb_tx, ev_port_id);
+			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket MASTER, enqueued %u event(s) via ev_port_id %u on eventdev %s\n",
+					lcore_id, nb_tx, ev_port_id, eventdevs[socket_id]->name);
 		}
 		if (lcore_id == LCORE_ID_ANY){
-			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket LCORE_ID_ANY, enqueued %u event(s) via ev_port_id=%u\n",
-					lcore_id, nb_tx, ev_port_id);
+			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket LCORE_ID_ANY, enqueued %u event(s) via ev_port_id %u on eventdev %s\n",
+					lcore_id, nb_tx, ev_port_id, eventdevs[socket_id]->name);
 		}
 
 		/* release mbufs not queued in event device */
@@ -143,8 +143,8 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		int i = 0, nb_rx = 1;
 		const int nb_tx = rte_event_enqueue_burst(eventdevs[socket_id]->eventdev_id, task->ev_port_id, tx_events, nb_rx);
 
-		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, enqueued %u event(s) via ev_port_id=%u\n",
-				lcore_id, rte_lcore_to_socket_id(lcore_id), nb_tx, task->ev_port_id);
+		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, enqueued %u event(s) via ev_port_id %u on eventdev %s\n",
+				lcore_id, rte_lcore_to_socket_id(lcore_id), nb_tx, task->ev_port_id, eventdevs[socket_id]->name);
 
 		/* release mbufs not queued in event device */
 		if (nb_tx != nb_rx) {
