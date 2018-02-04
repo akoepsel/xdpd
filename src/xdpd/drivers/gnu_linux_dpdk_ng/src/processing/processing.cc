@@ -21,6 +21,7 @@
 #include <rofl/datapath/pipeline/openflow/of_switch.h>
 
 #include <set>
+#include <algorithm>
 #include <yaml-cpp/yaml.h>
 
 extern YAML::Node y_config_dpdk_ng;
@@ -433,7 +434,21 @@ rofl_result_t processing_init_eventdev(void){
 				/* schedule type */
 				YAML::Node schedule_type_node = y_config_dpdk_ng["dpdk"]["eventdev"]["queues"][queue_id]["schedule_type"];
 				if (schedule_type_node && schedule_type_node.IsScalar()) {
-					queue_conf.schedule_type = schedule_type_node.as<uint8_t>();
+					std::string s_schedule_type = schedule_type_node.as<uint8_t>();
+					std::transform(s_schedule_type.begin(), s_schedule_type.end(), s_schedule_type.begin(), std::tolower);
+					if (s_schedule_type == "ordered") {
+						queue_conf.schedule_type = RTE_SCHED_TYPE_ORDERED;
+					} else
+					if (s_schedule_type == "atomic") {
+						queue_conf.schedule_type = RTE_SCHED_TYPE_ATOMIC;
+					} else
+					if (s_schedule_type == "parallel") {
+						queue_conf.schedule_type = RTE_SCHED_TYPE_PARALLEL;
+					} else {
+						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, event queue %u, unknown schedule type %s defined\n",
+								ev_core_tasks[lcore_id].name, queue_id, s_schedule_type.c_str());
+						return ROFL_FAILURE;
+					}
 				} else {
 					queue_conf.schedule_type = RTE_SCHED_TYPE_ORDERED;
 				}
