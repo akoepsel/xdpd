@@ -493,110 +493,104 @@ rofl_result_t processing_init_eventdev(void){
 				}
 				ev_port_id++;
 			}
-			for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
-				if (ev_port_id > ev_core_tasks[lcore_id].eventdev_conf.nb_event_ports) {
-					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, internal error, port_id %u not valid\n", ev_core_tasks[lcore_id].name, ev_port_id);
-					break;
-				}
-				if (lcore_id >= RTE_MAX_LCORE) {
+
+			/* assign event ports to RX tasks */
+			for (auto rx_lcore_id : rx_lcores[socket_id]) {
+				if (not lcores[rx_lcore_id].is_rx_lcore) {
 					continue;
 				}
-				unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
+				/* RX core(s) do not receive from an event queue */
+				rx_core_tasks[lcore_id].socket_id = socket_id;
+				rx_core_tasks[lcore_id].ev_port_id = ev_port_id;
+				rx_core_tasks[lcore_id].tx_ev_queue_id = EVENT_QUEUE_WK_TASKS;
 
-				if (lcores[lcore_id].is_master) {
-					/* master core */
-					continue;
-				} else
-				if (lcores[lcore_id].is_ev_lcore) {
-					/* service core(s) */
-					continue;
-				} else
-				if (lcores[lcore_id].is_rx_lcore) {
-					/* RX core(s) do not receive from an event queue */
-					rx_core_tasks[lcore_id].socket_id = socket_id;
-					rx_core_tasks[lcore_id].ev_port_id = ev_port_id;
-					rx_core_tasks[lcore_id].tx_ev_queue_id = EVENT_QUEUE_WK_TASKS;
+				struct rte_event_port_conf port_conf;
+				memset(&port_conf, 0, sizeof(port_conf));
+				port_conf.dequeue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_dequeue_depth;
+				port_conf.enqueue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_enqueue_depth;
+				port_conf.new_event_threshold = ev_core_tasks[lcore_id].eventdev_conf.nb_events_limit;
 
-					struct rte_event_port_conf port_conf;
-					memset(&port_conf, 0, sizeof(port_conf));
-					port_conf.dequeue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_dequeue_depth;
-					port_conf.enqueue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_enqueue_depth;
-					port_conf.new_event_threshold = ev_core_tasks[lcore_id].eventdev_conf.nb_events_limit;
-
-					if (rte_event_port_setup(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, &port_conf) < 0) {
-						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
-						return ROFL_FAILURE;
-					}
-
-					/* no event queue/port linking for RX cores */
-					XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u\n", ev_core_tasks[lcore_id].name, lcore_id, ev_port_id);
-
-					ev_port_id++;
-				} else
-				if (lcores[lcore_id].is_tx_lcore) {
-					/* TX core(s) read from the associated event queue on their respective NUMA node */
-					tx_core_tasks[lcore_id].socket_id = socket_id;
-					tx_core_tasks[lcore_id].ev_port_id = ev_port_id;
-					tx_core_tasks[lcore_id].rx_ev_queue_id = EVENT_QUEUE_TX_TASKS;
-
-					struct rte_event_port_conf port_conf;
-					memset(&port_conf, 0, sizeof(port_conf));
-					port_conf.dequeue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_dequeue_depth;
-					port_conf.enqueue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_enqueue_depth;
-					port_conf.new_event_threshold = ev_core_tasks[lcore_id].eventdev_conf.nb_events_limit;
-
-					if (rte_event_port_setup(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, &port_conf) < 0) {
-						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
-						return ROFL_FAILURE;
-					}
-
-					/* link up event TX core port and associated queue */
-					XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
-							ev_core_tasks[lcore_id].name, lcore_id, ev_port_id, tx_core_tasks[lcore_id].rx_ev_queue_id);
-
-					uint8_t queues[] = { tx_core_tasks[lcore_id].rx_ev_queue_id };
-
-					if (rte_event_port_link(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, queues, NULL, sizeof(queues)) < 0) {
-						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
-						return ROFL_FAILURE;
-					}
-
-					ev_port_id++;
-				} else
-				if (lcores[lcore_id].is_wk_lcore) {
-					/* worker core(s) read from the associated event queue on their respective NUMA node */
-					wk_core_tasks[lcore_id].socket_id = socket_id;
-					wk_core_tasks[lcore_id].ev_port_id = ev_port_id;
-					wk_core_tasks[lcore_id].rx_ev_queue_id = EVENT_QUEUE_WK_TASKS;
-					wk_core_tasks[lcore_id].tx_ev_queue_id = EVENT_QUEUE_TX_TASKS;
-
-					struct rte_event_port_conf port_conf;
-					memset(&port_conf, 0, sizeof(port_conf));
-					port_conf.dequeue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_dequeue_depth;
-					port_conf.enqueue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_enqueue_depth;
-					port_conf.new_event_threshold = ev_core_tasks[lcore_id].eventdev_conf.nb_events_limit;
-
-					if (rte_event_port_setup(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, &port_conf) < 0) {
-						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
-						return ROFL_FAILURE;
-					}
-
-					/* link up event worker core port and associated queue */
-					XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
-							ev_core_tasks[lcore_id].name, lcore_id, ev_port_id, wk_core_tasks[lcore_id].rx_ev_queue_id);
-
-					uint8_t queues[] = { wk_core_tasks[lcore_id].rx_ev_queue_id };
-
-					if (rte_event_port_link(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, queues, NULL, sizeof(queues)) < 0) {
-						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
-						return ROFL_FAILURE;
-					}
-
-					ev_port_id++;
+				if (rte_event_port_setup(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, &port_conf) < 0) {
+					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
+					return ROFL_FAILURE;
 				}
+
+				/* no event queue/port linking for RX cores */
+				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u\n", ev_core_tasks[lcore_id].name, lcore_id, ev_port_id);
+
+				ev_port_id++;
 			}
 
+			/* assign event ports to WK tasks */
+			for (auto wk_lcore_id : wk_lcores[socket_id]) {
+				if (not lcores[wk_lcore_id].is_wk_lcore) {
+					continue;
+				}
+				/* worker core(s) read from the associated event queue on their respective NUMA node */
+				wk_core_tasks[lcore_id].socket_id = socket_id;
+				wk_core_tasks[lcore_id].ev_port_id = ev_port_id;
+				wk_core_tasks[lcore_id].rx_ev_queue_id = EVENT_QUEUE_WK_TASKS;
+				wk_core_tasks[lcore_id].tx_ev_queue_id = EVENT_QUEUE_TX_TASKS;
 
+				struct rte_event_port_conf port_conf;
+				memset(&port_conf, 0, sizeof(port_conf));
+				port_conf.dequeue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_dequeue_depth;
+				port_conf.enqueue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_enqueue_depth;
+				port_conf.new_event_threshold = ev_core_tasks[lcore_id].eventdev_conf.nb_events_limit;
+
+				if (rte_event_port_setup(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, &port_conf) < 0) {
+					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
+					return ROFL_FAILURE;
+				}
+
+				/* link up event worker core port and associated queue */
+				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
+						ev_core_tasks[lcore_id].name, lcore_id, ev_port_id, wk_core_tasks[lcore_id].rx_ev_queue_id);
+
+				uint8_t queues[] = { wk_core_tasks[lcore_id].rx_ev_queue_id };
+
+				if (rte_event_port_link(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, queues, NULL, sizeof(queues)) < 0) {
+					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
+					return ROFL_FAILURE;
+				}
+
+				ev_port_id++;
+			}
+
+			/* assign event ports to TX tasks */
+			for (auto tx_lcore_id : tx_lcores[socket_id]) {
+				if (not lcores[tx_lcore_id].is_tx_lcore) {
+					continue;
+				}
+				/* TX core(s) read from the associated event queue on their respective NUMA node */
+				tx_core_tasks[lcore_id].socket_id = socket_id;
+				tx_core_tasks[lcore_id].ev_port_id = ev_port_id;
+				tx_core_tasks[lcore_id].rx_ev_queue_id = EVENT_QUEUE_TX_TASKS;
+
+				struct rte_event_port_conf port_conf;
+				memset(&port_conf, 0, sizeof(port_conf));
+				port_conf.dequeue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_dequeue_depth;
+				port_conf.enqueue_depth = ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_enqueue_depth;
+				port_conf.new_event_threshold = ev_core_tasks[lcore_id].eventdev_conf.nb_events_limit;
+
+				if (rte_event_port_setup(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, &port_conf) < 0) {
+					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
+					return ROFL_FAILURE;
+				}
+
+				/* link up event TX core port and associated queue */
+				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
+						ev_core_tasks[lcore_id].name, lcore_id, ev_port_id, tx_core_tasks[lcore_id].rx_ev_queue_id);
+
+				uint8_t queues[] = { tx_core_tasks[lcore_id].rx_ev_queue_id };
+
+				if (rte_event_port_link(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, queues, NULL, sizeof(queues)) < 0) {
+					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
+					return ROFL_FAILURE;
+				}
+
+				ev_port_id++;
+			}
 
 			/* get event device service_id for service core */
 			uint32_t service_id = 0xffffffff;
