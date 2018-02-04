@@ -618,7 +618,7 @@ rofl_result_t processing_init_eventdev(void){
 						continue;
 					}
 					XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] mapping service %s (%u) for eventdev %s to service lcore %u\n",
-											rte_service_get_name(service_id), service_id, ev_core_tasks[lcore_id].name.c_str(), lcore_id);
+											rte_service_get_name(service_id), service_id, ev_core_tasks[lcore_id].name, lcore_id);
 					if ((ret = rte_service_map_lcore_set(service_id, lcore_id, /*enable=*/1)) < 0) {
 						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] mapping of service %s (%u) for eventdev %s to service lcore %u failed\n",
 								rte_service_get_name(service_id), service_id, ev_core_tasks[lcore_id].name, lcore_id);
@@ -644,7 +644,7 @@ rofl_result_t processing_init_eventdev(void){
 			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] service %s (%u) for eventdev %s, runstate: %u\n",
 									rte_service_get_name(service_id),
 									service_id,
-									ev_core_tasks[socket_id].name.c_str(),
+									ev_core_tasks[socket_id].name,
 									rte_service_runstate_get(service_id));
 		}
 	}
@@ -868,7 +868,7 @@ rofl_result_t processing_shutdown(void){
 	/* stop service cores */
 	for (auto socket_id : numa_nodes) {
 		for (auto lcore_id : ev_lcores[socket_id]) {
-			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down event device %s\n", ev_core_tasks[lcore_id].name.c_str());
+			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down event device %s\n", ev_core_tasks[lcore_id].name);
 			rte_event_dev_stop(ev_core_tasks[lcore_id].eventdev_id);
 			if ((ret = rte_service_lcore_stop(lcore_id)) < 0) {
 				switch (ret) {
