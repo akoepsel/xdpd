@@ -21,6 +21,7 @@
 #include <rofl/datapath/pipeline/openflow/of_switch.h>
 
 #include <set>
+#include <cctype>
 #include <algorithm>
 #include <yaml-cpp/yaml.h>
 
