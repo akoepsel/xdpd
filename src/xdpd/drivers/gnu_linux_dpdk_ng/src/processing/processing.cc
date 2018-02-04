@@ -738,7 +738,7 @@ rofl_result_t processing_run(void){
 	/* start service cores */
 	for (auto socket_id : numa_nodes) {
 		for (auto lcore_id : ev_lcores[socket_id]) {
-			XDPD_DEBUG(DRIVER_NAME"[processing][run] starting service lcore %u on socket %u\n", lcore_id, socket_id);
+			XDPD_DEBUG(DRIVER_NAME"[processing][run] starting  service lcore %u on socket %u\n", lcore_id, socket_id);
 			if ((ret = rte_service_lcore_start(lcore_id)) < 0) {
 				switch (ret) {
 				case -EALREADY: {
@@ -789,7 +789,7 @@ rofl_result_t processing_run(void){
 				continue;
 			}
 
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting TX lcore %u on socket %u\n", lcore_id, tx_core_tasks[lcore_id].socket_id);
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting transmit lcore %02u on socket %02u\n", lcore_id, tx_core_tasks[lcore_id].socket_id);
 
 			// launch processing task on lcore
 			if (rte_eal_remote_launch(&processing_packet_transmission, NULL, lcore_id)) {
@@ -815,7 +815,7 @@ rofl_result_t processing_run(void){
 				continue;
 			}
 
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting RX lcore %u on socket %u\n", lcore_id, rx_core_tasks[lcore_id].socket_id);
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting  receive lcore %02u on socket %02u\n", lcore_id, rx_core_tasks[lcore_id].socket_id);
 
 			// launch processing task on lcore
 			if (rte_eal_remote_launch(&processing_packet_reception, NULL, lcore_id)) {
@@ -841,7 +841,7 @@ rofl_result_t processing_run(void){
 				continue;
 			}
 
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting WK lcore %u on socket %u\n", lcore_id, wk_core_tasks[lcore_id].socket_id);
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting   worker lcore %02u on socket %02u\n", lcore_id, wk_core_tasks[lcore_id].socket_id);
 
 			// launch processing task on lcore
 			if (rte_eal_remote_launch(&processing_packet_pipeline_processing, NULL, lcore_id)) {
