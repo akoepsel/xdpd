@@ -1152,6 +1152,8 @@ int processing_packet_transmission(void* not_used){
 		int timeout = 0;
 		uint16_t nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, tx_events, max_evt_tx_burst_size, timeout);
 
+		RTE_LOG(INFO, XDPD, "tx-task-%02u: rcvd %u event(s) from ev_port_id %u on eventdev %s\n", lcore_id, nb_rx, task->ev_port_id, ev_task->name);
+
 #if 0
 		if (nb_rx==0){
 			task->idle_loops++;
@@ -1240,6 +1242,7 @@ int processing_packet_transmission(void* not_used){
 			}
 		}
 
+		RTE_LOG(INFO, XDPD, "tx-task-%02u: draining packets\n", lcore_id);
 
 		/*
 		 * drain all outgoing ports
