@@ -447,7 +447,7 @@ rofl_result_t processing_init_eventdev(void){
 					if (s_schedule_type == "parallel") {
 						queue_conf.schedule_type = RTE_SCHED_TYPE_PARALLEL;
 					} else {
-						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, event queue %u, unknown schedule type %s defined\n",
+						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, event queue %u, unknown schedule type defined: \"%s\"\n",
 								ev_core_tasks[lcore_id].name, queue_id, s_schedule_type.c_str());
 						return ROFL_FAILURE;
 					}
