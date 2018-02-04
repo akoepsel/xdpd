@@ -386,7 +386,7 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev: %s, max_event_ports: %u, max_event_queues: %u, max_num_events: %u\n",
-					ev_core_tasks[lcore_id].name.c_str(),
+					ev_core_tasks[lcore_id].name,
 					ev_core_tasks[lcore_id].eventdev_info.max_event_ports,
 					ev_core_tasks[lcore_id].eventdev_info.max_event_queues,
 					ev_core_tasks[lcore_id].eventdev_info.max_num_events);
@@ -411,7 +411,7 @@ rofl_result_t processing_init_eventdev(void){
 			ev_core_tasks[lcore_id].eventdev_conf.nb_event_port_enqueue_depth = ev_core_tasks[lcore_id].eventdev_info.max_event_port_enqueue_depth;
 
 			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] configuring eventdev: %s, nb_event_queues: %u, nb_event_ports: %u, nb_events_limit: %u, nb_event_queue_flows: %u, nb_event_port_dequeue_depth: %u, nb_event_port_enqueue_depth: %u\n",
-					ev_core_tasks[lcore_id].name.c_str(),
+					ev_core_tasks[lcore_id].name,
 					ev_core_tasks[lcore_id].eventdev_conf.nb_event_queues,
 					ev_core_tasks[lcore_id].eventdev_conf.nb_event_ports,
 					ev_core_tasks[lcore_id].eventdev_conf.nb_events_limit,
@@ -529,7 +529,7 @@ rofl_result_t processing_init_eventdev(void){
 					}
 
 					/* no event queue/port linking for RX cores */
-					XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u\n", ev_core_tasks[lcore_id].name.c_str(), lcore_id, ev_port_id);
+					XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u\n", ev_core_tasks[lcore_id].name, lcore_id, ev_port_id);
 
 					ev_port_id++;
 				} else
@@ -552,7 +552,7 @@ rofl_result_t processing_init_eventdev(void){
 
 					/* link up event TX core port and associated queue */
 					XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
-							ev_core_tasks[lcore_id].name.c_str(), lcore_id, ev_port_id, tx_core_tasks[lcore_id].rx_ev_queue_id);
+							ev_core_tasks[lcore_id].name, lcore_id, ev_port_id, tx_core_tasks[lcore_id].rx_ev_queue_id);
 
 					uint8_t queues[] = { tx_core_tasks[lcore_id].rx_ev_queue_id };
 
@@ -583,7 +583,7 @@ rofl_result_t processing_init_eventdev(void){
 
 					/* link up event worker core port and associated queue */
 					XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
-							ev_core_tasks[lcore_id].name.c_str(), lcore_id, ev_port_id, wk_core_tasks[lcore_id].rx_ev_queue_id);
+							ev_core_tasks[lcore_id].name, lcore_id, ev_port_id, wk_core_tasks[lcore_id].rx_ev_queue_id);
 
 					uint8_t queues[] = { wk_core_tasks[lcore_id].rx_ev_queue_id };
 
