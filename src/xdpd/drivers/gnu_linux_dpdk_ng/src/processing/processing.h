@@ -146,9 +146,9 @@ typedef struct wk_core_task {
  */
 typedef struct ev_core_task {
 	/* event device name */
-	std::string name;
+	char name[64];
 	/* event device arguments */
-	std::string args;
+	char args[128];
 	/* event device handle */
 	uint8_t eventdev_id;
 	/* event device info structure */
