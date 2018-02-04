@@ -509,6 +509,11 @@ rofl_result_t processing_init_eventdev(void){
 					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", ev_core_tasks[lcore_id].name, ev_port_id);
 					return ROFL_FAILURE;
 				}
+
+				/* ev_port_id = 0 assigned to LCORE_ID_ANY */
+				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, LCORE_ID_ANY, ev_port_id: %2u\n",
+						ev_core_tasks[lcore_id].name, ev_port_id);
+
 				ev_port_id++;
 			}
 
