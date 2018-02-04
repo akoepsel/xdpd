@@ -145,6 +145,9 @@ typedef struct wk_core_task {
  * event device
  */
 typedef struct ev_core_task {
+	bool available; // task is runnable on lcore
+	bool active; // task is running
+
 	/* event device name */
 	char name[64];
 	/* event device arguments */

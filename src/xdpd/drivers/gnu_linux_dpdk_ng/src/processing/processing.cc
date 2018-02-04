@@ -309,6 +309,7 @@ rofl_result_t processing_init_task_structures(void) {
 				continue;
 			}
 			if (lcores[lcore_id].is_ev_lcore) {
+				ev_core_tasks[lcore_id].available = true;
 				continue;
 			}
 			if (lcores[lcore_id].is_wk_lcore) {
@@ -755,6 +756,7 @@ rofl_result_t processing_run(void){
 						ev_core_tasks[lcore_id].name);
 				return ROFL_FAILURE;
 			}
+			ev_core_tasks[lcore_id].active = true;
 		}
 	}
 
@@ -787,7 +789,7 @@ rofl_result_t processing_run(void){
 				continue;
 			}
 
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting TX lcore %u on socket (%u)\n", lcore_id, tx_core_tasks[lcore_id].socket_id);
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting TX lcore %u on socket %u\n", lcore_id, tx_core_tasks[lcore_id].socket_id);
 
 			// launch processing task on lcore
 			if (rte_eal_remote_launch(&processing_packet_transmission, NULL, lcore_id)) {
@@ -839,7 +841,7 @@ rofl_result_t processing_run(void){
 				continue;
 			}
 
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting worker lcore %u on socket %u\n", lcore_id, wk_core_tasks[lcore_id].socket_id);
+			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting WK lcore %u on socket %u\n", lcore_id, wk_core_tasks[lcore_id].socket_id);
 
 			// launch processing task on lcore
 			if (rte_eal_remote_launch(&processing_packet_pipeline_processing, NULL, lcore_id)) {
@@ -870,21 +872,32 @@ rofl_result_t processing_shutdown(void){
 
 	//Stop all cores and wait for them to complete execution tasks
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
+		if(rx_core_tasks[lcore_id].available && rx_core_tasks[lcore_id].active){
+			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down active lcore %u\n", lcore_id);
+			rx_core_tasks[lcore_id].active = false;
+			//Join core
+			rte_eal_wait_lcore(lcore_id);
+		}
 		if(wk_core_tasks[lcore_id].available && wk_core_tasks[lcore_id].active){
 			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down active lcore %u\n", lcore_id);
 			wk_core_tasks[lcore_id].active = false;
 			//Join core
 			rte_eal_wait_lcore(lcore_id);
 		}
+		if(tx_core_tasks[lcore_id].available && tx_core_tasks[lcore_id].active){
+			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down active lcore %u\n", lcore_id);
+			tx_core_tasks[lcore_id].active = false;
+			//Join core
+			rte_eal_wait_lcore(lcore_id);
+		}
 	}
-
-
 
 	/* stop service cores */
 	for (auto socket_id : numa_nodes) {
 		for (auto lcore_id : ev_lcores[socket_id]) {
 			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down event device %s\n", ev_core_tasks[lcore_id].name);
 			rte_event_dev_stop(ev_core_tasks[lcore_id].eventdev_id);
+			ev_core_tasks[lcore_id].active = false;
 			if ((ret = rte_service_lcore_stop(lcore_id)) < 0) {
 				switch (ret) {
 				case -EALREADY: {
