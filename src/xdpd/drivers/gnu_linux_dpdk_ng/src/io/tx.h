@@ -38,6 +38,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 	struct rte_mbuf* mbuf;
 	dpdk_port_state_t* ps;
 	unsigned int port_id, lcore_id;
+	int socket_id;
 	struct rte_event tx_events[MAX_ETH_TX_BURST_SIZE_DEFAULT];
 
 	//Get mbuf pointer
@@ -50,6 +51,8 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 	if ((lcore_id == LCORE_ID_ANY) || (lcores[lcore_id].is_master)) {
 
 		uint16_t ev_port_id = 0; /* reserved port number for control plane */
+
+		socket_id = rte_lcore_to_socket_id(rte_get_master_lcore());
 
 		/* use out_port_id from pipeline */
 		rte_rwlock_read_lock(&port_list_rwlock);
@@ -66,7 +69,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		tx_events[0].flow_id = mbuf->hash.rss;
 		tx_events[0].op = RTE_EVENT_OP_RELEASE;
 		tx_events[0].sched_type = RTE_SCHED_TYPE_PARALLEL;
-		tx_events[0].queue_id = event_queues[ps->socket_id][EVENT_QUEUE_TXCORES]; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
+		tx_events[0].queue_id = EVENT_QUEUE_TX_TASKS; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
 		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
 		tx_events[0].sub_event_type = 0;
 		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
@@ -78,7 +81,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		//		lcore_id, ps->port_id, ev_port_id, event_queues[ps->socket_id][EVENT_QUEUE_TXCORES], 0);
 
 		int i = 0, nb_rx = 1;
-		const int nb_tx = rte_event_enqueue_burst(eventdev_id, ev_port_id, tx_events, nb_rx);
+		const int nb_tx = rte_event_enqueue_burst(eventdevs[socket_id]->eventdev_id, ev_port_id, tx_events, nb_rx);
 
 		if (lcore_id != LCORE_ID_ANY && lcores[lcore_id].is_master){
 			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket MASTER, enqueued %u event(s) via ev_port_id=%u\n",
@@ -104,6 +107,8 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		//Recover worker task
 		wk_core_task_t* task = &wk_core_tasks[lcore_id];
 
+		socket_id = rte_lcore_to_socket_id(lcore_id);
+
 		if (unlikely(not task->available) || unlikely(not task->active)) {
 			rte_pktmbuf_free(mbuf);
 			return;
@@ -124,7 +129,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		tx_events[0].flow_id = mbuf->hash.rss;
 		tx_events[0].op = RTE_EVENT_OP_RELEASE;
 		tx_events[0].sched_type = RTE_SCHED_TYPE_PARALLEL;
-		tx_events[0].queue_id = task->tx_ev_queue_id[ps->socket_id]; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
+		tx_events[0].queue_id = EVENT_QUEUE_TX_TASKS; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
 		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
 		tx_events[0].sub_event_type = 0;
 		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
@@ -136,7 +141,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		//		lcore_id, task->ev_port_id, task->tx_ev_queue_id[ps->socket_id], 0, port_id);
 
 		int i = 0, nb_rx = 1;
-		const int nb_tx = rte_event_enqueue_burst(eventdev_id, task->ev_port_id, tx_events, nb_rx);
+		const int nb_tx = rte_event_enqueue_burst(eventdevs[socket_id]->eventdev_id, task->ev_port_id, tx_events, nb_rx);
 
 		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, enqueued %u event(s) via ev_port_id=%u\n",
 				lcore_id, rte_lcore_to_socket_id(lcore_id), nb_tx, task->ev_port_id);

@@ -21,6 +21,8 @@
 #include <rte_rwlock.h>
 #include <rte_eventdev.h>
 
+#include <string>
+
 #include "../io/dpdk_datapacket.h"
 
 typedef struct rx_port_queue {
@@ -134,15 +136,31 @@ typedef struct wk_core_task {
 	unsigned int socket_id; /* NUMA node socket-id */
 	uint8_t ev_port_id; /* event port-id */
 	uint8_t rx_ev_queue_id; /* event queue-id for receiving events */
-	uint8_t tx_ev_queue_id[RTE_MAX_NUMA_NODES]; /* event queue-id for sending events to the appropriate TX lcore event queue */
-
-	uint16_t n_rx_queue;
-	rx_port_queue_t rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
-	uint16_t n_tx_port;
-	uint8_t tx_queue_id[RTE_MAX_ETHPORTS]; // tx_queue_id[port_id] = queue_id => transmission queue for outgoing packets
-	uint16_t tx_port_id[RTE_MAX_ETHPORTS];
+	uint8_t tx_ev_queue_id; /* event queue-id for sending events to the appropriate TX lcore event queue */
 
 } __rte_cache_aligned wk_core_task_t;
+
+
+/**
+ * event device
+ */
+typedef struct ev_core_task {
+	/* event device name */
+	std::string name;
+	/* event device arguments */
+	std::string args;
+	/* event device handle */
+	uint8_t eventdev_id;
+	/* event device info structure */
+	struct rte_event_dev_info eventdev_info;
+	/* event device configuration */
+	struct rte_event_dev_config eventdev_conf;
+
+	/* event queue forwarding events to worker tasks */
+	uint8_t ev_queue_to_wk_tasks;
+	/* event queue forwarding events to TX tasks */
+	uint8_t ev_queue_to_tx_tasks;
+} __rte_cache_aligned ev_core_task_t;
 
 /**
 * Processing tasks: receive, transmit, worker
@@ -150,20 +168,22 @@ typedef struct wk_core_task {
 extern rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
 extern tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
 extern wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
+extern ev_core_task_t ev_core_tasks[RTE_MAX_LCORE];
 extern struct rte_mempool* direct_pools[RTE_MAX_NUMA_NODES];
 extern struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
 extern switch_port_t* port_list[PROCESSING_MAX_PORTS];
 extern rte_rwlock_t port_list_rwlock;
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
-extern uint8_t eventdev_id;
+extern ev_core_task_t* eventdevs[RTE_MAX_NUMA_NODES];
+
 
 /* maximum number of event queues per NUMA node: queue[0]=used by workers, queue[1]=used by TX lcores */
 enum event_queue_t {
-	EVENT_QUEUE_WORKERS = 0,
-	EVENT_QUEUE_TXCORES = 1,
+	EVENT_QUEUE_WK_TASKS = 0, //workers
+	EVENT_QUEUE_TX_TASKS = 1, //TX cores
 	EVENT_QUEUE_MAX = 2, /* max number of event queues per NUMA node */
 };
-extern uint8_t event_queues[RTE_MAX_NUMA_NODES][EVENT_QUEUE_MAX];
+
 
 /**
 * Total number of physical ports (scheduled, so usable by the I/O)

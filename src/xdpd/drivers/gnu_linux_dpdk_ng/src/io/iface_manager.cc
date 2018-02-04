@@ -77,7 +77,6 @@ extern std::map<unsigned int, std::set<unsigned int> > tx_lcores;
 
 extern unsigned int mem_pool_size;
 extern unsigned int mbuf_dataroom;
-extern unsigned int max_eth_rx_burst_size;
 
 
 static int set_vf_vlan_filter(uint16_t port_id, uint16_t vlan_id, uint64_t vf_mask, uint8_t on)
