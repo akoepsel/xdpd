@@ -667,7 +667,7 @@ rofl_result_t processing_init_eventdev(void){
 			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] service %s (%u) for eventdev %s, runstate: %u\n",
 									rte_service_get_name(service_id),
 									service_id,
-									ev_core_tasks[socket_id].name,
+									ev_core_tasks[lcore_id].name,
 									rte_service_runstate_get(service_id));
 		}
 	}
