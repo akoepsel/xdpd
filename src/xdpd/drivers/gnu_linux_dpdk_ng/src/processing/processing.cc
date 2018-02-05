@@ -1532,7 +1532,7 @@ void processing_dump_core_states(void){
 */
 void processing_update_stats(void)
 {
-	RTE_LOG(INFO, XDPD, "[processing] task status:\n");
+	XDPD_INFO(DRIVER_NAME"[processing] task status:\n");
 	for (auto socket_id : numa_nodes) {
 		for (auto lcore_id : rx_lcores[socket_id]) {
 			rx_core_task_t *task = &rx_core_tasks[lcore_id];
@@ -1546,7 +1546,7 @@ void processing_update_stats(void)
 			ss << "bugs-dropped=" << std::setw(16) << task->stats.bugs_dropped << ", ";
 			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
 			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
-			RTE_LOG(INFO, XDPD, "\t%s\n", ss.str().c_str());
+			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 		}
 		for (auto lcore_id : wk_lcores[socket_id]) {
 			wk_core_task_t *task = &wk_core_tasks[lcore_id];
@@ -1560,7 +1560,7 @@ void processing_update_stats(void)
 			ss << "bugs-dropped=" << std::setw(16) << task->stats.bugs_dropped << ", ";
 			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
 			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
-			RTE_LOG(INFO, XDPD, "\t%s\n", ss.str().c_str());
+			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 		}
 		for (auto lcore_id : tx_lcores[socket_id]) {
 			tx_core_task_t *task = &tx_core_tasks[lcore_id];
@@ -1574,7 +1574,7 @@ void processing_update_stats(void)
 			ss << "bugs-dropped=" << std::setw(16) << task->stats.bugs_dropped << ", ";
 			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
 			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
-			RTE_LOG(INFO, XDPD, "\t%s\n", ss.str().c_str());
+			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 		}
 	}
 }
