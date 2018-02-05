@@ -1670,6 +1670,21 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		++vf_id;
 	}
 
+	//configure arbitrary stuff
+	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
+		rte_eth_dev_info_get(port_id, &dev_info);
+		if (dev_info.pci_dev) {
+			memset(s_pci_addr, 0, sizeof(s_pci_addr));
+			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
+		}
+
+		if (iface_manager_port_setting_exists(s_pci_addr, "shortcut")) {
+			if (iface_manager_port_exists(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "shortcut"))) {
+				phyports[port_id].shortcut_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "shortcut"));
+			}
+		}
+	}
+
 	//unsigned int vport_name_index = 0;
 	//Iterate over all available physical ports
 	for (uint16_t port_id = 0; port_id < rte_eth_dev_count(); port_id++) {
