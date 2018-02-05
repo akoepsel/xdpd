@@ -1678,10 +1678,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rte_pci_device_name(&(dev_info.pci_dev->addr), s_pci_addr, sizeof(s_pci_addr));
 		}
 
-		if (iface_manager_port_setting_exists(s_pci_addr, "shortcut")) {
-			if (iface_manager_port_exists(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "shortcut"))) {
-				phyports[port_id].shortcut_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "shortcut"));
-			}
+		if (iface_manager_port_setting_exists(s_pci_addr, "shortcut") && iface_manager_port_exists(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "shortcut"))) {
+			phyports[port_id].shortcut_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "shortcut"));
+		} else {
+			phyports[port_id].shortcut_port_id = port_id; //sent packet out via in-port, if no shortcut port was defined
 		}
 	}
 
