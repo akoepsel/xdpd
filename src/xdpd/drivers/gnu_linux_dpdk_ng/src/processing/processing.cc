@@ -1537,7 +1537,7 @@ void processing_update_stats(void)
 		for (auto lcore_id : rx_lcores[socket_id]) {
 			rx_core_task_t *task = &rx_core_tasks[lcore_id];
 			std::stringstream ss;
-			ss << "rx-task-" << lcore_id << ": ";
+			ss << "rx-task-" << std::setfill('0') << std::setw(2) << lcore_id << ": ";
 			ss << "rx-pkts=" << task->stats.rx_pkts << ", ";
 			ss << "tx-pkts=" << task->stats.tx_pkts << ", ";
 			ss << "rx-evts=" << task->stats.rx_evts << ", ";
@@ -1551,7 +1551,7 @@ void processing_update_stats(void)
 		for (auto lcore_id : wk_lcores[socket_id]) {
 			wk_core_task_t *task = &wk_core_tasks[lcore_id];
 			std::stringstream ss;
-			ss << "rx-task-" << lcore_id << ": ";
+			ss << "rx-task-" << std::setfill('0') << std::setw(2) << lcore_id << ": ";
 			ss << "rx-pkts=" << task->stats.rx_pkts << ", ";
 			ss << "tx-pkts=" << task->stats.tx_pkts << ", ";
 			ss << "rx-evts=" << task->stats.rx_evts << ", ";
@@ -1565,7 +1565,7 @@ void processing_update_stats(void)
 		for (auto lcore_id : tx_lcores[socket_id]) {
 			tx_core_task_t *task = &tx_core_tasks[lcore_id];
 			std::stringstream ss;
-			ss << "rx-task-" << lcore_id << ": ";
+			ss << "rx-task-" << std::setfill('0') << std::setw(2) << lcore_id << ": ";
 			ss << "rx-pkts=" << task->stats.rx_pkts << ", ";
 			ss << "tx-pkts=" << task->stats.tx_pkts << ", ";
 			ss << "rx-evts=" << task->stats.rx_evts << ", ";
