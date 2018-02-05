@@ -1175,8 +1175,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			/* allocate txring for tx-task */
 			std::stringstream rgname("tx-ring-");
-			rgname << "task-" << lcore_id;
-			rgname << "port-" << port_id;
+			rgname << "task-" << lcore_id << "." << "port-" << port_id;
 
 			/* store txring-drain-max-queuesize parameter for this port */
 			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-queue-capacity")) {
@@ -1203,8 +1202,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				tx_core_tasks[lcore_id].txring_drain_threshold[port_id] = PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT;
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces] physical port: %u, txring: %s, socket: %u, capacity: %u\n",
-					port_id, rgname.str().c_str(), socket_id, tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id]);
+			XDPD_INFO(DRIVER_NAME"[ifaces] physical port: %u on socket: %u for lcore: %u, txring: %s, capacity: %u\n",
+					port_id, socket_id, lcore_id, rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id]);
 
 			/* create RTE ring for queuing packets between workers and tx threads */
 			if ((tx_core_tasks[lcore_id].txring[port_id] = rte_ring_create(rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id], socket_id, RING_F_SP_ENQ | RING_F_SC_DEQ)) == NULL) {
