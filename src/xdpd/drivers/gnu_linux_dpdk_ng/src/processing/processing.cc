@@ -1080,7 +1080,7 @@ int processing_packet_pipeline_processing(void* not_used){
 		uint16_t nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_proc_burst_size, timeout);
 
 		if (nb_rx == 0) {
-			rte_pause();
+			//rte_pause();
 			continue;
 		}
 
