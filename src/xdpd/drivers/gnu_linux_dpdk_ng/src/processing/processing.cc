@@ -1538,42 +1538,42 @@ void processing_update_stats(void)
 			rx_core_task_t *task = &rx_core_tasks[lcore_id];
 			std::stringstream ss;
 			ss << "rx-task-" << std::setfill('0') << std::setw(2) << lcore_id << ": ";
-			ss << "rx-pkts=" << task->stats.rx_pkts << ", ";
-			ss << "tx-pkts=" << task->stats.tx_pkts << ", ";
-			ss << "rx-evts=" << task->stats.rx_evts << ", ";
-			ss << "tx-evts=" << task->stats.tx_evts << ", ";
-			ss << "evts-dropped=" << task->stats.evts_dropped << ", ";
-			ss << "bugs-dropped=" << task->stats.bugs_dropped << ", ";
-			ss << "ring-dropped=" << task->stats.ring_dropped << ", ";
-			ss << "eths-dropped=" << task->stats.eths_dropped << ", ";
+			ss << "rx-pkts=" << std::setw(16) << task->stats.rx_pkts << ", ";
+			ss << "tx-pkts=" << std::setw(16) << task->stats.tx_pkts << ", ";
+			ss << "rx-evts=" << std::setw(16) << task->stats.rx_evts << ", ";
+			ss << "tx-evts=" << std::setw(16) << task->stats.tx_evts << ", ";
+			ss << "evts-dropped=" << std::setw(16) << task->stats.evts_dropped << ", ";
+			ss << "bugs-dropped=" << std::setw(16) << task->stats.bugs_dropped << ", ";
+			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
+			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
 			RTE_LOG(INFO, XDPD, "\t%s\n", ss.str().c_str());
 		}
 		for (auto lcore_id : wk_lcores[socket_id]) {
 			wk_core_task_t *task = &wk_core_tasks[lcore_id];
 			std::stringstream ss;
 			ss << "rx-task-" << std::setfill('0') << std::setw(2) << lcore_id << ": ";
-			ss << "rx-pkts=" << task->stats.rx_pkts << ", ";
-			ss << "tx-pkts=" << task->stats.tx_pkts << ", ";
-			ss << "rx-evts=" << task->stats.rx_evts << ", ";
-			ss << "tx-evts=" << task->stats.tx_evts << ", ";
-			ss << "evts-dropped=" << task->stats.evts_dropped << ", ";
-			ss << "bugs-dropped=" << task->stats.bugs_dropped << ", ";
-			ss << "ring-dropped=" << task->stats.ring_dropped << ", ";
-			ss << "eths-dropped=" << task->stats.eths_dropped << ", ";
+			ss << "rx-pkts=" << std::setw(16) << task->stats.rx_pkts << ", ";
+			ss << "tx-pkts=" << std::setw(16) << task->stats.tx_pkts << ", ";
+			ss << "rx-evts=" << std::setw(16) << task->stats.rx_evts << ", ";
+			ss << "tx-evts=" << std::setw(16) << task->stats.tx_evts << ", ";
+			ss << "evts-dropped=" << std::setw(16) << task->stats.evts_dropped << ", ";
+			ss << "bugs-dropped=" << std::setw(16) << task->stats.bugs_dropped << ", ";
+			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
+			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
 			RTE_LOG(INFO, XDPD, "\t%s\n", ss.str().c_str());
 		}
 		for (auto lcore_id : tx_lcores[socket_id]) {
 			tx_core_task_t *task = &tx_core_tasks[lcore_id];
 			std::stringstream ss;
 			ss << "rx-task-" << std::setfill('0') << std::setw(2) << lcore_id << ": ";
-			ss << "rx-pkts=" << task->stats.rx_pkts << ", ";
-			ss << "tx-pkts=" << task->stats.tx_pkts << ", ";
-			ss << "rx-evts=" << task->stats.rx_evts << ", ";
-			ss << "tx-evts=" << task->stats.tx_evts << ", ";
-			ss << "evts-dropped=" << task->stats.evts_dropped << ", ";
-			ss << "bugs-dropped=" << task->stats.bugs_dropped << ", ";
-			ss << "ring-dropped=" << task->stats.ring_dropped << ", ";
-			ss << "eths-dropped=" << task->stats.eths_dropped << ", ";
+			ss << "rx-pkts=" << std::setw(16) << task->stats.rx_pkts << ", ";
+			ss << "tx-pkts=" << std::setw(16) << task->stats.tx_pkts << ", ";
+			ss << "rx-evts=" << std::setw(16) << task->stats.rx_evts << ", ";
+			ss << "tx-evts=" << std::setw(16) << task->stats.tx_evts << ", ";
+			ss << "evts-dropped=" << std::setw(16) << task->stats.evts_dropped << ", ";
+			ss << "bugs-dropped=" << std::setw(16) << task->stats.bugs_dropped << ", ";
+			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
+			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
 			RTE_LOG(INFO, XDPD, "\t%s\n", ss.str().c_str());
 		}
 	}
