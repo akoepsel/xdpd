@@ -38,6 +38,7 @@ unsigned int max_eth_rx_burst_size = MAX_ETH_RX_BURST_SIZE_DEFAULT;
 unsigned int max_evt_wk_burst_size = MAX_EVT_WK_BURST_SIZE_DEFAULT;
 unsigned int max_evt_tx_burst_size = MAX_EVT_TX_BURST_SIZE_DEFAULT;
 unsigned int max_eth_tx_burst_size = MAX_ETH_TX_BURST_SIZE_DEFAULT;
+bool shortcut = false;
 
 const std::string eventdev_args_default("sched_quanta=64,credit_quanta=32");
 
@@ -183,6 +184,13 @@ rofl_result_t processing_init_lcores(void){
 		max_eth_tx_burst_size = max_eth_tx_burst_size_node.as<unsigned int>();
 	}
 	XDPD_INFO(DRIVER_NAME"[processing][init] max_eth_tx_burst_size=%u\n", max_eth_tx_burst_size);
+
+	/* enable shortcut */
+	YAML::Node shortcut_node = y_config_dpdk_ng["dpdk"]["processing"]["shortcut"];
+	if (shortcut_node && shortcut_node.IsScalar()) {
+		shortcut = shortcut_node.as<bool>();
+	}
+	XDPD_INFO(DRIVER_NAME"[processing][init] shortcut=%u\n", shortcut);
 
 	/* detect all lcores and their state */
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
@@ -1091,27 +1099,36 @@ int processing_packet_pipeline_processing(void* not_used){
 
 		task->stats.rx_evts+=nb_rx;
 
-		for (i = 0; i < nb_rx; i++) {
 
-			if (rx_events[i].mbuf == NULL) {
-				continue;
+		if (shortcut){
+			for (i = 0; i < nb_rx; i++) {
+				rx_events[i].queue_id = EVENT_QUEUE_TX_TASKS;
 			}
+			rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
+		} else {
+			for (i = 0; i < nb_rx; i++) {
 
-			uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
+				if (rx_events[i].mbuf == NULL) {
+					continue;
+				}
 
-			rte_rwlock_read_lock(&port_list_rwlock);
-			if ((port = port_list[in_port_id]) == NULL) {
+				uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
+
+				rte_rwlock_read_lock(&port_list_rwlock);
+				if ((port = port_list[in_port_id]) == NULL) {
+					rte_rwlock_read_unlock(&port_list_rwlock);
+					continue;
+				}
+				sw = port->attached_sw;
 				rte_rwlock_read_unlock(&port_list_rwlock);
-				continue;
+
+				/* inject packet into openflow pipeline */
+				rx_pkt(lcore_id, sw, rx_events[i].mbuf, &pkt, pkt_state);
+
+				/* see packet_inline.h and src/io/tx.h for transmission of packets */
 			}
-			sw = port->attached_sw;
-			rte_rwlock_read_unlock(&port_list_rwlock);
-
-			/* inject packet into openflow pipeline */
-			rx_pkt(lcore_id, sw, rx_events[i].mbuf, &pkt, pkt_state);
-
-			/* see packet_inline.h and src/io/tx.h for transmission of packets */
 		}
+
 	}
 
 	destroy_datapacket_dpdk(pkt_state);
