@@ -56,7 +56,12 @@ typedef struct port_bursts{
 typedef struct task_statistics {
 	uint64_t rx_pkts;
 	uint64_t tx_pkts;
-	uint64_t pkts_dropped; // number of packets dropped
+	uint64_t rx_evts;
+	uint64_t tx_evts;
+	uint64_t evts_dropped; // number of packets dropped in outgoing eventdev
+	uint64_t bugs_dropped; // number of packets dropped in tx-task due to misbehaving internal operations (also called bugs ;)
+	uint64_t ring_dropped; // number of packets dropped in outgoing txring
+	uint64_t eths_dropped; // number of packets dropped in outgoing etherdev
 } __rte_cache_aligned task_statistics_t;
 
 

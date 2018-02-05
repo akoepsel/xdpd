@@ -35,11 +35,11 @@ unsigned int mem_pool_size = 0;
 unsigned int mbuf_dataroom = RTE_MBUF_DEFAULT_DATAROOM;
 unsigned int mbuf_buf_size = RTE_MBUF_DEFAULT_BUF_SIZE;
 unsigned int max_eth_rx_burst_size = MAX_ETH_RX_BURST_SIZE_DEFAULT;
-unsigned int max_evt_proc_burst_size = MAX_EVT_PROC_BURST_SIZE_DEFAULT;
+unsigned int max_evt_wk_burst_size = MAX_EVT_WK_BURST_SIZE_DEFAULT;
 unsigned int max_evt_tx_burst_size = MAX_EVT_TX_BURST_SIZE_DEFAULT;
 unsigned int max_eth_tx_burst_size = MAX_ETH_TX_BURST_SIZE_DEFAULT;
 
-const std::string eventdev_args_default("sched_quanta=4095,credit_quanta=127");
+const std::string eventdev_args_default("sched_quanta=64,credit_quanta=32");
 
 //
 // Processing state
@@ -164,11 +164,11 @@ rofl_result_t processing_init_lcores(void){
 	XDPD_INFO(DRIVER_NAME"[processing][init] max_eth_rx_burst_size=%u\n", max_eth_rx_burst_size);
 
 	/* get max_evt_proc_burst_size */
-	YAML::Node max_evt_proc_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_evt_proc_burst_size"];
-	if (max_evt_proc_burst_size_node && max_evt_proc_burst_size_node.IsScalar()) {
-		max_evt_proc_burst_size = max_evt_proc_burst_size_node.as<unsigned int>();
+	YAML::Node max_evt_wk_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_evt_wk_burst_size"];
+	if (max_evt_wk_burst_size_node && max_evt_wk_burst_size_node.IsScalar()) {
+		max_evt_wk_burst_size = max_evt_wk_burst_size_node.as<unsigned int>();
 	}
-	XDPD_INFO(DRIVER_NAME"[processing][init] max_evt_proc_burst_size=%u\n", max_evt_proc_burst_size);
+	XDPD_INFO(DRIVER_NAME"[processing][init] max_evt_wk_burst_size=%u\n", max_evt_wk_burst_size);
 
 	/* get max_evt_tx_burst_size */
 	YAML::Node max_evt_tx_burst_size_node = y_config_dpdk_ng["dpdk"]["processing"]["max_evt_tx_burst_size"];
@@ -803,7 +803,7 @@ rofl_result_t processing_run(void){
 			}
 
 			tx_core_tasks[lcore_id].active = true;
-			tx_core_tasks[lcore_id].stats.pkts_dropped = 0;
+			tx_core_tasks[lcore_id].stats.eths_dropped = 0;
 		}
 
 		/* receiving lcores */
@@ -829,7 +829,7 @@ rofl_result_t processing_run(void){
 			}
 
 			rx_core_tasks[lcore_id].active = true;
-			tx_core_tasks[lcore_id].stats.pkts_dropped = 0;
+			tx_core_tasks[lcore_id].stats.eths_dropped = 0;
 		}
 
 		/* worker lcores */
@@ -855,7 +855,7 @@ rofl_result_t processing_run(void){
 			}
 
 			wk_core_tasks[lcore_id].active = true;
-			wk_core_tasks[lcore_id].stats.pkts_dropped = 0;
+			wk_core_tasks[lcore_id].stats.eths_dropped = 0;
 		}
 	}
 
@@ -1009,8 +1009,8 @@ int processing_packet_reception(void* not_used){
 			for (i = 0; i < nb_rx; i++) {
 				event[i].flow_id = mbufs[i]->hash.rss;
 				event[i].op = RTE_EVENT_OP_NEW;
-				event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
-				//event[i].sched_type = RTE_SCHED_TYPE_PARALLEL;
+				//event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
+				event[i].sched_type = RTE_SCHED_TYPE_PARALLEL;
 				event[i].queue_id = ev_queue_id;
 				event[i].event_type = RTE_EVENT_TYPE_ETHDEV;
 				event[i].sub_event_type = 0;
@@ -1022,18 +1022,20 @@ int processing_packet_reception(void* not_used){
 					mbufs[i]->port = port_id;
 				}
 			}
+			task->stats.rx_pkts+=nb_rx;
 
 			/* enqueue events to event device */
 			const int nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, ev_port_id, event, nb_rx);
+			task->stats.tx_evts+=nb_tx;
 
 			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, dequeued %u pkt(s) from eth_port_id=%u and enqueued %u pkt(s) to ev_port_id=%u (rx-eth-burst)\n",
 					lcore_id, rte_lcore_to_socket_id(lcore_id), nb_rx, port_id, nb_tx, ev_port_id);
 
 			/* release mbufs not queued in event device */
 			if (nb_tx < nb_rx) {
-				RTE_LOG(WARNING, XDPD, "rx-task-%02u: dropping %u packets, worker event receive queue full on socket %u\n",
-						lcore_id, nb_rx - nb_tx, rte_lcore_to_socket_id(lcore_id));
-				task->stats.pkts_dropped++;
+				task->stats.evts_dropped+=(nb_rx-nb_tx);
+				RTE_LOG(WARNING, XDPD, "rx-task-%02u: dropping %u packets, worker event receive queue full on socket %u, task->stats.evts_dropped=%" PRIu64 "\n",
+						lcore_id, nb_rx - nb_tx, rte_lcore_to_socket_id(lcore_id), task->stats.evts_dropped);
 				for(i = nb_tx; i < nb_rx; i++) {
 					rte_pktmbuf_free(mbufs[i]);
 				}
@@ -1055,7 +1057,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 	unsigned int i, lcore_id = rte_lcore_id();
 	int socket_id = rte_lcore_to_socket_id(lcore_id);
-	struct rte_event rx_events[max_evt_proc_burst_size];
+	struct rte_event rx_events[max_evt_wk_burst_size];
 	wk_core_task_t* task = &wk_core_tasks[lcore_id];
 	switch_port_t* port;
 	of_switch_t* sw;
@@ -1077,7 +1079,7 @@ int processing_packet_pipeline_processing(void* not_used){
 	while(likely(task->active)) {
 
 		int timeout = 0;
-		uint16_t nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_proc_burst_size, timeout);
+		uint16_t nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
 
 		if (nb_rx == 0) {
 			//rte_pause();
@@ -1086,6 +1088,8 @@ int processing_packet_pipeline_processing(void* not_used){
 
 		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, dequeued %u event(s) from ev_port_id=%u\n",
 				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx, task->ev_port_id);
+
+		task->stats.rx_evts+=nb_rx;
 
 		for (i = 0; i < nb_rx; i++) {
 
@@ -1152,6 +1156,8 @@ int processing_packet_transmission(void* not_used){
 		int timeout = 0;
 		uint16_t nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, tx_events, max_evt_tx_burst_size, timeout);
 
+		task->stats.rx_evts+=nb_rx;
+
 		if (nb_rx>0){
 			RTE_LOG(INFO, XDPD, "tx-task-%02u: rcvd %u event(s) from ev_port_id %u on eventdev %s with max_evt_tx_burst_size %u\n",
 					lcore_id, nb_rx, task->ev_port_id, ev_task->name, max_evt_tx_burst_size);
@@ -1186,6 +1192,10 @@ int processing_packet_transmission(void* not_used){
 
 				rte_rwlock_read_lock(&port_list_rwlock);
 				if ((port = port_list[out_port_id]) == NULL) {
+					task->stats.bugs_dropped++;
+					RTE_LOG(WARNING, XDPD, "tx-task-%02u: outgoing port %u not found, dropping packet, internal error, task->stats.bugs_dropped=%" PRIu64 "\n",
+							lcore_id, out_port_id, task->stats.bugs_dropped);
+					rte_pktmbuf_free(tx_events[i].mbuf);
 					rte_rwlock_read_unlock(&port_list_rwlock);
 					continue;
 				}
@@ -1204,9 +1214,9 @@ int processing_packet_transmission(void* not_used){
 				rte_rwlock_read_unlock(&port_list_rwlock);
 
 				if (unlikely(task->txring[out_port_id] == NULL)) {
-					RTE_LOG(WARNING, XDPD, "tx-task-%02u: no txring allocated on port %u, dropping packet, internal error\n",
-							lcore_id, out_port_id);
-					task->stats.pkts_dropped++;
+					task->stats.bugs_dropped++;
+					RTE_LOG(WARNING, XDPD, "tx-task-%02u: no txring allocated on port %u, dropping packet, internal error, task->stats.bugs_dropped=%" PRIu64 "\n",
+							lcore_id, out_port_id, task->stats.bugs_dropped);
 					rte_pktmbuf_free(tx_events[i].mbuf);
 					continue;
 				}
@@ -1215,16 +1225,16 @@ int processing_packet_transmission(void* not_used){
 				if ((ret = rte_ring_enqueue(task->txring[out_port_id], tx_events[i].mbuf)) < 0) {
 					switch (ret) {
 					case -ENOBUFS: {
-						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet\n",
-								lcore_id, i, out_port_id);
-						task->stats.pkts_dropped++;
+						task->stats.ring_dropped++;
+						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet, task->stats.ring_dropped=%" PRIu64 "\n",
+								lcore_id, i, out_port_id, task->stats.ring_dropped);
 						rte_pktmbuf_free(tx_events[i].mbuf);
 						continue;
 					} break;
 					default: {
-						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet\n",
-								lcore_id, i, out_port_id);
-						task->stats.pkts_dropped++;
+						task->stats.ring_dropped++;
+						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet, task->stats.ring_dropped=%" PRIu64 "\n",
+								lcore_id, i, out_port_id, task->stats.ring_dropped);
 						rte_pktmbuf_free(tx_events[i].mbuf);
 						continue;
 					};
@@ -1291,9 +1301,6 @@ int processing_packet_transmission(void* not_used){
 			/* send tx-burst */
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, tx_pkts, nb_elems);
 
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, enqueued %u pkt(s) to eth_port_id=%u (tx-eth-burst), dropping %u pkt(s), remaining txring size: %u\n",
-					lcore_id, socket_id, nb_elems, port_id, nb_elems-nb_tx, rte_ring_count(task->txring[port_id]));
-
 			/* adjust timestamp */
 			task->txring_last_tx_time[port_id] = cur_tsc;
 
@@ -1303,10 +1310,12 @@ int processing_packet_transmission(void* not_used){
 			}
 
 			/* otherwise, release any unsent packets */
-			task->stats.pkts_dropped+=(nb_elems-nb_tx);
+			task->stats.eths_dropped+=(nb_elems-nb_tx);
 			for(i = nb_tx; i < nb_elems; i++) {
 				rte_pktmbuf_free(tx_pkts[i]);
 			}
+			RTE_LOG(WARNING, XDPD, "tx-task-%02u: on socket %u, enqueued %u pkt(s) to eth_port_id=%u (tx-eth-burst), dropping %u pkt(s), remaining txring size: %u, task->stats.eths_dropped=%" PRIu64 "\n",
+					lcore_id, socket_id, nb_elems, port_id, nb_elems-nb_tx, rte_ring_count(task->txring[port_id]), task->stats.eths_dropped);
 		}
 	}
 

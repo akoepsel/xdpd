@@ -10,15 +10,15 @@ dpdk:
     wk_coremask:  0x0000000ffc3fe0
   eventdev:
     name: event_sw0
-    args: sched_quanta=4095,credit_quanta=127
+    args: sched_quanta=64,credit_quanta=32
     queues:
       0:
-        schedule_type: 2
+        schedule_type: ordered
 #       priority: 128
         nb_atomic_flows: 1024
         nb_atomic_order_sequences: 16384
       1:
-        schedule_type: 2
+        schedule_type: ordered
 #       priority: 128
         nb_atomic_flows: 1024
         nb_atomic_order_sequences: 16384
@@ -37,9 +37,9 @@ dpdk:
     #mem_pool_size: 0
     mbuf_dataroom: 2048
   processing:
-    max_eth_rx_burst_size: 64
-    max_evt_proc_burst_size: 1
+    max_evt_wk_burst_size: 1
     max_evt_tx_burst_size: 64
+    max_eth_rx_burst_size: 64
     max_eth_tx_burst_size: 4096
   interfaces:
     ens1f1: 
