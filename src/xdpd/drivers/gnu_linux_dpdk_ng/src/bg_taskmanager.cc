@@ -25,6 +25,7 @@
 #include "io/iface_manager.h"
 #include "io/datapacket_storage.h"
 #include "util/time_utils.h"
+#include "processing/processing.h"
 
 using namespace xdpd::gnu_linux;
 
@@ -132,7 +133,7 @@ int process_timeouts(){
  */
 void* x86_background_tasks_routine(void* param){
 
-	static struct timeval last_time_stats_updated={0,0}, last_time_links_updated={0,0}, now;
+	static struct timeval last_time_stats_updated={0,0}, last_time_links_updated={0,0}, last_time_task_stats_updated={0,0}, now;
 #ifdef GNU_LINUX_DPDK_ENABLE_NF
 	static struct timeval last_time_kni_commands_handled={0,0};
 #endif //GNU_LINUX_DPDK_ENABLE_NF
@@ -164,7 +165,13 @@ void* x86_background_tasks_routine(void* param){
 			last_time_kni_commands_handled = now;
 		}
 #endif
-			
+
+		//Update port stats
+		if(get_time_difference_ms(&now, &last_time_task_stats_updated)>=BG_UPDATE_TASK_STATS_MS){
+			processing_update_stats();
+			last_time_task_stats_updated = now;
+		}
+
 		//Throttle
 		usleep(LSW_TIMER_SLOT_MS*1000);
 	}

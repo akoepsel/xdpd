@@ -40,6 +40,9 @@
 //Frequency(period) of handling KNI commands in milliseconds
 #define BG_HANDLE_KNI_COMMANDS_MS 1000
 
+//Frequency(period) of task stats status in milliseconds
+#define BG_UPDATE_TASK_STATS_MS 5000
+
 /*
 * I/O stuff
 */

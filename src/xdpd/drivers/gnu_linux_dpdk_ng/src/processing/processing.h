@@ -268,6 +268,10 @@ rofl_result_t processing_deschedule_port(switch_port_t* port);
 */
 rofl_result_t processing_deschedule_nf_port(switch_port_t* port);
 
+/**
+* Update processing task statistics
+*/
+void processing_update_stats(void);
 
 /**
 * Packet processing routine for cores 

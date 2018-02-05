@@ -1527,4 +1527,56 @@ void processing_dump_core_states(void){
 }
 
 
+/**
+* Update processing task statistics
+*/
+void processing_update_stats(void)
+{
+	RTE_LOG(INFO, XDPD, "[processing] task status:\n");
+	for (auto socket_id : numa_nodes) {
+		for (auto lcore_id : rx_lcores[socket_id]) {
+			rx_core_task_t *task = &rx_core_tasks[lcore_id];
+			std::stringstream ss;
+			ss << "rx-task-" << lcore_id << ": ";
+			ss << "rx-pkts=" << task->stats.rx_pkts << ", ";
+			ss << "tx-pkts=" << task->stats.tx_pkts << ", ";
+			ss << "rx-evts=" << task->stats.rx_evts << ", ";
+			ss << "tx-evts=" << task->stats.tx_evts << ", ";
+			ss << "evts-dropped=" << task->stats.evts_dropped << ", ";
+			ss << "bugs-dropped=" << task->stats.bugs_dropped << ", ";
+			ss << "ring-dropped=" << task->stats.ring_dropped << ", ";
+			ss << "eths-dropped=" << task->stats.eths_dropped << ", ";
+			RTE_LOG(INFO, XDPD, "\t%s\n", ss.str().c_str());
+		}
+		for (auto lcore_id : wk_lcores[socket_id]) {
+			wk_core_task_t *task = &wk_core_tasks[lcore_id];
+			std::stringstream ss;
+			ss << "rx-task-" << lcore_id << ": ";
+			ss << "rx-pkts=" << task->stats.rx_pkts << ", ";
+			ss << "tx-pkts=" << task->stats.tx_pkts << ", ";
+			ss << "rx-evts=" << task->stats.rx_evts << ", ";
+			ss << "tx-evts=" << task->stats.tx_evts << ", ";
+			ss << "evts-dropped=" << task->stats.evts_dropped << ", ";
+			ss << "bugs-dropped=" << task->stats.bugs_dropped << ", ";
+			ss << "ring-dropped=" << task->stats.ring_dropped << ", ";
+			ss << "eths-dropped=" << task->stats.eths_dropped << ", ";
+			RTE_LOG(INFO, XDPD, "\t%s\n", ss.str().c_str());
+		}
+		for (auto lcore_id : tx_lcores[socket_id]) {
+			tx_core_task_t *task = &tx_core_tasks[lcore_id];
+			std::stringstream ss;
+			ss << "rx-task-" << lcore_id << ": ";
+			ss << "rx-pkts=" << task->stats.rx_pkts << ", ";
+			ss << "tx-pkts=" << task->stats.tx_pkts << ", ";
+			ss << "rx-evts=" << task->stats.rx_evts << ", ";
+			ss << "tx-evts=" << task->stats.tx_evts << ", ";
+			ss << "evts-dropped=" << task->stats.evts_dropped << ", ";
+			ss << "bugs-dropped=" << task->stats.bugs_dropped << ", ";
+			ss << "ring-dropped=" << task->stats.ring_dropped << ", ";
+			ss << "eths-dropped=" << task->stats.eths_dropped << ", ";
+			RTE_LOG(INFO, XDPD, "\t%s\n", ss.str().c_str());
+		}
+	}
+}
+
 
