@@ -1181,7 +1181,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-queue-capacity")) {
 				tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id] = pow(2, (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring-drain-queue-capacity"))));
 			} else {
-				tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id] = pow(2, (unsigned int)ceil(log2(PROCESSING_TXRING_DRAIN_QUEUE_CAPACITY_DEFAULT)));
+				tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id] = pow(2, (unsigned int)ceil(log2((unsigned int)PROCESSING_TXRING_DRAIN_QUEUE_CAPACITY_DEFAULT)));
 			}
 
 			/* store txring-drain-interval parameter for this port */
@@ -1202,7 +1202,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				tx_core_tasks[lcore_id].txring_drain_threshold[port_id] = PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT;
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces] physical port: %u on socket: %u for lcore: %u, txring: %s, capacity: %u\n",
+			XDPD_INFO(DRIVER_NAME"[ifaces] physical port: %u on socket: %u for tx-task-%02u, txring: %s, capacity: %u\n",
 					port_id, socket_id, lcore_id, rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id]);
 
 			/* create RTE ring for queuing packets between workers and tx threads */
