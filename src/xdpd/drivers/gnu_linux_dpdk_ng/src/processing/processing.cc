@@ -1586,8 +1586,8 @@ void processing_update_stats(void)
 
 		std::stringstream ss;
 		ss << "Summary socket-" << socket_id << ": ";
-		ss << "rx-pkts: " << (double)rx_pkts << ", ";
-		ss << "tx-pkts: " << (double)tx_pkts << ", ";
+		ss << "rx-pkts: " << (unsigned long long)rx_pkts << ", ";
+		ss << "tx-pkts: " << (unsigned long long)tx_pkts << ", ";
 		ss << "ratio: " << 100*((double)tx_pkts)/((double)rx_pkts) << "% ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 	}
