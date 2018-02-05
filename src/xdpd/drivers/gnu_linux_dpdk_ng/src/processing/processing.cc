@@ -1203,14 +1203,6 @@ int processing_packet_transmission(void* not_used){
 
 				rte_rwlock_read_unlock(&port_list_rwlock);
 
-				if (unlikely(phyports[out_port_id].socket_id != socket_id)) {
-					RTE_LOG(WARNING, XDPD, "tx-task-%02u: on socket %u received packet to be sent out on port %u on socket %u, dropping packet\n",
-							lcore_id, socket_id, out_port_id, phyports[out_port_id].socket_id);
-					task->stats.pkts_dropped++;
-					rte_pktmbuf_free(tx_events[i].mbuf);
-					continue;
-				}
-
 				if (unlikely(task->txring[out_port_id] == NULL)) {
 					RTE_LOG(WARNING, XDPD, "tx-task-%02u: no txring allocated on port %u, dropping packet, internal error\n",
 							lcore_id, out_port_id);
@@ -1283,7 +1275,7 @@ int processing_packet_transmission(void* not_used){
 				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => elapsed time %lfms exceeds txring-drain-interval: %lfms, starting tx-eth-burst\n",
 										lcore_id, socket_id, port_id,
 										((double)(cur_tsc - task->txring_last_tx_time[port_id]) / rte_get_timer_hz()) * 1e3,
-										((double)task->txring_drain_interval[port_id] / rte_get_timer_hz()) * 1e3);
+										((double)(task->txring_drain_interval[port_id]) / rte_get_timer_hz()) * 1e3);
 			}
 #endif
 
