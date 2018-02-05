@@ -1095,7 +1095,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		// is port a virtual function and has a parent device?
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "parent")) {
 			phyports[port_id].is_vf = 1;
-			phyports[port_id].parent_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"));
+			if (iface_manager_port_exists(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"))) {
+				phyports[port_id].parent_port_id = iface_manager_pci_address_to_port_id(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "parent"));
+			}
 			phyports[port_id].vf_id = phyports[phyports[port_id].parent_port_id].nb_vfs++;
 			if (phyports[port_id].parent_port_id == port_id) {
 				XDPD_ERR(DRIVER_NAME"[ifaces] unlikely configuration detected: parent port_id == port_id (%u), probably a misconfiguration?\n", port_id);
@@ -1200,6 +1202,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			} else {
 				tx_core_tasks[lcore_id].txring_drain_threshold[port_id] = PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT;
 			}
+
+			XDPD_INFO(DRIVER_NAME"[ifaces] physical port: %u, txring: %s, socket: %u, capacity: %u\n",
+					port_id, rgname.str().c_str(), socket_id, tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id]);
 
 			/* create RTE ring for queuing packets between workers and tx threads */
 			if ((tx_core_tasks[lcore_id].txring[port_id] = rte_ring_create(rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id], socket_id, RING_F_SP_ENQ | RING_F_SC_DEQ)) == NULL) {
