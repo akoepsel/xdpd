@@ -1327,6 +1327,8 @@ int processing_packet_transmission(void* not_used){
 			/* send tx-burst */
 			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, tx_pkts, nb_elems);
 
+			task->stats.tx_pkts+=nb_tx;
+
 			/* adjust timestamp */
 			task->txring_last_tx_time[port_id] = cur_tsc;
 
