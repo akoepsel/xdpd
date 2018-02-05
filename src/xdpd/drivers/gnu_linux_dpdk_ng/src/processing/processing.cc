@@ -1536,6 +1536,9 @@ void processing_update_stats(void)
 {
 	XDPD_INFO(DRIVER_NAME"[processing] task status:\n");
 	for (auto socket_id : numa_nodes) {
+		uint64_t rx_pkts = 0;
+		uint64_t tx_pkts = 0;
+
 		for (auto lcore_id : rx_lcores[socket_id]) {
 			rx_core_task_t *task = &rx_core_tasks[lcore_id];
 			std::stringstream ss;
@@ -1549,6 +1552,7 @@ void processing_update_stats(void)
 			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
 			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
 			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
+			rx_pkts += task->stats.rx_pkts;
 		}
 		for (auto lcore_id : wk_lcores[socket_id]) {
 			wk_core_task_t *task = &wk_core_tasks[lcore_id];
@@ -1577,7 +1581,15 @@ void processing_update_stats(void)
 			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
 			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
 			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
+			tx_pkts += task->stats.tx_pkts;
 		}
+
+		std::stringstream ss;
+		ss << "Summary socket-" << socket_id << ": ";
+		ss << "rx-pkts: " << (double)rx_pkts << ", ";
+		ss << "tx-pkts: " << (double)tx_pkts << ", ";
+		ss << "ratio: " << 100*((double)tx_pkts)/((double)rx_pkts) << " ";
+		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 	}
 }
 
