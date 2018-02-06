@@ -552,8 +552,8 @@ rofl_result_t processing_init_eventdev(void){
 				}
 
 				/* no event queue/port linking for RX cores */
-				XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u, ev_queue_id: %2u\n",
-						ev_core_tasks[lcore_id].name, rx_lcore_id, ev_port_id, ev_queue_id);
+				XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_queue_id: %2u, ev_port_id: %2u\n",
+						ev_core_tasks[lcore_id].name, rx_lcore_id, ev_queue_id, ev_port_id);
 
 				ev_port_id++;
 				ev_queue_id++;
@@ -590,8 +590,8 @@ rofl_result_t processing_init_eventdev(void){
 					ss << (unsigned int)queues[index++] << " ";
 				}
 
-				XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u, ev_queue_id: %2u => linked to RX event queues: %s\n",
-						ev_core_tasks[lcore_id].name, wk_lcore_id, ev_port_id, ev_queue_id, ss.str().c_str());
+				XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_queue_id: %2u, ev_port_id: %2u => linked to RX event queues: %s\n",
+						ev_core_tasks[lcore_id].name, wk_lcore_id, ev_queue_id, ev_port_id, ss.str().c_str());
 
 				if (rte_event_port_link(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, queues, NULL, sizeof(queues)) < 0) {
 					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n",
@@ -636,8 +636,8 @@ rofl_result_t processing_init_eventdev(void){
 				}
 
 
-				XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u, ev_queue_id: %2u => linked to WK event queues: %s\n",
-						ev_core_tasks[lcore_id].name, tx_lcore_id, ev_port_id, ev_queue_id, ss.str().c_str());
+				XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u => linked to WK event queues: %s\n",
+						ev_core_tasks[lcore_id].name, tx_lcore_id, ev_port_id, ss.str().c_str());
 
 				if (rte_event_port_link(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, queues, NULL, sizeof(queues)) < 0) {
 					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n",
