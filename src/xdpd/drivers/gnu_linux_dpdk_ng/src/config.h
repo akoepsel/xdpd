@@ -84,6 +84,14 @@
 //Buffer storage(PKT_IN) expiration time (seconds)
 #define IO_PKT_IN_STORAGE_EXPIRATION_S 10
 
+#define MAX_RX_PKT_LEN_DEFAULT 1518
+#define HW_IP_CHKSUM_DEFAULT true
+#define HW_VLAN_EXTEND_DEFAULT false
+#define HW_VLAN_FILTER_DEFAULT true
+#define HW_VLAN_STRIP_DEFAULT true
+#define HW_STRIP_CRC_DEFAULT true
+#define JUMBO_FRAME_DEFAULT false
+
 /*
  * RX and TX Prefetch, Host, and Write-back threshold values should be
  * carefully set for optimal performance. Consult the network

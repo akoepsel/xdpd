@@ -57,6 +57,13 @@ dpdk:
       rx_host_threshold: 8
       rx_writeback_threshold: 0
       rx_free_treshold: 32
+      max_rx_pkt_len: 1518
+      hw_ip_checksum: true
+      hw_vlan_extend: false
+      hw_vlan_filter: true
+      hw_vlan_strip: true
+      hw_strip_crc: true
+      jumbo_frame: false
       tx_loopback: false
       promisc: true
       allmulticast: true
@@ -83,6 +90,13 @@ dpdk:
       rx_host_threshold: 8
       rx_writeback_threshold: 0
       rx_free_treshold: 32
+      max_rx_pkt_len: 1518
+      hw_ip_checksum: true
+      hw_vlan_extend: false
+      hw_vlan_filter: true
+      hw_vlan_strip: true
+      hw_strip_crc: true
+      jumbo_frame: false
       enabled: true
       mac_addr: 
         - "0a:11:11:11:01:01"
@@ -111,6 +125,13 @@ dpdk:
       rx_host_threshold: 8
       rx_writeback_threshold: 0
       rx_free_treshold: 32
+      max_rx_pkt_len: 1518
+      hw_ip_checksum: true
+      hw_vlan_extend: false
+      hw_vlan_filter: true
+      hw_vlan_strip: true
+      hw_strip_crc: true
+      jumbo_frame: false
       mac_addr: 
         - "0a:11:11:11:01:02"
       mac_anti_spoof: false
@@ -136,6 +157,13 @@ dpdk:
       rx_host_threshold: 8
       rx_writeback_threshold: 0
       rx_free_treshold: 32
+      max_rx_pkt_len: 1518
+      hw_ip_checksum: true
+      hw_vlan_extend: false
+      hw_vlan_filter: true
+      hw_vlan_strip: true
+      hw_strip_crc: true
+      jumbo_frame: false
       tx_loopback: false
       promisc: true
       allmulticast: true
@@ -162,6 +190,13 @@ dpdk:
       rx_host_threshold: 8
       rx_writeback_threshold: 0
       rx_free_treshold: 32
+      max_rx_pkt_len: 1518
+      hw_ip_checksum: true
+      hw_vlan_extend: false
+      hw_vlan_filter: true
+      hw_vlan_strip: true
+      hw_strip_crc: true
+      jumbo_frame: false
       enabled: true
       mac_addr: 
         - "0a:11:11:11:01:03"
@@ -190,6 +225,13 @@ dpdk:
       rx_host_threshold: 8
       rx_writeback_threshold: 0
       rx_free_treshold: 32
+      max_rx_pkt_len: 1518
+      hw_ip_checksum: true
+      hw_vlan_extend: false
+      hw_vlan_filter: true
+      hw_vlan_strip: true
+      hw_strip_crc: true
+      jumbo_frame: false
       mac_addr: 
         - "0a:11:11:11:01:04"
       mac_anti_spoof: false
