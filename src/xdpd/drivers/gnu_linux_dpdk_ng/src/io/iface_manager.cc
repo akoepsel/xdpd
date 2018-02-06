@@ -1295,7 +1295,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.txmode.offloads = dev_info.tx_offload_capa;
 
 		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, offloads: %u, max_rx_pkt_len: %u, hw_ip_checksum: %u, hw_vlan_extend: %u, hw_vlan_filter: %u, hw_vlan_strip: %u, hw_strip_crc: %u, jumbo_frame: %u\n",
-				port_id, tx_queue_id, socket_id,
+				port_id, socket_id,
 				eth_conf.rxmode.offloads,
 				eth_conf.rxmode.max_rx_pkt_len,
 				eth_conf.rxmode.hw_ip_checksum,
