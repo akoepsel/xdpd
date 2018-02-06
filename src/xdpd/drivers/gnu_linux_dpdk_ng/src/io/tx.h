@@ -51,6 +51,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 	if ((lcore_id == LCORE_ID_ANY) || (lcores[lcore_id].is_master)) {
 
 		uint16_t ev_port_id = 0; /* reserved port number for control plane */
+		uint8_t ev_queue_id = 0; /* reserved queue number for control plane */
 
 		/* use out_port_id from pipeline */
 		rte_rwlock_read_lock(&port_list_rwlock);
@@ -67,11 +68,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		tx_events[0].flow_id = mbuf->hash.rss;
 		tx_events[0].op = RTE_EVENT_OP_NEW;
 		tx_events[0].sched_type = RTE_SCHED_TYPE_PARALLEL;
-
-		// FIXME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		tx_events[0].queue_id = EVENT_QUEUE_TX_TASKS; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
-		// FIXME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+		tx_events[0].queue_id = ev_queue_id; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
 		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
 		tx_events[0].sub_event_type = 0;
 		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;

@@ -508,7 +508,7 @@ rofl_result_t processing_init_eventdev(void){
 			uint8_t ev_queue_id = 0;
 			{
 				/*
-				 * configure event port #0 for control plane to send frames initiated by Packet-Out
+				 * configure event port #0 and event queue #0 for control plane to send frames initiated by Packet-Out
 				 */
 				struct rte_event_port_conf port_conf;
 				memset(&port_conf, 0, sizeof(port_conf));
@@ -526,6 +526,7 @@ rofl_result_t processing_init_eventdev(void){
 						ev_core_tasks[lcore_id].name, ev_port_id);
 
 				ev_port_id++;
+				ev_queue_id++;
 			}
 
 			/* assign event ports to RX tasks */
