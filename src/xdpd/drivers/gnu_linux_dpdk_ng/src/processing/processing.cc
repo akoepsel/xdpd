@@ -1297,8 +1297,9 @@ int processing_packet_transmission(void* not_used){
 			 * less time than txring_drain_interval cycles elapsed since
 			 * last transmission, skip the port for now and wait for more packets
 			 * to arrive in the port's txring queue */
-			if ((nb_elems < task->txring_drain_threshold[port_id]) &&
-					(cur_tsc < (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]))) {
+			if ((nb_elems < rte_ring_get_capacity(task->txring[port_id])) &&
+				(nb_elems < task->txring_drain_threshold[port_id]) &&
+				(cur_tsc < (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]))) {
 				continue;
 			}
 
