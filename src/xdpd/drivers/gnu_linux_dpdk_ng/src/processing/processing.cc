@@ -1218,6 +1218,7 @@ int processing_packet_transmission(void* not_used){
 				/* process mbuf using events[i].queue_id as pipeline stage */
 				out_port_id = (uint32_t)(tx_events[i].mbuf->udata64 & 0x00000000ffffffff);
 
+#if 0
 				rte_rwlock_read_lock(&port_list_rwlock);
 				if ((port = port_list[out_port_id]) == NULL) {
 					task->stats.bugs_dropped++;
@@ -1227,6 +1228,8 @@ int processing_packet_transmission(void* not_used){
 					rte_rwlock_read_unlock(&port_list_rwlock);
 					continue;
 				}
+#endif
+
 #if 0
 				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events to be sent out on port %u\n",
 						lcore_id, socket_id, nb_rx, out_port_id);
