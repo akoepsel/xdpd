@@ -1294,7 +1294,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
 		eth_conf.txmode.offloads = dev_info.tx_offload_capa;
 
-		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, offloads: %u, max_rx_pkt_len: %u, hw_ip_checksum: %u, hw_vlan_extend: %u, hw_vlan_filter: %u, hw_vlan_strip: %u, hw_strip_crc: %u, jumbo_frame: %u\n",
+		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, offloads: 0x%x, max_rx_pkt_len: %u, hw_ip_checksum: %u, hw_vlan_extend: %u, hw_vlan_filter: %u, hw_vlan_strip: %u, hw_strip_crc: %u, jumbo_frame: %u\n",
 				port_id, socket_id,
 				eth_conf.rxmode.offloads,
 				eth_conf.rxmode.max_rx_pkt_len,
@@ -1409,7 +1409,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces] configuring txqueue on physical port: %u, txqueue: %u on socket: %u, nb_tx_desc: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: %u\n",
+			XDPD_INFO(DRIVER_NAME"[ifaces] configuring txqueue on physical port: %u, txqueue: %u on socket: %u, nb_tx_desc: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: 0x%x\n",
 					port_id, tx_queue_id, socket_id, nb_tx_desc,
 					eth_txconf.tx_thresh.pthresh,
 					eth_txconf.tx_thresh.hthresh,
@@ -1500,7 +1500,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces] configuring rxqueue on physical port: %u, rxqueue: %u on socket: %u, nb_rx_desc: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: %u\n",
+			XDPD_INFO(DRIVER_NAME"[ifaces] configuring rxqueue on physical port: %u, rxqueue: %u on socket: %u, nb_rx_desc: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: 0x%x\n",
 					port_id, rx_queue_id, socket_id, nb_rx_desc,
 					eth_rxconf.rx_thresh.pthresh,
 					eth_rxconf.rx_thresh.hthresh,
