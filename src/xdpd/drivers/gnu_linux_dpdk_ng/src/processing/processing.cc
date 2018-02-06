@@ -587,7 +587,7 @@ rofl_result_t processing_init_eventdev(void){
 				unsigned int index = 0;
 				for (auto rx_lcore_id : rx_lcores[socket_id]) {
 					queues[index] = rx_core_tasks[rx_lcore_id].tx_ev_queue_id;
-					ss << (unsigned int)queues[index] << " ";
+					ss << (unsigned int)queues[index++] << " ";
 				}
 
 				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u, ev_queue_id: %2u => linked to RX event queues: %s\n",
@@ -626,12 +626,15 @@ rofl_result_t processing_init_eventdev(void){
 
 				/* link up event TX core port and associated queue */
 				std::stringstream ss;
-				uint8_t queues[wk_lcores[socket_id].size()];
+				uint8_t queues[wk_lcores[socket_id].size() + /*control plane*/1];
 				unsigned int index = 0;
+				queues[index] = 0;
+				ss << (unsigned int)queues[index++] << " ";
 				for (auto wk_lcore_id : wk_lcores[socket_id]) {
 					queues[index] = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
-					ss << (unsigned int)queues[index] << " ";
+					ss << (unsigned int)queues[index++] << " ";
 				}
+
 
 				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u, ev_queue_id: %2u => linked to WK event queues: %s\n",
 						ev_core_tasks[lcore_id].name, tx_lcore_id, ev_port_id, ev_queue_id, ss.str().c_str());
