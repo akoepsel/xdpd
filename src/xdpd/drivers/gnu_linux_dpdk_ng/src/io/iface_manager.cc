@@ -1283,28 +1283,28 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		// configure transmit queues
 		uint64_t tx_prefetch_threshold;
-		if (iface_manager_port_setting_exists(s_pci_addr, "tx_prefetch_threshold")) {
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "tx_prefetch_threshold")) {
 			tx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_prefetch_threshold");
 		} else {
 			tx_prefetch_threshold = TX_PREFETCH_THRESHOLD_DEFAULT;
 		}
 
 		uint64_t tx_host_threshold;
-		if (iface_manager_port_setting_exists(s_pci_addr, "tx_host_threshold")) {
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "tx_host_threshold")) {
 			tx_host_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_host_threshold");
 		} else {
 			tx_host_threshold = TX_HOST_THRESHOLD_DEFAULT;
 		}
 
 		uint64_t tx_writeback_threshold;
-		if (iface_manager_port_setting_exists(s_pci_addr, "tx_writeback_threshold")) {
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "tx_writeback_threshold")) {
 			tx_writeback_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_writeback_threshold");
 		} else {
 			tx_writeback_threshold = TX_WRITEBACK_THRESHOLD_DEFAULT;
 		}
 
 		uint64_t tx_free_threshold;
-		if (iface_manager_port_setting_exists(s_pci_addr, "tx_free_threshold")) {
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "tx_free_threshold")) {
 			tx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_free_threshold");
 		} else {
 			tx_free_threshold = TX_FREE_THRESHOLD_DEFAULT;
@@ -1391,28 +1391,28 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		// configure receive queues
 		uint64_t rx_prefetch_threshold;
-		if (iface_manager_port_setting_exists(s_pci_addr, "rx_prefetch_threshold")) {
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_prefetch_threshold")) {
 			rx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_prefetch_threshold");
 		} else {
 			rx_prefetch_threshold = RX_PREFETCH_THRESHOLD_DEFAULT;
 		}
 
 		uint64_t rx_host_threshold;
-		if (iface_manager_port_setting_exists(s_pci_addr, "rx_host_threshold")) {
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_host_threshold")) {
 			rx_host_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_host_threshold");
 		} else {
 			rx_host_threshold = RX_HOST_THRESHOLD_DEFAULT;
 		}
 
 		uint64_t rx_writeback_threshold;
-		if (iface_manager_port_setting_exists(s_pci_addr, "rx_writeback_threshold")) {
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_writeback_threshold")) {
 			rx_writeback_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_writeback_threshold");
 		} else {
 			rx_writeback_threshold = RX_WRITEBACK_THRESHOLD_DEFAULT;
 		}
 
 		uint64_t rx_free_threshold;
-		if (iface_manager_port_setting_exists(s_pci_addr, "rx_free_threshold")) {
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_free_threshold")) {
 			rx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_free_threshold");
 		} else {
 			rx_free_threshold = RX_FREE_THRESHOLD_DEFAULT;
