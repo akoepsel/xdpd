@@ -140,7 +140,6 @@ typedef struct wk_core_task {
 	
 	unsigned int socket_id; /* NUMA node socket-id */
 	uint8_t ev_port_id; /* event port-id */
-	uint8_t rx_ev_queue_id; /* event queue-id for receiving events */
 	uint8_t tx_ev_queue_id; /* event queue-id for sending events to the appropriate TX lcore event queue */
 
 } __rte_cache_aligned wk_core_task_t;

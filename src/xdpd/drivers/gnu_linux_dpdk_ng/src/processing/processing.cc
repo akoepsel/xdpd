@@ -405,7 +405,9 @@ rofl_result_t processing_init_eventdev(void){
 
 			/* configure event device */
 			memset(&ev_core_tasks[lcore_id].eventdev_conf, 0, sizeof(ev_core_tasks[lcore_id].eventdev_conf));
-			ev_core_tasks[lcore_id].eventdev_conf.nb_event_queues = 2;
+
+			//number of event queues: number of RX tasks + number of WK tasks (+ number of control plane tasks???)
+			ev_core_tasks[lcore_id].eventdev_conf.nb_event_queues = rx_lcores[socket_id].size() + wk_lcores[socket_id].size();
 			ev_core_tasks[lcore_id].eventdev_conf.nb_event_ports =
                                             + rx_lcores[socket_id].size() /* number of all RX lcores on NUMA node socket_id */
                                             + wk_lcores[socket_id].size() /* number of all WK lcores on NUMA node socket_id */
@@ -501,8 +503,9 @@ rofl_result_t processing_init_eventdev(void){
 			ev_core_tasks[lcore_id].ev_queue_to_tx_tasks = EVENT_QUEUE_TX_TASKS;
 
 
-			/* map event ports for TX/worker lcores on active NUMA nodes */
+			/* map event ports/queues for RX/WK lcores */
 			uint8_t ev_port_id = 0;
+			uint8_t ev_queue_id = 0;
 			{
 				/*
 				 * configure event port #0 for control plane to send frames initiated by Packet-Out
@@ -533,7 +536,7 @@ rofl_result_t processing_init_eventdev(void){
 				/* RX core(s) do not receive from an event queue */
 				rx_core_tasks[rx_lcore_id].socket_id = socket_id;
 				rx_core_tasks[rx_lcore_id].ev_port_id = ev_port_id;
-				rx_core_tasks[rx_lcore_id].tx_ev_queue_id = EVENT_QUEUE_WK_TASKS;
+				rx_core_tasks[rx_lcore_id].tx_ev_queue_id = ev_queue_id;
 
 				struct rte_event_port_conf port_conf;
 				memset(&port_conf, 0, sizeof(port_conf));
@@ -548,10 +551,11 @@ rofl_result_t processing_init_eventdev(void){
 				}
 
 				/* no event queue/port linking for RX cores */
-				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u\n",
-						ev_core_tasks[lcore_id].name, rx_lcore_id, ev_port_id);
+				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u, ev_queue_id: %2u\n",
+						ev_core_tasks[lcore_id].name, rx_lcore_id, ev_port_id, ev_queue_id);
 
 				ev_port_id++;
+				ev_queue_id++;
 			}
 
 			/* assign event ports to WK tasks */
@@ -562,8 +566,7 @@ rofl_result_t processing_init_eventdev(void){
 				/* worker core(s) read from the associated event queue on their respective NUMA node */
 				wk_core_tasks[wk_lcore_id].socket_id = socket_id;
 				wk_core_tasks[wk_lcore_id].ev_port_id = ev_port_id;
-				wk_core_tasks[wk_lcore_id].rx_ev_queue_id = EVENT_QUEUE_WK_TASKS;
-				wk_core_tasks[wk_lcore_id].tx_ev_queue_id = EVENT_QUEUE_TX_TASKS;
+				wk_core_tasks[wk_lcore_id].tx_ev_queue_id = ev_queue_id;
 
 				struct rte_event_port_conf port_conf;
 				memset(&port_conf, 0, sizeof(port_conf));
@@ -578,10 +581,16 @@ rofl_result_t processing_init_eventdev(void){
 				}
 
 				/* link up event worker core port and associated queue */
-				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
-						ev_core_tasks[lcore_id].name, wk_lcore_id, ev_port_id, wk_core_tasks[wk_lcore_id].rx_ev_queue_id);
+				std::stringstream ss;
+				uint8_t queues[rx_lcores[socket_id].size()] = { 0 };
+				unsigned int index = 0;
+				for (auto rx_lcore_id : rx_lcores[socket_id]) {
+					queues[index] = rx_core_tasks[rx_lcore_id].tx_ev_queue_id;
+					ss << (unsigned int)queues[index] << " ";
+				}
 
-				uint8_t queues[] = { wk_core_tasks[wk_lcore_id].rx_ev_queue_id };
+				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u, ev_queue_id: %2u => linked to RX event queues: %s\n",
+						ev_core_tasks[lcore_id].name, wk_lcore_id, ev_port_id, ev_queue_id, ss.str().c_str());
 
 				if (rte_event_port_link(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, queues, NULL, sizeof(queues)) < 0) {
 					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n",
@@ -590,6 +599,7 @@ rofl_result_t processing_init_eventdev(void){
 				}
 
 				ev_port_id++;
+				ev_queue_id++;
 			}
 
 			/* assign event ports to TX tasks */
@@ -600,7 +610,6 @@ rofl_result_t processing_init_eventdev(void){
 				/* TX core(s) read from the associated event queue on their respective NUMA node */
 				tx_core_tasks[tx_lcore_id].socket_id = socket_id;
 				tx_core_tasks[tx_lcore_id].ev_port_id = ev_port_id;
-				tx_core_tasks[tx_lcore_id].rx_ev_queue_id = EVENT_QUEUE_TX_TASKS;
 
 				struct rte_event_port_conf port_conf;
 				memset(&port_conf, 0, sizeof(port_conf));
@@ -615,10 +624,16 @@ rofl_result_t processing_init_eventdev(void){
 				}
 
 				/* link up event TX core port and associated queue */
-				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u => linked to ev_queue_id: %2u\n",
-						ev_core_tasks[lcore_id].name, tx_lcore_id, ev_port_id, tx_core_tasks[tx_lcore_id].rx_ev_queue_id);
+				std::stringstream ss;
+				uint8_t queues[wk_lcores[socket_id].size()] = { 0 };
+				unsigned int index = 0;
+				for (auto wk_lcore_id : wk_lcores[socket_id]) {
+					queues[index] = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
+					ss << (unsigned int)queues[index] << " ";
+				}
 
-				uint8_t queues[] = { tx_core_tasks[tx_lcore_id].rx_ev_queue_id };
+				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u, ev_queue_id: %2u => linked to WK event queues: %s\n",
+						ev_core_tasks[lcore_id].name, tx_lcore_id, ev_port_id, ev_queue_id, ss.str().c_str());
 
 				if (rte_event_port_link(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, queues, NULL, sizeof(queues)) < 0) {
 					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n",
@@ -1235,13 +1250,13 @@ int processing_packet_transmission(void* not_used){
 #if 0
 				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events to be sent out on port %u\n",
 						lcore_id, socket_id, nb_rx, out_port_id);
-#endif
 #ifdef DEBUG
 				{
 					dpdk_port_state_t *ps;
 					ps = (dpdk_port_state_t *)port->platform_port_state;
 					assert(out_port_id == ps->port_id);
 				}
+#endif
 #endif
 
 				rte_rwlock_read_unlock(&port_list_rwlock);
