@@ -959,7 +959,9 @@ int processing_packet_reception(void* not_used){
 	uint16_t queue_id;
 	uint8_t ev_port_id;
 	uint8_t ev_queue_id;
+#if 0
 	switch_port_t* port;
+#endif
 	rx_core_task_t* task = &rx_core_tasks[lcore_id];
 	struct rte_mbuf* mbufs[max_eth_rx_burst_size];
 	struct rte_event event[max_eth_rx_burst_size];
