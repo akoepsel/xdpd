@@ -582,7 +582,7 @@ rofl_result_t processing_init_eventdev(void){
 
 				/* link up event worker core port and associated queue */
 				std::stringstream ss;
-				uint8_t queues[rx_lcores[socket_id].size()] = { 0 };
+				uint8_t queues[rx_lcores[socket_id].size()];
 				unsigned int index = 0;
 				for (auto rx_lcore_id : rx_lcores[socket_id]) {
 					queues[index] = rx_core_tasks[rx_lcore_id].tx_ev_queue_id;
@@ -625,7 +625,7 @@ rofl_result_t processing_init_eventdev(void){
 
 				/* link up event TX core port and associated queue */
 				std::stringstream ss;
-				uint8_t queues[wk_lcores[socket_id].size()] = { 0 };
+				uint8_t queues[wk_lcores[socket_id].size()];
 				unsigned int index = 0;
 				for (auto wk_lcore_id : wk_lcores[socket_id]) {
 					queues[index] = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;

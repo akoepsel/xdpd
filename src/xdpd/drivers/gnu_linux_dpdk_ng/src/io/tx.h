@@ -67,7 +67,11 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		tx_events[0].flow_id = mbuf->hash.rss;
 		tx_events[0].op = RTE_EVENT_OP_NEW;
 		tx_events[0].sched_type = RTE_SCHED_TYPE_PARALLEL;
+
+		// FIXME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		tx_events[0].queue_id = EVENT_QUEUE_TX_TASKS; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
+		// FIXME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
 		tx_events[0].sub_event_type = 0;
 		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
