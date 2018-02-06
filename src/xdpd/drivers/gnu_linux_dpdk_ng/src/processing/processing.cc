@@ -406,8 +406,8 @@ rofl_result_t processing_init_eventdev(void){
 			/* configure event device */
 			memset(&ev_core_tasks[lcore_id].eventdev_conf, 0, sizeof(ev_core_tasks[lcore_id].eventdev_conf));
 
-			//number of event queues: number of RX tasks + number of WK tasks (+ number of control plane tasks???)
-			ev_core_tasks[lcore_id].eventdev_conf.nb_event_queues = rx_lcores[socket_id].size() + wk_lcores[socket_id].size();
+			//number of event queues: number of RX tasks + number of WK tasks + number of control plane tasks
+			ev_core_tasks[lcore_id].eventdev_conf.nb_event_queues = rx_lcores[socket_id].size() + wk_lcores[socket_id].size() + /*control plane*/1;
 			ev_core_tasks[lcore_id].eventdev_conf.nb_event_ports =
                                             + rx_lcores[socket_id].size() /* number of all RX lcores on NUMA node socket_id */
                                             + wk_lcores[socket_id].size() /* number of all WK lcores on NUMA node socket_id */
