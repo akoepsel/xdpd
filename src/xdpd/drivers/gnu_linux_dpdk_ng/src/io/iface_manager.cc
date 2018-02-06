@@ -1235,9 +1235,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		memset(&eth_conf, 0, sizeof(eth_conf));
 
 		//receive side
-		bool max_rx_pkt_len(MAX_RX_PKT_LEN_DEFAULT);
+		uint32_t max_rx_pkt_len(MAX_RX_PKT_LEN_DEFAULT);
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "max_rx_pkt_len")) {
-			max_rx_pkt_len = iface_manager_get_port_setting_as<bool>(s_pci_addr, "max_rx_pkt_len");
+			max_rx_pkt_len = iface_manager_get_port_setting_as<uint32_t>(s_pci_addr, "max_rx_pkt_len");
 		}
 
 		bool hw_ip_checksum(HW_IP_CHKSUM_DEFAULT);
