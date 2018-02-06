@@ -522,8 +522,8 @@ rofl_result_t processing_init_eventdev(void){
 				}
 
 				/* ev_port_id = 0 assigned to LCORE_ID_ANY */
-				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, LCORE_ID_ANY, ev_port_id: %2u\n",
-						ev_core_tasks[lcore_id].name, ev_port_id);
+				XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, LCORE_ID_ANY, ev_port_id: %2u, ev_queue_id: %2u\n",
+						ev_core_tasks[lcore_id].name, ev_port_id, ev_queue_id);
 
 				ev_port_id++;
 				ev_queue_id++;
@@ -552,7 +552,7 @@ rofl_result_t processing_init_eventdev(void){
 				}
 
 				/* no event queue/port linking for RX cores */
-				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u, ev_queue_id: %2u\n",
+				XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u, ev_queue_id: %2u\n",
 						ev_core_tasks[lcore_id].name, rx_lcore_id, ev_port_id, ev_queue_id);
 
 				ev_port_id++;
@@ -590,7 +590,7 @@ rofl_result_t processing_init_eventdev(void){
 					ss << (unsigned int)queues[index++] << " ";
 				}
 
-				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u, ev_queue_id: %2u => linked to RX event queues: %s\n",
+				XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u, ev_queue_id: %2u => linked to RX event queues: %s\n",
 						ev_core_tasks[lcore_id].name, wk_lcore_id, ev_port_id, ev_queue_id, ss.str().c_str());
 
 				if (rte_event_port_link(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, queues, NULL, sizeof(queues)) < 0) {
@@ -628,15 +628,15 @@ rofl_result_t processing_init_eventdev(void){
 				std::stringstream ss;
 				uint8_t queues[wk_lcores[socket_id].size() + /*control plane*/1];
 				unsigned int index = 0;
-				queues[index] = 0;
-				ss << (unsigned int)queues[index++] << " ";
+				queues[index] = 0; /* control plane */
+				ss << (unsigned int)queues[index++] << " "; /* control plane */
 				for (auto wk_lcore_id : wk_lcores[socket_id]) {
 					queues[index] = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
 					ss << (unsigned int)queues[index++] << " ";
 				}
 
 
-				XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u, ev_queue_id: %2u => linked to WK event queues: %s\n",
+				XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u, ev_queue_id: %2u => linked to WK event queues: %s\n",
 						ev_core_tasks[lcore_id].name, tx_lcore_id, ev_port_id, ev_queue_id, ss.str().c_str());
 
 				if (rte_event_port_link(ev_core_tasks[lcore_id].eventdev_id, ev_port_id, queues, NULL, sizeof(queues)) < 0) {
