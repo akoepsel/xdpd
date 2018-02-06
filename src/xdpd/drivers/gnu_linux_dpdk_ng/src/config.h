@@ -65,7 +65,7 @@
 #define PROCESSING_MAX_PORTS_PER_CORE 32
 #define PROCESSING_MAX_PORTS 128
 #endif
-#define PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT 100 /* in clock cycles */
+#define PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT 100 /* in ms */
 #define PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT 16
 #define PROCESSING_TXRING_DRAIN_QUEUE_CAPACITY_DEFAULT 128
 /* end of new defines */
@@ -90,18 +90,20 @@
  * controller's datasheet and supporting DPDK documentation for guidance
  * on how these parameters should be set.
  */
-#define RX_PTHRESH 8 /**< Default values of RX prefetch threshold reg. */
-#define RX_HTHRESH 8 /**< Default values of RX host threshold reg. */
-#define RX_WTHRESH 0 /**< Default values of RX write-back threshold reg. */
+#define RX_PREFETCH_THRESHOLD_DEFAULT  8  /**< Default values of RX prefetch threshold reg. */
+#define RX_HOST_THRESHOLD_DEFAULT      8  /**< Default values of RX host threshold reg. */
+#define RX_WRITEBACK_THRESHOLD_DEFAULT 0  /**< Default values of RX write-back threshold reg. */
+#define RX_FREE_THRESHOLD_DEFAULT      32 /**< Default values of RX free threshold reg. */
 
 /*
  * These default values are optimized for use with the Intel(R) 82599 10 GbE
  * Controller and the DPDK ixgbe PMD. Consider using other values for other
  * network controllers and/or network drivers.
  */
-#define TX_PTHRESH 16 /**< Default values of TX prefetch threshold reg. */
-#define TX_HTHRESH 4  /**< Default values of TX host threshold reg. */
-#define TX_WTHRESH 0  /**< Default values of TX write-back threshold reg. */
+#define TX_PREFETCH_THRESHOLD_DEFAULT  16 /**< Default values of TX prefetch threshold reg. */
+#define TX_HOST_THRESHOLD_DEFAULT      4  /**< Default values of TX host threshold reg. */
+#define TX_WRITEBACK_THRESHOLD_DEFAULT 0  /**< Default values of TX write-back threshold reg. */
+#define TX_FREE_THRESHOLD_DEFAULT      32 /**< Default values of RX free threshold reg. */
 
 /*
  *  Default values for RX/TX configuration
@@ -111,17 +113,6 @@
 #define IXGBE_MAX_RING_DESC           4096
 #define IXGBE_MIN_RING_DESC           32
 
-#define IXGBE_DEFAULT_RX_FREE_THRESH  32
-#define IXGBE_DEFAULT_RX_PTHRESH      8
-#define IXGBE_DEFAULT_RX_HTHRESH      8
-#define IXGBE_DEFAULT_RX_WTHRESH      0
-
-#define IXGBE_DEFAULT_TX_FREE_THRESH  32
-#define IXGBE_DEFAULT_TX_PTHRESH      32
-#define IXGBE_DEFAULT_TX_HTHRESH      0
-#define IXGBE_DEFAULT_TX_WTHRESH      0
-#define IXGBE_DEFAULT_TX_RSBIT_THRESH 32
-
 //i40e
 #define I40E_NUM_DESC_DEFAULT         512
 #define	I40E_ALIGN_RING_DESC	      32
@@ -129,23 +120,13 @@
 #define	I40E_MAX_RING_DESC	          4096
 #define	I40E_MIN_RING_DESC	          64
 
-#define I40E_DEFAULT_RX_FREE_THRESH   32
-#define I40E_DEFAULT_RX_PTHRESH       8
-#define I40E_DEFAULT_RX_HTHRESH       8
-#define I40E_DEFAULT_RX_WTHRESH       0
-
-#define I40E_DEFAULT_TX_FREE_THRESH   32
-#define I40E_DEFAULT_TX_PTHRESH       32
-#define I40E_DEFAULT_TX_HTHRESH       0
-#define I40E_DEFAULT_TX_WTHRESH       0
-#define I40E_DEFAULT_TX_RSBIT_THRESH  32
-
-
 /*
  * Configurable number of RX/TX ring descriptors
  */
+#if 0
 #define RTE_RX_DESC_DEFAULT 512
 #define RTE_TX_DESC_DEFAULT 512
+#endif
 
 /*
 * Processing stuff

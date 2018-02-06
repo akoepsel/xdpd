@@ -43,6 +43,7 @@ extern YAML::Node y_config_dpdk_ng;
 #define DPDK_DRIVER_NAME_IXGBE_PF "net_ixgbe"
 #define DPDK_DRIVER_NAME_IXGBE_VF "net_ixgbe_vf"
 
+#if 0
 #define NB_MBUF                                                                                                        \
 	RTE_MAX((nb_ports * nb_rx_queue * RTE_RX_DESC_DEFAULT + nb_ports * nb_lcores * IO_IFACE_MAX_PKT_BURST +        \
 		 nb_ports * n_tx_queue * RTE_TX_DESC_DEFAULT + nb_lcores * MEMPOOL_CACHE_SIZE),                        \
@@ -56,16 +57,15 @@ extern YAML::Node y_config_dpdk_ng;
 
 struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
-switch_port_t* phy_port_mapping[PORT_MANAGER_MAX_PORTS] = {0};
-struct rte_ring* port_tx_lcore_queue[PORT_MANAGER_MAX_PORTS][IO_IFACE_NUM_QUEUES] = {{NULL}}; // XXX(toanju) should be sufficient for shmen only
-
-uint8_t nb_phy_ports = 0;
-pthread_rwlock_t iface_manager_rwlock = PTHREAD_RWLOCK_INITIALIZER;
-
 /* Static global variables used within this file. */
 //static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
-uint16_t nb_txd = RTE_TX_DESC_DEFAULT;
-uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
+//uint16_t nb_txd = RTE_TX_DESC_DEFAULT;
+//uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
+#endif
+
+switch_port_t* phy_port_mapping[PORT_MANAGER_MAX_PORTS] = {0};
+uint8_t nb_phy_ports = 0;
+pthread_rwlock_t iface_manager_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 //a set of available NUMA sockets (socket_id)
 extern std::set<int> numa_nodes;
@@ -1105,15 +1105,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		//number of configured RX queues on device should not exceed number of worker lcores on socket
-		unsigned int nb_rx_queues = rx_lcores[socket_id].size() < dev_info.max_rx_queues ? rx_lcores[socket_id].size() : dev_info.max_rx_queues;
+		unsigned int nb_rx_queues = RTE_MIN(rx_lcores[socket_id].size(), dev_info.max_rx_queues);
 
 		//number of configured TX queues on device should not exceed number of worker lcores on socket
-		unsigned int nb_tx_lcores = 0;
-		for (auto it : tx_lcores) {
-			nb_tx_lcores += it.second.size();
-		}
-		unsigned int nb_tx_queues = nb_tx_lcores < dev_info.max_tx_queues ? nb_tx_lcores : dev_info.max_tx_queues;
-
+		unsigned int nb_tx_queues = RTE_MIN(tx_lcores[socket_id].size(), dev_info.max_tx_queues);
 
 		phyports[port_id].nb_rx_queues = nb_rx_queues;
 		phyports[port_id].nb_tx_queues = nb_tx_queues;
@@ -1178,26 +1173,24 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rgname << "task-" << lcore_id << "." << "port-" << port_id;
 
 			/* store txring-drain-max-queuesize parameter for this port */
-			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-queue-capacity")) {
-				tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id] = pow(2, (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring-drain-queue-capacity"))));
+			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_queue_capacity")) {
+				tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id] = pow(2, (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring_drain_queue_capacity"))));
 			} else {
 				tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id] = pow(2, (unsigned int)ceil(log2((unsigned int)PROCESSING_TXRING_DRAIN_QUEUE_CAPACITY_DEFAULT)));
 			}
 
 			/* store txring-drain-interval parameter for this port */
 			uint64_t txring_drain_interval;
-			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-interval")) {
-				//tx_core_tasks[lcore_id].txring_drain_interval[port_id] = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring-drain-interval");
-				txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring-drain-interval") * /*number of cycles in 1ms for default timer=*/(rte_get_timer_hz() / 1e3);
+			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_interval")) {
+				txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring_drain_interval") * /*number of cycles in 1ms for default timer=*/(rte_get_timer_hz() / 1e3);
 			} else {
-				//tx_core_tasks[lcore_id].txring_drain_interval[port_id] = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT;
 				txring_drain_interval = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT * /*number of cycles in 1ms for default timer=*/(rte_get_timer_hz() / 1e3);
 			}
 			tx_core_tasks[lcore_id].txring_drain_interval[port_id] = txring_drain_interval;
 
 			/* store txring-drain-threshold parameter for this port */
-			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring-drain-threshold")) {
-				tx_core_tasks[lcore_id].txring_drain_threshold[port_id] = iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring-drain-threshold");
+			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_threshold")) {
+				tx_core_tasks[lcore_id].txring_drain_threshold[port_id] = iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring_drain_threshold");
 			} else {
 				tx_core_tasks[lcore_id].txring_drain_threshold[port_id] = PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT;
 			}
@@ -1287,7 +1280,36 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			return ROFL_FAILURE;
 		}
 
+
 		// configure transmit queues
+		uint64_t tx_prefetch_threshold;
+		if (iface_manager_port_setting_exists(s_pci_addr, "tx_prefetch_threshold")) {
+			tx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_prefetch_threshold");
+		} else {
+			tx_prefetch_threshold = TX_PREFETCH_THRESHOLD_DEFAULT;
+		}
+
+		uint64_t tx_host_threshold;
+		if (iface_manager_port_setting_exists(s_pci_addr, "tx_host_threshold")) {
+			tx_host_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_host_threshold");
+		} else {
+			tx_host_threshold = TX_HOST_THRESHOLD_DEFAULT;
+		}
+
+		uint64_t tx_writeback_threshold;
+		if (iface_manager_port_setting_exists(s_pci_addr, "tx_writeback_threshold")) {
+			tx_writeback_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_writeback_threshold");
+		} else {
+			tx_writeback_threshold = TX_WRITEBACK_THRESHOLD_DEFAULT;
+		}
+
+		uint64_t tx_free_threshold;
+		if (iface_manager_port_setting_exists(s_pci_addr, "tx_free_threshold")) {
+			tx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_free_threshold");
+		} else {
+			tx_free_threshold = TX_FREE_THRESHOLD_DEFAULT;
+		}
+
 		for (uint16_t tx_queue_id = 0; tx_queue_id < /*no typo!*/nb_tx_queues; tx_queue_id++) {
 			uint16_t nb_tx_desc = 0;
 			struct rte_eth_txconf eth_txconf;
@@ -1295,12 +1317,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
 
 				// values for i40e PF
-				nb_tx_desc = dev_info.tx_desc_lim.nb_max;
-				eth_txconf.tx_thresh.pthresh = I40E_DEFAULT_TX_PTHRESH;
-				eth_txconf.tx_thresh.hthresh = I40E_DEFAULT_TX_HTHRESH;
-				eth_txconf.tx_thresh.wthresh = I40E_DEFAULT_TX_WTHRESH;
-				eth_txconf.tx_free_thresh = I40E_DEFAULT_TX_FREE_THRESH; //use default, e.g., I40E_DEFAULT_TX_FREE_THRESH = 32
-				eth_txconf.tx_rs_thresh = I40E_DEFAULT_TX_RSBIT_THRESH; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
+				nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
+				eth_txconf.tx_thresh.pthresh = tx_prefetch_threshold;
+				eth_txconf.tx_thresh.hthresh = tx_host_threshold;
+				eth_txconf.tx_thresh.wthresh = tx_writeback_threshold;
+				eth_txconf.tx_free_thresh = tx_free_threshold;
+				eth_txconf.tx_rs_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
 				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
@@ -1310,12 +1332,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
 
 				// are these values also valid for i40e VF?
-				nb_tx_desc = dev_info.tx_desc_lim.nb_max;
-				eth_txconf.tx_thresh.pthresh = I40E_DEFAULT_TX_PTHRESH;
-				eth_txconf.tx_thresh.hthresh = I40E_DEFAULT_TX_HTHRESH;
-				eth_txconf.tx_thresh.wthresh = I40E_DEFAULT_TX_WTHRESH;
-				eth_txconf.tx_free_thresh = I40E_DEFAULT_TX_FREE_THRESH; //use default, e.g., I40E_DEFAULT_TX_FREE_THRESH = 32
-				eth_txconf.tx_rs_thresh = I40E_DEFAULT_TX_RSBIT_THRESH; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
+				nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
+				eth_txconf.tx_thresh.pthresh = tx_prefetch_threshold;
+				eth_txconf.tx_thresh.hthresh = tx_host_threshold;
+				eth_txconf.tx_thresh.wthresh = tx_writeback_threshold;
+				eth_txconf.tx_free_thresh = tx_free_threshold;
+				eth_txconf.tx_rs_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
 				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
@@ -1323,12 +1345,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0) {
 
-				nb_tx_desc = dev_info.tx_desc_lim.nb_max;
-				eth_txconf.tx_thresh.pthresh = IXGBE_DEFAULT_TX_PTHRESH;
-				eth_txconf.tx_thresh.hthresh = IXGBE_DEFAULT_TX_HTHRESH;
-				eth_txconf.tx_thresh.wthresh = IXGBE_DEFAULT_TX_WTHRESH;
-				eth_txconf.tx_free_thresh = IXGBE_DEFAULT_TX_FREE_THRESH; //use default, e.g., IXGBE_DEFAULT_TX_FREE_THRESH = 32
-				eth_txconf.tx_rs_thresh = IXGBE_DEFAULT_TX_RSBIT_THRESH; //use default, e.g., IXGBE_DEFAULT_TX_RSBIT_THRESH = 32
+				nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
+				eth_txconf.tx_thresh.pthresh = tx_prefetch_threshold;
+				eth_txconf.tx_thresh.hthresh = tx_host_threshold;
+				eth_txconf.tx_thresh.wthresh = tx_writeback_threshold;
+				eth_txconf.tx_free_thresh = tx_free_threshold;
+				eth_txconf.tx_rs_thresh = 0; //use default, e.g., IXGBE_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
 				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
@@ -1337,11 +1359,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			} else {
 
 				//defaults for unknown driver
-				nb_tx_desc = dev_info.tx_desc_lim.nb_max;
-				eth_txconf.tx_thresh.pthresh = TX_PTHRESH;
-				eth_txconf.tx_thresh.hthresh = TX_HTHRESH;
-				eth_txconf.tx_thresh.wthresh = TX_WTHRESH;
-				eth_txconf.tx_free_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_FREE_THRESH = 32
+				nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
+				eth_txconf.tx_thresh.pthresh = tx_prefetch_threshold;
+				eth_txconf.tx_thresh.hthresh = tx_host_threshold;
+				eth_txconf.tx_thresh.wthresh = tx_writeback_threshold;
+				eth_txconf.tx_free_thresh = tx_free_threshold;
 				eth_txconf.tx_rs_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
@@ -1349,6 +1371,15 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			}
+
+			XDPD_INFO(DRIVER_NAME"[ifaces] configuring txqueue on physical port: %u, txqueue: %u on socket: %u, nb_tx_desc: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: %u\n",
+					port_id, tx_queue_id, socket_id, nb_tx_desc,
+					eth_txconf.tx_thresh.pthresh,
+					eth_txconf.tx_thresh.hthresh,
+					eth_txconf.tx_thresh.wthresh,
+					eth_txconf.tx_free_thresh,
+					eth_txconf.txq_flags,
+					eth_txconf.offloads);
 
 			//configure txqueue
 			if (rte_eth_tx_queue_setup(port_id, tx_queue_id, nb_tx_desc, socket_id, &eth_txconf) < 0) {
@@ -1359,6 +1390,34 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 
 		// configure receive queues
+		uint64_t rx_prefetch_threshold;
+		if (iface_manager_port_setting_exists(s_pci_addr, "rx_prefetch_threshold")) {
+			rx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_prefetch_threshold");
+		} else {
+			rx_prefetch_threshold = RX_PREFETCH_THRESHOLD_DEFAULT;
+		}
+
+		uint64_t rx_host_threshold;
+		if (iface_manager_port_setting_exists(s_pci_addr, "rx_host_threshold")) {
+			rx_host_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_host_threshold");
+		} else {
+			rx_host_threshold = RX_HOST_THRESHOLD_DEFAULT;
+		}
+
+		uint64_t rx_writeback_threshold;
+		if (iface_manager_port_setting_exists(s_pci_addr, "rx_writeback_threshold")) {
+			rx_writeback_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_writeback_threshold");
+		} else {
+			rx_writeback_threshold = RX_WRITEBACK_THRESHOLD_DEFAULT;
+		}
+
+		uint64_t rx_free_threshold;
+		if (iface_manager_port_setting_exists(s_pci_addr, "rx_free_threshold")) {
+			rx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_free_threshold");
+		} else {
+			rx_free_threshold = RX_FREE_THRESHOLD_DEFAULT;
+		}
+
 		for (uint16_t rx_queue_id = 0; rx_queue_id < nb_rx_queues; rx_queue_id++) {
 			uint16_t nb_rx_desc = 0;
 			struct rte_eth_rxconf eth_rxconf;
@@ -1366,12 +1425,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
 
 				// values for i40e PF
-				nb_rx_desc = dev_info.rx_desc_lim.nb_max;
-				eth_rxconf.rx_thresh.pthresh = I40E_DEFAULT_RX_PTHRESH;
-				eth_rxconf.rx_thresh.hthresh = I40E_DEFAULT_RX_HTHRESH;
-				eth_rxconf.rx_thresh.wthresh = I40E_DEFAULT_RX_WTHRESH;
+				nb_rx_desc = dev_info.rx_desc_lim.nb_max / rx_lcores[socket_id].size();
+				eth_rxconf.rx_thresh.pthresh = rx_prefetch_threshold;
+				eth_rxconf.rx_thresh.hthresh = rx_host_threshold;
+				eth_rxconf.rx_thresh.wthresh = rx_writeback_threshold;
 				eth_rxconf.rx_drop_en = 1; //drop packets when descriptor space is exhausted
-				eth_rxconf.rx_free_thresh = I40E_DEFAULT_RX_FREE_THRESH;
+				eth_rxconf.rx_free_thresh = rx_free_threshold;
 				eth_rxconf.rx_deferred_start = 0;
 				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
 
@@ -1379,38 +1438,46 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
 
 				// are these values also valid for i40e VF?
-				nb_rx_desc = dev_info.rx_desc_lim.nb_max;
-				eth_rxconf.rx_thresh.pthresh = I40E_DEFAULT_RX_PTHRESH;
-				eth_rxconf.rx_thresh.hthresh = I40E_DEFAULT_RX_HTHRESH;
-				eth_rxconf.rx_thresh.wthresh = I40E_DEFAULT_RX_WTHRESH;
+				nb_rx_desc = dev_info.rx_desc_lim.nb_max / rx_lcores[socket_id].size();
+				eth_rxconf.rx_thresh.pthresh = rx_prefetch_threshold;
+				eth_rxconf.rx_thresh.hthresh = rx_host_threshold;
+				eth_rxconf.rx_thresh.wthresh = rx_writeback_threshold;
 				eth_rxconf.rx_drop_en = 1; //drop packets when descriptor space is exhausted
-				eth_rxconf.rx_free_thresh = I40E_DEFAULT_RX_FREE_THRESH;
+				eth_rxconf.rx_free_thresh = rx_free_threshold;
 				eth_rxconf.rx_deferred_start = 0;
 				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
 
 			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0) {
 
-				nb_rx_desc = dev_info.rx_desc_lim.nb_max;
-				eth_rxconf.rx_thresh.pthresh = IXGBE_DEFAULT_RX_PTHRESH;
-				eth_rxconf.rx_thresh.hthresh = IXGBE_DEFAULT_RX_HTHRESH;
-				eth_rxconf.rx_thresh.wthresh = IXGBE_DEFAULT_RX_WTHRESH;
+				nb_rx_desc = dev_info.rx_desc_lim.nb_max / rx_lcores[socket_id].size();
+				eth_rxconf.rx_thresh.pthresh = rx_prefetch_threshold;
+				eth_rxconf.rx_thresh.hthresh = rx_host_threshold;
+				eth_rxconf.rx_thresh.wthresh = rx_writeback_threshold;
 				eth_rxconf.rx_drop_en = 1; //drop packets when descriptor space is exhausted
-				eth_rxconf.rx_free_thresh = IXGBE_DEFAULT_RX_FREE_THRESH;
+				eth_rxconf.rx_free_thresh = rx_free_threshold;
 				eth_rxconf.rx_deferred_start = 0;
 				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
 
 			} else {
 
 				//defaults for unknown driver
-				nb_rx_desc = dev_info.rx_desc_lim.nb_max;
-				eth_rxconf.rx_thresh.pthresh = RX_PTHRESH;
-				eth_rxconf.rx_thresh.hthresh = RX_HTHRESH;
-				eth_rxconf.rx_thresh.wthresh = RX_WTHRESH;
-				eth_rxconf.rx_free_thresh = 0;
+				nb_rx_desc = dev_info.rx_desc_lim.nb_max / rx_lcores[socket_id].size();
+				eth_rxconf.rx_thresh.pthresh = rx_prefetch_threshold;
+				eth_rxconf.rx_thresh.hthresh = rx_host_threshold;
+				eth_rxconf.rx_thresh.wthresh = rx_writeback_threshold;
+				eth_rxconf.rx_free_thresh = rx_free_threshold;
 				eth_rxconf.rx_deferred_start = 0;
 				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
 
 			}
+
+			XDPD_INFO(DRIVER_NAME"[ifaces] configuring rxqueue on physical port: %u, rxqueue: %u on socket: %u, nb_rx_desc: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: %u\n",
+					port_id, rx_queue_id, socket_id, nb_rx_desc,
+					eth_rxconf.rx_thresh.pthresh,
+					eth_rxconf.rx_thresh.hthresh,
+					eth_rxconf.rx_thresh.wthresh,
+					eth_rxconf.rx_free_thresh,
+					eth_rxconf.offloads);
 
 			//configure rxqueue
 			if (rte_eth_rx_queue_setup(port_id, rx_queue_id, nb_rx_desc, socket_id, &eth_rxconf, direct_pools[socket_id]) < 0) {
