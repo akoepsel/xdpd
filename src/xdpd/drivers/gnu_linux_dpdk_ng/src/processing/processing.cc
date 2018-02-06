@@ -1163,6 +1163,10 @@ int processing_packet_transmission(void* not_used){
 	struct rte_mbuf* tx_pkts[max_eth_tx_burst_size];
 	uint64_t cur_tsc;
 	ev_core_task_t* ev_task = eventdevs[socket_id];
+	unsigned int ret;
+#if 0
+	switch_port_t* port;
+#endif
 
 	//Set flag to active
 	task->active = true;
@@ -1208,8 +1212,6 @@ int processing_packet_transmission(void* not_used){
 
 			/* interate over all received events */
 			for (i = 0; i < nb_rx; i++) {
-				switch_port_t* port;
-				unsigned int ret;
 
 				 if (unlikely(tx_events[i].mbuf == NULL)){
 					 continue;
