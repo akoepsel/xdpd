@@ -20,7 +20,7 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 
 	/* direct mbufs */
 	if(direct_pools[socket_id] == NULL){
-		unsigned int cache_size = 511; // 16383
+		unsigned int cache_size = 16383; // 16383
 		unsigned int priv_size = 32; //RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN); // 32
 
 		/**
