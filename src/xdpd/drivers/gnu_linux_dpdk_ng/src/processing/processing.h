@@ -74,17 +74,20 @@ typedef struct rx_core_task {
 	task_statistics_t stats;
 
 	/*
-	 * enqueuing on event device
-	 */
-	unsigned int socket_id; /* NUMA node socket-id */
-	uint8_t ev_port_id; /* event port-id */
-	uint8_t tx_ev_queue_id; /* event queue-id for transmitting events to worker cores */
-
-	/*
 	 * receiving from ethdevs
 	 */
-	rx_port_queue_t rx_queues[PROC_MAX_RX_QUEUES_PER_LCORE];  // (port_id, queue_id) = rx_queues[i] for i in (0...PROC_MAX_RX_QUEUES_PER_LCORE-1)
+	rx_port_queue_t rx_queues[RTE_MAX_ETHPORTS];  // (port_id, queue_id) = rx_queues[i] for i in (0...RTE_MAX_ETHPORTS-1)
 	uint16_t nb_rx_queues; // number of valid fields in rx_queues (0, nb_rx_queues-1)
+
+	/*
+	 * enqueuing on event device
+	 */
+	/* NUMA node socket-id */
+	unsigned int socket_id;
+	/* event port-id */
+	uint8_t ev_port_id;
+	/* event queue-id for transmitting events to worker cores */
+	uint8_t tx_ev_queue_id;
 
 } __rte_cache_aligned rx_core_task_t;
 
@@ -99,11 +102,25 @@ typedef struct tx_core_task {
 	unsigned int idle_loops; // number of idle loops for reading events from event device
 
 	/*
+	 * transmitting to ethdevs
+	 */
+	/* queue-id to be used by this task for given port-id */
+	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id] => for all ports in the system
+	uint16_t nb_tx_queues; // number if valid tx_queues
+
+	/*
 	 * dequeuing from event device
 	 */
-	unsigned int socket_id; /* NUMA node socket-id */
-	uint8_t ev_port_id; /* event port-id */
-	uint8_t rx_ev_queue_id; /* event queue-id for receiving events */
+
+	/* NUMA node socket-id */
+	unsigned int socket_id;
+	/* event port-id */
+	uint8_t ev_port_id;
+
+	/* list of event queues this task is linked to for receving events */
+	uint8_t rx_ev_queues[RTE_EVENT_MAX_QUEUES_PER_DEV];
+	/* number of event queues stored in ex_ev_queues */
+	unsigned int nb_rx_ev_queues;
 
 	/*
 	 * drain queues per port
@@ -121,13 +138,6 @@ typedef struct tx_core_task {
 	/* timestamp of last tx-burst */
 	uint64_t txring_last_tx_time[RTE_MAX_ETHPORTS];
 
-	/*
-	 * transmitting to ethdevs
-	 */
-	/* queue-id to be used by this task for given port-id */
-	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id] => for all ports in the system
-	uint16_t nb_tx_queues; // number if valid tx_queues
-
 } __rte_cache_aligned tx_core_task_t;
 
 /**
@@ -138,9 +148,17 @@ typedef struct wk_core_task {
 	bool active; // task is running
 	task_statistics_t stats;
 	
-	unsigned int socket_id; /* NUMA node socket-id */
-	uint8_t ev_port_id; /* event port-id */
-	uint8_t tx_ev_queue_id; /* event queue-id for sending events to the appropriate TX lcore event queue */
+	/* NUMA node socket-id */
+	unsigned int socket_id;
+	/* event port-id */
+	uint8_t ev_port_id;
+	/* event queue-id for sending events to the appropriate TX lcore event queue */
+	uint8_t tx_ev_queue_id;
+
+	/* list of event queues this task is linked to for receving events */
+	uint8_t rx_ev_queues[RTE_EVENT_MAX_QUEUES_PER_DEV];
+	/* number of event queues stored in ex_ev_queues */
+	unsigned int nb_rx_ev_queues;
 
 } __rte_cache_aligned wk_core_task_t;
 
