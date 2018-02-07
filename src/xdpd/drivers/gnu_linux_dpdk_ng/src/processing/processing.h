@@ -181,10 +181,6 @@ typedef struct ev_core_task {
 	/* event device configuration */
 	struct rte_event_dev_config eventdev_conf;
 
-	/* event queue forwarding events to worker tasks */
-	uint8_t ev_queue_to_wk_tasks;
-	/* event queue forwarding events to TX tasks */
-	uint8_t ev_queue_to_tx_tasks;
 } __rte_cache_aligned ev_core_task_t;
 
 /**
@@ -201,13 +197,14 @@ extern rte_rwlock_t port_list_rwlock;
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
 extern ev_core_task_t* eventdevs[RTE_MAX_NUMA_NODES];
 
-
+#if 0
 /* maximum number of event queues per NUMA node: queue[0]=used by workers, queue[1]=used by TX lcores */
 enum event_queue_t {
 	EVENT_QUEUE_WK_TASKS = 0, //workers
 	EVENT_QUEUE_TX_TASKS = 1, //TX cores
 	EVENT_QUEUE_MAX = 2, /* max number of event queues per NUMA node */
 };
+#endif
 
 
 /**

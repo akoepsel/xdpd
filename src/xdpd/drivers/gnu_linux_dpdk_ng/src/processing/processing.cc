@@ -508,10 +508,6 @@ rofl_result_t processing_init_eventdev(void){
 				}
 			}
 
-			/* set event queues for WK/TX lcores */
-			ev_core_tasks[lcore_id].ev_queue_to_wk_tasks = EVENT_QUEUE_WK_TASKS;
-			ev_core_tasks[lcore_id].ev_queue_to_tx_tasks = EVENT_QUEUE_TX_TASKS;
-
 
 			/* map event ports/queues for RX/WK lcores */
 			uint8_t ev_port_id = 0;
@@ -1210,6 +1206,11 @@ int processing_packet_transmission(void* not_used){
 #endif
 
 	XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: started\n", socket_id, lcore_id);
+
+	for (unsigned int port_id = 0; port_id < task->nb_tx_queues; i++) {
+		uint8_t queue_id = task->tx_queues[i].queue_id;
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: sending via port: %u, queue: %u\n", socket_id, lcore_id, port_id, queue_id);
+	}
 
 	/* initialize port related parameters */
 	cur_tsc = rte_get_tsc_cycles();
