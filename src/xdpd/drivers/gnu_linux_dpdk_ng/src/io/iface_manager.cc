@@ -1371,7 +1371,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_rs_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
-				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
+				eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			} else
@@ -1385,7 +1385,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_rs_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
-				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
+				eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0) {
@@ -1397,7 +1397,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_rs_thresh = 0; //use default, e.g., IXGBE_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
-				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
+				eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			} else {
@@ -1410,7 +1410,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_rs_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
-				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
+				eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			}
