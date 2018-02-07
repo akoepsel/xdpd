@@ -1323,9 +1323,9 @@ int processing_packet_transmission(void* not_used){
 					assert(out_port_id == ps->port_id);
 				}
 #endif
-#endif
 
 				rte_rwlock_read_unlock(&port_list_rwlock);
+#endif
 
 				if (unlikely(task->txring[out_port_id] == NULL)) {
 					task->stats.bugs_dropped++;
