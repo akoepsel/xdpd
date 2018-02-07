@@ -55,6 +55,8 @@ dpdk:
     ens1f1: 
       enabled: false
       pci_address: "0000:82:00.1"
+      nb_tx_desc: 512
+      nb_rx_desc: 512
       txring_drain_queue_capacity: 4096
       txring_drain_threshold: 1024
       txring_drain_interval: 10
@@ -88,6 +90,8 @@ dpdk:
       pci_address: "0000:82:0a.0"
       parent: "0000:82:00.1"
       shortcut: "0000:82:0a.1"
+      nb_tx_desc: 512
+      nb_rx_desc: 512
       txring_drain_queue_capacity: 4096
       txring_drain_threshold: 1024
       txring_drain_interval: 10
@@ -123,6 +127,8 @@ dpdk:
       pci_address: "0000:82:0a.1"
       parent: "0000:82:00.1"
       shortcut: "0000:82:0a.0"
+      nb_tx_desc: 512
+      nb_rx_desc: 512
       txring_drain_queue_capacity: 4096
       txring_drain_threshold: 1024
       txring_drain_interval: 10
@@ -155,6 +161,8 @@ dpdk:
     ens3f1: 
       enabled: true
       pci_address: "0000:03:00.1"
+      nb_tx_desc: 512
+      nb_rx_desc: 512
       txring_drain_queue_capacity: 4096
       txring_drain_threshold: 256
       txring_drain_interval: 100
@@ -188,6 +196,8 @@ dpdk:
       pci_address: "0000:03:0a.0"
       parent: "0000:03:00.1"
       shortcut: "0000:03:0a.1"
+      nb_tx_desc: 512
+      nb_rx_desc: 512
       txring_drain_queue_capacity: 4096
       txring_drain_threshold: 256
       txring_drain_interval: 100
@@ -223,6 +233,8 @@ dpdk:
       pci_address: "0000:03:0a.1"
       parent: "0000:03:00.1"
       shortcut: "0000:03:0a.0"
+      nb_tx_desc: 512
+      nb_rx_desc: 512
       txring_drain_queue_capacity: 4096
       txring_drain_threshold: 256
       txring_drain_interval: 100
