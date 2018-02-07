@@ -133,7 +133,10 @@ int process_timeouts(){
  */
 void* x86_background_tasks_routine(void* param){
 
-	static struct timeval last_time_stats_updated={0,0}, last_time_links_updated={0,0}, last_time_task_stats_updated={0,0}, now;
+	static struct timeval last_time_stats_updated={0,0}, last_time_links_updated={0,0}, now;
+#if 0
+	static struct timeval last_time_task_stats_updated={0,0};
+#endif
 #ifdef GNU_LINUX_DPDK_ENABLE_NF
 	static struct timeval last_time_kni_commands_handled={0,0};
 #endif //GNU_LINUX_DPDK_ENABLE_NF
