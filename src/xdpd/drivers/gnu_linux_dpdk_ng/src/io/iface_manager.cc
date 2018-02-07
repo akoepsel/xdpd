@@ -1189,9 +1189,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			/* store txring-drain-interval parameter for this port */
 			uint64_t txring_drain_interval;
 			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_interval")) {
-				txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring_drain_interval") * /*number of cycles in 1ms for default timer=*/(rte_get_timer_hz() / 1e3);
+				txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring_drain_interval") * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
 			} else {
-				txring_drain_interval = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT * /*number of cycles in 1ms for default timer=*/(rte_get_timer_hz() / 1e3);
+				txring_drain_interval = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
 			}
 			tx_core_tasks[lcore_id].txring_drain_interval[port_id] = txring_drain_interval;
 
