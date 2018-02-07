@@ -77,7 +77,10 @@ extern std::map<unsigned int, std::set<unsigned int> > tx_lcores;
 
 extern unsigned int mem_pool_size;
 extern unsigned int mbuf_dataroom;
-
+extern unsigned int dpdk_memory_mempool_direct_cache_size;
+extern unsigned int dpdk_memory_mempool_direct_priv_size;
+extern unsigned int dpdk_memory_mempool_indirect_cache_size;
+extern unsigned int dpdk_memory_mempool_indirect_priv_size;
 
 static int set_vf_vlan_filter(uint16_t port_id, uint16_t vlan_id, uint64_t vf_mask, uint8_t on)
 {
@@ -1041,7 +1044,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		unsigned int nbmbufs = (unsigned int)pow(2, ceil(log2((mem_pool_size == 0) ? nb_mbuf[socket_id] : mem_pool_size)));
 		unsigned int pool_size = RTE_MIN(nbmbufs, (uint32_t)UINT32_C(1<<31));
 		XDPD_INFO(DRIVER_NAME"[ifaces] allocating memory, pool_size: %u, data_room: %u\n", pool_size, mbuf_dataroom);
-		memory_init(socket_id, pool_size, mbuf_dataroom);
+		memory_init(socket_id, pool_size, mbuf_dataroom,
+				dpdk_memory_mempool_direct_cache_size,
+				dpdk_memory_mempool_direct_priv_size,
+				dpdk_memory_mempool_indirect_cache_size,
+				dpdk_memory_mempool_indirect_priv_size);
 	}
 
 

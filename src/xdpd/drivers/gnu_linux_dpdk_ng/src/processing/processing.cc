@@ -34,6 +34,10 @@ using namespace xdpd::gnu_linux_dpdk_ng;
 unsigned int mem_pool_size = 0;
 unsigned int mbuf_dataroom = RTE_MBUF_DEFAULT_DATAROOM;
 unsigned int mbuf_buf_size = RTE_MBUF_DEFAULT_BUF_SIZE;
+unsigned int dpdk_memory_mempool_direct_cache_size = 16383;
+unsigned int dpdk_memory_mempool_direct_priv_size = 32;
+unsigned int dpdk_memory_mempool_indirect_cache_size = sizeof(struct rte_mbuf);
+unsigned int dpdk_memory_mempool_indirect_priv_size = 32;
 unsigned int max_eth_rx_burst_size = MAX_ETH_RX_BURST_SIZE_DEFAULT;
 unsigned int max_evt_wk_burst_size = MAX_EVT_WK_BURST_SIZE_DEFAULT;
 unsigned int max_evt_tx_burst_size = MAX_EVT_TX_BURST_SIZE_DEFAULT;
@@ -134,6 +138,30 @@ rofl_result_t processing_init_lcores(void){
 	if (mbuf_dataroom_node && mbuf_dataroom_node.IsScalar()) {
 		mbuf_dataroom = mbuf_dataroom_node.as<unsigned int>();
 		mbuf_buf_size = mbuf_dataroom + RTE_PKTMBUF_HEADROOM;
+	}
+
+	/* dpdk.memory.mempool.direct.cache_size */
+	YAML::Node dpdk_memory_mempool_direct_cache_size_node = y_config_dpdk_ng["dpdk"]["memory"]["mempool"]["direct"]["cache_size"];
+	if (dpdk_memory_mempool_direct_cache_size_node && dpdk_memory_mempool_direct_cache_size_node.IsScalar()) {
+		dpdk_memory_mempool_direct_cache_size = dpdk_memory_mempool_direct_cache_size_node.as<unsigned int>();
+	}
+
+	/* dpdk.memory.mempool.direct.priv_size */
+	YAML::Node dpdk_memory_mempool_direct_priv_size_node = y_config_dpdk_ng["dpdk"]["memory"]["mempool"]["direct"]["priv_size"];
+	if (dpdk_memory_mempool_direct_priv_size_node && dpdk_memory_mempool_direct_priv_size_node.IsScalar()) {
+		dpdk_memory_mempool_direct_priv_size = dpdk_memory_mempool_direct_priv_size_node.as<unsigned int>();
+	}
+
+	/* dpdk.memory.mempool.indirect.cache_size */
+	YAML::Node dpdk_memory_mempool_indirect_cache_size_node = y_config_dpdk_ng["dpdk"]["memory"]["mempool"]["indirect"]["cache_size"];
+	if (dpdk_memory_mempool_indirect_cache_size_node && dpdk_memory_mempool_indirect_cache_size_node.IsScalar()) {
+		dpdk_memory_mempool_indirect_cache_size = dpdk_memory_mempool_indirect_cache_size_node.as<unsigned int>();
+	}
+
+	/* dpdk.memory.mempool.indirect.priv_size */
+	YAML::Node dpdk_memory_mempool_indirect_priv_size_node = y_config_dpdk_ng["dpdk"]["memory"]["mempool"]["indirect"]["priv_size"];
+	if (dpdk_memory_mempool_indirect_priv_size_node && dpdk_memory_mempool_indirect_priv_size_node.IsScalar()) {
+		dpdk_memory_mempool_indirect_priv_size = dpdk_memory_mempool_indirect_priv_size_node.as<unsigned int>();
 	}
 
 	/* get svc coremask */

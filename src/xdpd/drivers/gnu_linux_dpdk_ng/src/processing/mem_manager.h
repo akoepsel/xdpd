@@ -22,7 +22,7 @@ ROFL_BEGIN_DECLS
 /**
  * Allocate memory pools
  */
-rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, unsigned int mbuf_dataroom);
+rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, unsigned int mbuf_dataroom, unsigned int direct_cache_size, unsigned int direct_priv_size, unsigned int indirect_cache_size, unsigned int indirect_priv_size);
 
 /**
  * Deallocate memory pools
