@@ -16,6 +16,8 @@ struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
  */
 rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, unsigned int mbuf_dataroom){
 
+	int flags=0;
+
 	/* direct mbufs */
 	if(direct_pools[socket_id] == NULL){
 
@@ -26,6 +28,17 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 		snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_direct_%u", socket_id);
 		XDPD_INFO(DRIVER_NAME"[memory][init] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mem_pool_size, mbuf_dataroom, socket_id);
 
+#if 1
+		direct_pools[socket_id] = rte_mempool_create(
+			pool_name,
+			/*number of elements in pool=*/mem_pool_size,
+			/*cache_size=*/16383,
+			/*priv_size=*/32,
+			sizeof(struct rte_pktmbuf_pool_private),
+			rte_pktmbuf_pool_init, NULL,
+			rte_pktmbuf_init, NULL,
+			socket_id, flags);
+#else
 		direct_pools[socket_id] = rte_pktmbuf_pool_create(
 				pool_name,
 				/*number of elements in pool=*/mem_pool_size,
@@ -33,6 +46,7 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 				/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
 				/*data_room_size=*/mbuf_dataroom,
 				socket_id);
+#endif
 
 		if (direct_pools[socket_id] == NULL) {
 			XDPD_INFO(DRIVER_NAME"[memory][init] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
@@ -50,6 +64,17 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 		snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_indirect_%u", socket_id);
 		XDPD_INFO(DRIVER_NAME"[memory][init] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u\n", pool_name, mem_pool_size, mbuf_dataroom, socket_id);
 
+#if 1
+		indirect_pools[socket_id] = rte_mempool_create(
+				pool_name,
+				/*number of elements in pool=*/mem_pool_size,
+				/*cache_size=*/sizeof(struct rte_mbuf),
+				/*priv_size=*/32,
+				0,
+				NULL, NULL,
+				rte_pktmbuf_init, NULL,
+				socket_id, flags);
+#else
 		indirect_pools[socket_id] = rte_pktmbuf_pool_create(
 				pool_name,
 				/*number of elements in pool=*/mem_pool_size,
@@ -57,6 +82,7 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 				/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
 				/*data_room_size=*/mbuf_dataroom,
 				socket_id);
+#endif
 
 		if (indirect_pools[socket_id] == NULL) {
 			XDPD_INFO(DRIVER_NAME"[memory][init] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
