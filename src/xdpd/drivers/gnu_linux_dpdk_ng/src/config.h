@@ -128,13 +128,6 @@
 #define	I40E_MAX_RING_DESC	          4096
 #define	I40E_MIN_RING_DESC	          64
 
-/*
- * Configurable number of RX/TX ring descriptors
- */
-#if 0
-#define RTE_RX_DESC_DEFAULT 512
-#define RTE_TX_DESC_DEFAULT 512
-#endif
 
 /*
 * Processing stuff
@@ -164,25 +157,5 @@
 //Other parameters
 #define RTE_MEM_CHANNELS 4
 #define MBUF_SIZE 16383
-
-/* (9000 + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM) */
-
-/*
- * Default number of MBUFs per pool
- */
-#define DEFAULT_NB_MBUF 65365
-
-
-/**
-* Uncomment the following line to enable the semaphore and implement a sleep/
-* wake mechanism between xdpd and the NF process (DPDK secondary process)
-*
-* NOT RECOMMENDED
-*/
-//#define ENABLE_DPDK_SECONDARY_SEMAPHORE
-
-//IVANO - FIXME: write a meaningfull value
-//#define PKT_TO_NF_THRESHOLD 	200
-
 
 #endif //XDPD_GNU_LINUX_DPDK_NG_CONFIG_H
