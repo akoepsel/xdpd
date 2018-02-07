@@ -166,11 +166,13 @@ void* x86_background_tasks_routine(void* param){
 		}
 #endif
 
+#if 0
 		//Update port stats
 		if(get_time_difference_ms(&now, &last_time_task_stats_updated)>=BG_UPDATE_TASK_STATS_MS){
 			processing_update_stats();
 			last_time_task_stats_updated = now;
 		}
+#endif
 
 		//Throttle
 		usleep(LSW_TIMER_SLOT_MS*1000);

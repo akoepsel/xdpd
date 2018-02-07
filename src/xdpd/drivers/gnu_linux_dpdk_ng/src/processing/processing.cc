@@ -1202,6 +1202,7 @@ int processing_packet_transmission(void* not_used){
 	uint64_t cur_tsc;
 	ev_core_task_t* ev_task = eventdevs[socket_id];
 	unsigned int ret;
+	unsigned int nb_elems, nb_elems_remaining;
 #if 0
 	switch_port_t* port;
 #endif
@@ -1331,8 +1332,6 @@ int processing_packet_transmission(void* not_used){
 		 * drain all outgoing ports
 		 */
 		for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id) {
-
-			unsigned int nb_elems, nb_elems_remaining;
 
 			/* port not enabled in this tx-task */
 			if (not task->tx_queues[port_id].enabled) {
