@@ -1332,7 +1332,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			return ROFL_FAILURE;
 		}
 
-
 		// configure transmit queues
 		uint16_t nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_tx_desc")) {

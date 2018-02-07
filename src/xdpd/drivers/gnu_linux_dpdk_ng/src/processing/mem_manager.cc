@@ -31,7 +31,7 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 		XDPD_INFO(DRIVER_NAME"[memory][init] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u, cache_size: %u, priv_size: %u\n",
 				pool_name, mem_pool_size, mbuf_dataroom, socket_id, direct_cache_size, direct_priv_size);
 
-#if 1
+#if 0
 		direct_pools[socket_id] = rte_mempool_create(
 			pool_name,
 			/*number of elements in pool=*/mem_pool_size,
@@ -45,8 +45,8 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 		direct_pools[socket_id] = rte_pktmbuf_pool_create(
 				pool_name,
 				/*number of elements in pool=*/mem_pool_size,
-				/*cache_size=*/0,
-				/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
+				direct_cache_size,
+				direct_priv_size,
 				/*data_room_size=*/mbuf_dataroom,
 				socket_id);
 #endif
@@ -70,7 +70,7 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 		XDPD_INFO(DRIVER_NAME"[memory][init] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u, cache_size: %u, priv_size: %u\n",
 				pool_name, mem_pool_size, mbuf_dataroom, socket_id, indirect_cache_size, indirect_priv_size);
 
-#if 1
+#if 0
 		indirect_pools[socket_id] = rte_mempool_create(
 				pool_name,
 				/*number of elements in pool=*/mem_pool_size,
@@ -84,8 +84,8 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 		indirect_pools[socket_id] = rte_pktmbuf_pool_create(
 				pool_name,
 				/*number of elements in pool=*/mem_pool_size,
-				/*cache_size=*/0,
-				/*priv_size=*/RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN),
+				indirect_cache_size,
+				indirect_priv_size,
 				/*data_room_size=*/mbuf_dataroom,
 				socket_id);
 #endif
