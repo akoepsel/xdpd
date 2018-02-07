@@ -67,7 +67,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 		tx_events[0].flow_id = mbuf->hash.rss;
 		tx_events[0].op = RTE_EVENT_OP_NEW;
-		tx_events[0].sched_type = RTE_SCHED_TYPE_PARALLEL;
+		tx_events[0].sched_type = RTE_SCHED_TYPE_ORDERED;
 		tx_events[0].queue_id = ev_queue_id; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
 		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
 		tx_events[0].sub_event_type = 0;
@@ -127,7 +127,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 		tx_events[0].flow_id = mbuf->hash.rss;
 		tx_events[0].op = RTE_EVENT_OP_FORWARD;
-		tx_events[0].sched_type = RTE_SCHED_TYPE_PARALLEL;
+		tx_events[0].sched_type = RTE_SCHED_TYPE_ORDERED;
 		tx_events[0].queue_id = task->tx_ev_queue_id; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
 		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
 		tx_events[0].sub_event_type = 0;
