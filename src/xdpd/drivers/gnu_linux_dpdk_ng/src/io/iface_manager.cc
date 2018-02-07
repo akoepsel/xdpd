@@ -1334,6 +1334,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 
 		// configure transmit queues
+		uint16_t nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_tx_desc")) {
+			nb_tx_desc = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "nb_tx_desc");
+		}
+
 		uint64_t tx_prefetch_threshold(TX_PREFETCH_THRESHOLD_DEFAULT);
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "tx_prefetch_threshold")) {
 			tx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_prefetch_threshold");
@@ -1355,13 +1360,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		for (uint16_t tx_queue_id = 0; tx_queue_id < /*no typo!*/nb_tx_queues; tx_queue_id++) {
-			uint16_t nb_tx_desc = 0;
 			struct rte_eth_txconf eth_txconf;
 
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
 
 				// values for i40e PF
-				nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
 				eth_txconf.tx_thresh.pthresh = tx_prefetch_threshold;
 				eth_txconf.tx_thresh.hthresh = tx_host_threshold;
 				eth_txconf.tx_thresh.wthresh = tx_writeback_threshold;
@@ -1376,7 +1379,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
 
 				// are these values also valid for i40e VF?
-				nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
 				eth_txconf.tx_thresh.pthresh = tx_prefetch_threshold;
 				eth_txconf.tx_thresh.hthresh = tx_host_threshold;
 				eth_txconf.tx_thresh.wthresh = tx_writeback_threshold;
@@ -1389,7 +1391,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0) {
 
-				nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
 				eth_txconf.tx_thresh.pthresh = tx_prefetch_threshold;
 				eth_txconf.tx_thresh.hthresh = tx_host_threshold;
 				eth_txconf.tx_thresh.wthresh = tx_writeback_threshold;
@@ -1403,7 +1404,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			} else {
 
 				//defaults for unknown driver
-				nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
 				eth_txconf.tx_thresh.pthresh = tx_prefetch_threshold;
 				eth_txconf.tx_thresh.hthresh = tx_host_threshold;
 				eth_txconf.tx_thresh.wthresh = tx_writeback_threshold;
@@ -1434,6 +1434,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 
 		// configure receive queues
+		uint16_t nb_rx_desc = dev_info.rx_desc_lim.nb_max / rx_lcores[socket_id].size();
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_rx_desc")) {
+			nb_rx_desc = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "nb_rx_desc");
+		}
+
 		uint64_t rx_prefetch_threshold(RX_PREFETCH_THRESHOLD_DEFAULT);
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_prefetch_threshold")) {
 			rx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_prefetch_threshold");
@@ -1455,13 +1460,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		for (uint16_t rx_queue_id = 0; rx_queue_id < nb_rx_queues; rx_queue_id++) {
-			uint16_t nb_rx_desc = 0;
 			struct rte_eth_rxconf eth_rxconf;
 
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
 
 				// values for i40e PF
-				nb_rx_desc = dev_info.rx_desc_lim.nb_max / rx_lcores[socket_id].size();
 				eth_rxconf.rx_thresh.pthresh = rx_prefetch_threshold;
 				eth_rxconf.rx_thresh.hthresh = rx_host_threshold;
 				eth_rxconf.rx_thresh.wthresh = rx_writeback_threshold;
@@ -1474,7 +1477,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
 
 				// are these values also valid for i40e VF?
-				nb_rx_desc = dev_info.rx_desc_lim.nb_max / rx_lcores[socket_id].size();
 				eth_rxconf.rx_thresh.pthresh = rx_prefetch_threshold;
 				eth_rxconf.rx_thresh.hthresh = rx_host_threshold;
 				eth_rxconf.rx_thresh.wthresh = rx_writeback_threshold;
@@ -1485,7 +1487,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			} else if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_IXGBE_PF, sizeof(DPDK_DRIVER_NAME_IXGBE_PF)) == 0) {
 
-				nb_rx_desc = dev_info.rx_desc_lim.nb_max / rx_lcores[socket_id].size();
 				eth_rxconf.rx_thresh.pthresh = rx_prefetch_threshold;
 				eth_rxconf.rx_thresh.hthresh = rx_host_threshold;
 				eth_rxconf.rx_thresh.wthresh = rx_writeback_threshold;
@@ -1497,7 +1498,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			} else {
 
 				//defaults for unknown driver
-				nb_rx_desc = dev_info.rx_desc_lim.nb_max / rx_lcores[socket_id].size();
 				eth_rxconf.rx_thresh.pthresh = rx_prefetch_threshold;
 				eth_rxconf.rx_thresh.hthresh = rx_host_threshold;
 				eth_rxconf.rx_thresh.wthresh = rx_writeback_threshold;

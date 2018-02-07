@@ -36,6 +36,13 @@ dpdk:
     mem_pool_size: 262144
     #mem_pool_size: 0
     mbuf_dataroom: 2048
+    mempool:
+      direct:
+        cache_size: 16383
+        priv_size: 32
+      indirect:
+        cache_size: 32
+        priv_size: 31
   processing:
     max_evt_wk_burst_size: 1
     max_evt_tx_burst_size: 64
