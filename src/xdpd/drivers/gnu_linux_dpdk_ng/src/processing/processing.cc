@@ -1207,7 +1207,10 @@ int processing_packet_transmission(void* not_used){
 
 	XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: started\n", socket_id, lcore_id);
 
-	for (unsigned int port_id = 0; port_id < task->nb_tx_queues; port_id++) {
+	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; port_id++) {
+		if (not task->tx_queues[port_id].enabled){
+			continue;
+		}
 		uint8_t queue_id = task->tx_queues[port_id].queue_id;
 		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: sending via port: %u, queue: %u\n", socket_id, lcore_id, port_id, queue_id);
 	}
