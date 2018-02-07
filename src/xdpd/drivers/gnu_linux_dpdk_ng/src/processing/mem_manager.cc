@@ -15,9 +15,9 @@ struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
  * Allocate memory pools
  */
 rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, unsigned int mbuf_dataroom, unsigned int direct_cache_size, unsigned int direct_priv_size, unsigned int indirect_cache_size, unsigned int indirect_priv_size){
-
+#if 0
 	int flags=0;
-
+#endif
 	/* direct mbufs */
 	if(direct_pools[socket_id] == NULL){
 		//cache_size = 16383; // 16383
