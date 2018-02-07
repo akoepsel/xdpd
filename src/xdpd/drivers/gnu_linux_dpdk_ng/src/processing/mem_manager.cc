@@ -46,7 +46,7 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 				pool_name,
 				/*number of elements in pool=*/mem_pool_size,
 				direct_cache_size,
-				direct_priv_size,
+				RTE_ALIGN(direct_priv_size, RTE_MBUF_PRIV_ALIGN),
 				/*data_room_size=*/mbuf_dataroom,
 				socket_id);
 #endif
@@ -85,7 +85,7 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 				pool_name,
 				/*number of elements in pool=*/mem_pool_size,
 				indirect_cache_size,
-				indirect_priv_size,
+				RTE_ALIGN(indirect_priv_size, RTE_MBUF_PRIV_ALIGN),
 				/*data_room_size=*/mbuf_dataroom,
 				socket_id);
 #endif
