@@ -555,10 +555,13 @@ START_RETRY:
 	//Set as queues setup
 	ps->queues_set=true;
 
+	int socket_id = rte_eth_dev_socket_id(ps->port_id);
+
 	//Inform running RX tasks
-	for (auto lcore_id : rx_lcores[rte_eth_dev_socket_id(ps->port_id)]) {
+	for (auto lcore_id : rx_lcores[socket_id]) {
 		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
 			if (i == ps->port_id) {
+				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: enabling port %u\n", socket_id, lcore_id, ps->port_id);
 				rx_core_tasks[lcore_id].rx_queues[i].enabled = true;
 				break;
 			}
@@ -566,7 +569,8 @@ START_RETRY:
 	}
 
 	//Inform running TX tasks
-	for (auto lcore_id : tx_lcores[rte_eth_dev_socket_id(ps->port_id)]) {
+	for (auto lcore_id : tx_lcores[socket_id]) {
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: enabling port %u\n", socket_id, lcore_id, ps->port_id);
 		tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled = true;
 	}
 
@@ -585,18 +589,21 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 
 	XDPD_INFO(DRIVER_NAME"[iface_manager] stopping port %u (%s)\n", ps->port_id, port->name);
 
+	int socket_id = rte_eth_dev_socket_id(ps->port_id);
+
 	//Inform running RX tasks
-	for (auto lcore_id : rx_lcores[rte_eth_dev_socket_id(ps->port_id)]) {
+	for (auto lcore_id : rx_lcores[socket_id]) {
 		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
 			if (i == ps->port_id) {
+				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: disabling port %u\n", socket_id, lcore_id, ps->port_id);
 				rx_core_tasks[lcore_id].rx_queues[i].enabled = false;
-				break;
 			}
 		}
 	}
 
 	//Inform running TX tasks
-	for (auto lcore_id : tx_lcores[rte_eth_dev_socket_id(ps->port_id)]) {
+	for (auto lcore_id : tx_lcores[socket_id]) {
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: disabling port %u\n", socket_id, lcore_id, ps->port_id);
 		tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled = false;
 	}
 
