@@ -1023,7 +1023,7 @@ int processing_packet_reception(void* not_used){
 	uint16_t port_id;
 	uint16_t queue_id;
 
-#if 0
+#if 1
 	switch_port_t* port;
 #endif
 	rx_core_task_t* task = &rx_core_tasks[lcore_id];
