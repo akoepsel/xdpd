@@ -395,10 +395,11 @@ rofl_result_t processing_init_eventdev(void){
 		/*
 		 * initialize eventdev device
 		 */
-		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] initializing eventdev device\n");
 
 		/* get software event name */
 		snprintf(ev_core_tasks[socket_id].name, sizeof(ev_core_tasks[socket_id].name), "event_sw%u", socket_id);
+
+		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] initializing eventdev device %s\n", ev_core_tasks[socket_id].name);
 
 		/* get software event arguments */
 		YAML::Node eventdev_args_node = y_config_dpdk_ng["dpdk"]["eventdev"]["args"];
