@@ -87,18 +87,18 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		{
 			/* acquire rwlock for writing to eventdev port_id assigned to control plane threads */
 			rte_rwlock_write_lock(&rwlock_eventdev_cp_port);
-			nb_tx = rte_event_enqueue_burst(eventdevs[ps->socket_id]->eventdev_id, ev_port_id, tx_events, nb_rx);
+			nb_tx = rte_event_enqueue_burst(ev_core_tasks[ps->socket_id].eventdev_id, ev_port_id, tx_events, nb_rx);
 			/* release rwlock */
 			rte_rwlock_write_unlock(&rwlock_eventdev_cp_port);
 		}
 
 		if (lcore_id != LCORE_ID_ANY && lcores[lcore_id].is_master){
 			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket MASTER, enqueued %u event(s) via ev_port_id %u on eventdev %s\n",
-					lcore_id, nb_tx, ev_port_id, eventdevs[ps->socket_id]->name);
+					lcore_id, nb_tx, ev_port_id, ev_core_tasks[ps->socket_id].name);
 		}
 		if (lcore_id == LCORE_ID_ANY){
 			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket LCORE_ID_ANY, enqueued %u event(s) via ev_port_id %u on eventdev %s\n",
-					lcore_id, nb_tx, ev_port_id, eventdevs[ps->socket_id]->name);
+					lcore_id, nb_tx, ev_port_id, ev_core_tasks[ps->socket_id].name);
 		}
 
 		/* release mbufs not queued in event device */
@@ -150,12 +150,12 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		//		lcore_id, task->ev_port_id, task->tx_ev_queue_id[ps->socket_id], 0, port_id);
 
 		int i = 0, nb_rx = 1;
-		const int nb_tx = rte_event_enqueue_burst(eventdevs[socket_id]->eventdev_id, task->ev_port_id, tx_events, nb_rx);
+		const int nb_tx = rte_event_enqueue_burst(ev_core_tasks[socket_id].eventdev_id, task->ev_port_id, tx_events, nb_rx);
 
 		task->stats.tx_evts+=nb_tx;
 
 		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, enqueued %u event(s) via ev_port_id %u on eventdev %s\n",
-				lcore_id, rte_lcore_to_socket_id(lcore_id), nb_tx, task->ev_port_id, eventdevs[socket_id]->name);
+				lcore_id, rte_lcore_to_socket_id(lcore_id), nb_tx, task->ev_port_id, ev_core_tasks[socket_id].name);
 
 		/* release mbufs not queued in event device */
 		if (nb_rx > nb_tx) {

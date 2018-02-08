@@ -205,7 +205,6 @@ extern struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
 extern switch_port_t* port_list[PROCESSING_MAX_PORTS];
 extern rte_rwlock_t port_list_rwlock;
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
-extern ev_core_task_t* eventdevs[RTE_MAX_NUMA_NODES];
 
 
 

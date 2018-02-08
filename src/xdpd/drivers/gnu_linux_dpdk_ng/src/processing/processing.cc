@@ -97,8 +97,6 @@ static uint64_t tx_coremask = 0x0008; // lcore_id = 3
 /* WK lcores */
 static uint64_t wk_coremask = 0x000c; // lcore_id = 4
 
-/* event devs */
-ev_core_task_t* eventdevs[RTE_MAX_NUMA_NODES];
 
 
 /*
@@ -287,8 +285,6 @@ rofl_result_t processing_init_lcores(void){
 				//Increase number of service lcores for this socket
 				ev_lcores[socket_id].insert(lcore_id);
 				s_task.assign("service lcore");
-				//eventdev on NUMA node socket_id
-				eventdevs[socket_id] = &ev_core_tasks[lcore_id];
 			} else
 			//rx lcore (=packet receiving lcore)
 			if (rx_coremask & ((uint64_t)1 << lcore_id)) {
@@ -771,7 +767,6 @@ rofl_result_t processing_init(void){
 	memset(tx_core_tasks, 0, sizeof(tx_core_tasks));
 	memset(wk_core_tasks, 0, sizeof(wk_core_tasks));
 	memset(ev_core_tasks, 0, sizeof(ev_core_tasks));
-	memset(eventdevs, 0, sizeof(eventdevs));
 	memset(port_list, 0, sizeof(port_list));
 
 	/*
@@ -1051,7 +1046,7 @@ int processing_packet_reception(void* not_used){
 	rx_core_task_t* task = &rx_core_tasks[lcore_id];
 	struct rte_mbuf* mbufs[max_eth_rx_burst_size];
 	struct rte_event event[max_eth_rx_burst_size];
-	ev_core_task_t* ev_task = eventdevs[socket_id];
+	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
 
 	XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: started\n", socket_id, lcore_id);
 
@@ -1164,7 +1159,7 @@ int processing_packet_pipeline_processing(void* not_used){
 	wk_core_task_t* task = &wk_core_tasks[lcore_id];
 	switch_port_t* port;
 	of_switch_t* sw;
-	ev_core_task_t* ev_task = eventdevs[socket_id];
+	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
 
 	//Parsing and pipeline extra state
 	datapacket_t pkt;
@@ -1257,11 +1252,13 @@ int processing_packet_transmission(void* not_used){
 	unsigned int i, lcore_id = rte_lcore_id();
 	int socket_id = rte_lcore_to_socket_id(lcore_id);
 	tx_core_task_t* task = &tx_core_tasks[lcore_id];
+	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
+
 	uint32_t out_port_id;
 	struct rte_event tx_events[max_evt_tx_burst_size];
 	struct rte_mbuf* tx_pkts[max_eth_tx_burst_size];
 	uint64_t cur_tsc;
-	ev_core_task_t* ev_task = eventdevs[socket_id];
+
 	unsigned int ret;
 	unsigned int nb_elems, nb_elems_remaining;
 #if 0
@@ -1357,8 +1354,8 @@ int processing_packet_transmission(void* not_used){
 
 				if (unlikely(task->txring[out_port_id] == NULL)) {
 					task->stats.bugs_dropped++;
-					RTE_LOG(WARNING, XDPD, "tx-task-%02u: no txring allocated on port %u, dropping packet, internal error, task->stats.bugs_dropped=%" PRIu64 "\n",
-							lcore_id, out_port_id, task->stats.bugs_dropped);
+					RTE_LOG(WARNING, XDPD, "tx-task-%u.%02u: no txring allocated on port %u, dropping packet, internal error, task->stats.bugs_dropped=%" PRIu64 "\n",
+							socket_id, lcore_id, out_port_id, task->stats.bugs_dropped);
 					rte_pktmbuf_free(tx_events[i].mbuf);
 					continue;
 				}
@@ -1368,15 +1365,15 @@ int processing_packet_transmission(void* not_used){
 					switch (ret) {
 					case -ENOBUFS: {
 						task->stats.ring_dropped++;
-						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet, task->stats.ring_dropped=%" PRIu64 "\n",
-								lcore_id, i, out_port_id, task->stats.ring_dropped);
+						RTE_LOG(WARNING, XDPD, "tx-task-%u.%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet, task->stats.ring_dropped=%" PRIu64 "\n",
+								socket_id, lcore_id, i, out_port_id, task->stats.ring_dropped);
 						rte_pktmbuf_free(tx_events[i].mbuf);
 						continue;
 					} break;
 					default: {
 						task->stats.ring_dropped++;
-						RTE_LOG(WARNING, XDPD, "tx-task-%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet, task->stats.ring_dropped=%" PRIu64 "\n",
-								lcore_id, i, out_port_id, task->stats.ring_dropped);
+						RTE_LOG(WARNING, XDPD, "tx-task-%u.%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet, task->stats.ring_dropped=%" PRIu64 "\n",
+								socket_id, lcore_id, i, out_port_id, task->stats.ring_dropped);
 						rte_pktmbuf_free(tx_events[i].mbuf);
 						continue;
 					};
