@@ -1055,7 +1055,7 @@ int processing_packet_reception(void* not_used){
 			port_id = task->rx_queues[index].port_id;
 			queue_id = task->rx_queues[index].queue_id;
 
-#if 0
+#if 1
 			rte_rwlock_read_lock(&port_list_rwlock);
 			if ((port = port_list[port_id]) == NULL) {
 				rte_rwlock_read_unlock(&port_list_rwlock);
