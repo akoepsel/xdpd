@@ -716,7 +716,7 @@ rofl_result_t processing_init_eventdev(void){
 					if (not lcores[lcore_id].is_ev_lcore) {
 						continue;
 					}
-					XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] mapping service %s (%u) for eventdev %s to service lcore %u\n",
+					XDPD_INFO(DRIVER_NAME"[processing][init][evdev] mapping service %s (%u) for eventdev %s to service lcore %u\n",
 											rte_service_get_name(service_id), service_id, ev_core_tasks[lcore_id].name, lcore_id);
 					if ((ret = rte_service_map_lcore_set(service_id, lcore_id, /*enable=*/1)) < 0) {
 						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] mapping of service %s (%u) for eventdev %s to service lcore %u failed\n",
@@ -740,7 +740,7 @@ rofl_result_t processing_init_eventdev(void){
 				}
 			}
 
-			XDPD_DEBUG(DRIVER_NAME"[processing][init][evdev] service %s (%u) for eventdev %s, runstate: %u\n",
+			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] service %s (%u) for eventdev %s, runstate: %u\n",
 									rte_service_get_name(service_id),
 									service_id,
 									ev_core_tasks[lcore_id].name,
