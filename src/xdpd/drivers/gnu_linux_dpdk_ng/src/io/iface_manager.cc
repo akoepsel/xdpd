@@ -560,7 +560,7 @@ START_RETRY:
 	//Inform running RX tasks
 	for (auto lcore_id : rx_lcores[socket_id]) {
 		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
-			if (i == ps->port_id) {
+			if (rx_core_tasks[lcore_id].rx_queues[i].port_id == ps->port_id) {
 				rx_core_tasks[lcore_id].rx_queues[i].up = true;
 				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: enabling port %u (%u)\n",
 						socket_id, lcore_id, ps->port_id, rx_core_tasks[lcore_id].rx_queues[i].up);
@@ -595,7 +595,7 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 	//Inform running RX tasks
 	for (auto lcore_id : rx_lcores[socket_id]) {
 		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
-			if (i == ps->port_id) {
+			if (rx_core_tasks[lcore_id].rx_queues[i].port_id == ps->port_id) {
 				rx_core_tasks[lcore_id].rx_queues[i].up = false;
 				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: disabling port %u (%u)\n", socket_id, lcore_id, ps->port_id, rx_core_tasks[lcore_id].rx_queues[i].up);
 			}
