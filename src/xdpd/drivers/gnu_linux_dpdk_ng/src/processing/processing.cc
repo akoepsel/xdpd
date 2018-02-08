@@ -829,7 +829,7 @@ rofl_result_t processing_run(void){
 
 		/* start service cores */
 		for (auto lcore_id : ev_lcores[socket_id]) {
-			XDPD_INFO(DRIVER_NAME"[processing][run] starting  service lcore %2u on socket %2u\n", lcore_id, socket_id);
+			XDPD_INFO(DRIVER_NAME"[processing][run] starting  service lcore %2u  on socket %u\n", lcore_id, socket_id);
 			if ((ret = rte_service_lcore_start(lcore_id)) < 0) {
 				switch (ret) {
 				case -EALREADY: {
