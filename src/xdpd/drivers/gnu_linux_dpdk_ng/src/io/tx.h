@@ -83,7 +83,14 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		//		lcore_id, ps->port_id, ev_port_id, event_queues[ps->socket_id][EVENT_QUEUE_TXCORES], 0);
 
 		int i = 0, nb_rx = 1;
-		const int nb_tx = rte_event_enqueue_burst(eventdevs[ps->socket_id]->eventdev_id, ev_port_id, tx_events, nb_rx);
+		int nb_tx;
+		{
+			/* acquire rwlock for writing to eventdev port_id assigned to control plane threads */
+			rte_rwlock_write_lock(&rwlock_eventdev_cp_port);
+			nb_tx = rte_event_enqueue_burst(eventdevs[ps->socket_id]->eventdev_id, ev_port_id, tx_events, nb_rx);
+			/* release rwlock */
+			rte_rwlock_write_unlock(&rwlock_eventdev_cp_port);
+		}
 
 		if (lcore_id != LCORE_ID_ANY && lcores[lcore_id].is_master){
 			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket MASTER, enqueued %u event(s) via ev_port_id %u on eventdev %s\n",

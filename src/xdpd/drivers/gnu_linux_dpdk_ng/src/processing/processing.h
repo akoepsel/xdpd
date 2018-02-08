@@ -66,6 +66,8 @@ typedef struct task_statistics {
 	uint64_t eths_dropped; // number of packets dropped in outgoing etherdev
 } __rte_cache_aligned task_statistics_t;
 
+/* rwlock for eventdev port used by control plane threads */
+extern rte_rwlock_t rwlock_eventdev_cp_port;
 
 enum event_queue_t {
 	EVENT_QUEUE_TO_WK = 0,
@@ -205,14 +207,6 @@ extern rte_rwlock_t port_list_rwlock;
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
 extern ev_core_task_t* eventdevs[RTE_MAX_NUMA_NODES];
 
-#if 0
-/* maximum number of event queues per NUMA node: queue[0]=used by workers, queue[1]=used by TX lcores */
-enum event_queue_t {
-	EVENT_QUEUE_WK_TASKS = 0, //workers
-	EVENT_QUEUE_TX_TASKS = 1, //TX cores
-	EVENT_QUEUE_MAX = 2, /* max number of event queues per NUMA node */
-};
-#endif
 
 
 /**

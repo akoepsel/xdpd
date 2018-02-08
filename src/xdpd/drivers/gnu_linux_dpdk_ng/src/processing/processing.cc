@@ -46,6 +46,8 @@ unsigned int max_eth_tx_burst_size = MAX_ETH_TX_BURST_SIZE_DEFAULT;
 bool pipeline_shortcut = false;
 /* shortcutting the eventdev subsystem => for testing raw I/O performance excluding eventdev subsystem */
 bool eventdev_shortcut = false;
+/* rwlock for eventdev port used by control plane threads */
+rte_rwlock_t rwlock_eventdev_cp_port;
 
 const std::string eventdev_args_default("sched_quanta=64,credit_quanta=32");
 
@@ -386,6 +388,8 @@ rofl_result_t processing_init_task_structures(void) {
 rofl_result_t processing_init_eventdev(void){
 
 	int ret;
+
+	rte_rwlock_init(&rwlock_eventdev_cp_port);
 
 	for (auto socket_id : numa_nodes) {
 		for (auto lcore_id : ev_lcores[socket_id]) {
