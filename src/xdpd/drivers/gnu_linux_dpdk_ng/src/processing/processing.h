@@ -27,6 +27,7 @@
 
 typedef struct rx_port_queue {
 	/* all these elemens in rxqueues are enabled by default */
+	bool enabled;
 	uint8_t port_id;
 	uint8_t queue_id;
 } __rte_cache_aligned rx_port_queue_t;

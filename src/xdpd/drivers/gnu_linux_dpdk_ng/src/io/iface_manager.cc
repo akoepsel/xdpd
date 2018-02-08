@@ -555,6 +555,21 @@ START_RETRY:
 	//Set as queues setup
 	ps->queues_set=true;
 
+	//Inform running RX tasks
+	for (auto lcore_id : rx_lcores[rte_eth_dev_socket_id(ps->port_id)]) {
+		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
+			if (i == ps->port_id) {
+				rx_core_tasks[lcore_id].rx_queues[i].enabled = true;
+				break;
+			}
+		}
+	}
+
+	//Inform running TX tasks
+	for (auto lcore_id : tx_lcores[rte_eth_dev_socket_id(ps->port_id)]) {
+		tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled = true;
+	}
+
 	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successfully started\n", ps->port_id, port->name);
 	
 	return ROFL_SUCCESS;
@@ -570,6 +585,21 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 
 	XDPD_INFO(DRIVER_NAME"[iface_manager] stopping port %u (%s)\n", ps->port_id, port->name);
 
+	//Inform running RX tasks
+	for (auto lcore_id : rx_lcores[rte_eth_dev_socket_id(ps->port_id)]) {
+		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
+			if (i == ps->port_id) {
+				rx_core_tasks[lcore_id].rx_queues[i].enabled = false;
+				break;
+			}
+		}
+	}
+
+	//Inform running TX tasks
+	for (auto lcore_id : tx_lcores[rte_eth_dev_socket_id(ps->port_id)]) {
+		tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled = false;
+	}
+
 	//Make sure the link is down
 	rte_eth_dev_set_link_down(ps->port_id);
 
@@ -578,7 +608,7 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 
 	//Set pipeline state to UP
 	if(likely(phy_port_mapping[ps->port_id]!=NULL)){
-		phy_port_mapping[ps->port_id]->up = true;
+		phy_port_mapping[ps->port_id]->up = false;
 	}
 
 	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successfully stopped\n", ps->port_id, port->name);
@@ -1148,6 +1178,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 
 			uint16_t index = rx_core_tasks[lcore_id].nb_rx_queues;
+			rx_core_tasks[lcore_id].rx_queues[index].enabled = false;
 			rx_core_tasks[lcore_id].rx_queues[index].port_id = port_id;
 			rx_core_tasks[lcore_id].rx_queues[index].queue_id = rx_queue_id;
 			rx_core_tasks[lcore_id].nb_rx_queues++;

@@ -1023,7 +1023,7 @@ int processing_packet_reception(void* not_used){
 	uint16_t port_id;
 	uint16_t queue_id;
 
-#if 1
+#if 0
 	switch_port_t* port;
 #endif
 	rx_core_task_t* task = &rx_core_tasks[lcore_id];
@@ -1051,11 +1051,15 @@ int processing_packet_reception(void* not_used){
 
 		for (unsigned int index = 0; index < task->nb_rx_queues; ++index) {
 
+			if (not task->rx_queues[index].enabled) {
+				continue;
+			}
+
 			/* read from ethdev queue "queue-id" on port "port-id" */
 			port_id = task->rx_queues[index].port_id;
 			queue_id = task->rx_queues[index].queue_id;
 
-#if 1
+#if 0
 			rte_rwlock_read_lock(&port_list_rwlock);
 			if ((port = port_list[port_id]) == NULL) {
 				rte_rwlock_read_unlock(&port_list_rwlock);
@@ -1494,7 +1498,7 @@ rofl_result_t processing_deschedule_port(switch_port_t* port){
 	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
 
 	if (iface_manager_stop_port(port) != ROFL_SUCCESS) {
-		XDPD_DEBUG(DRIVER_NAME"[processing][port] Stopping port %u (%s)\n", ps->port_id, port->name);
+		XDPD_DEBUG(DRIVER_NAME"[processing][port] Stopping port %u (%s) failed\n", ps->port_id, port->name);
 		assert(0);
 		return ROFL_FAILURE;
 	}
