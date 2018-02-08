@@ -1183,16 +1183,20 @@ int processing_packet_pipeline_processing(void* not_used){
 			//rte_pause();
 			continue;
 		}
-
+#if 0
 		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, dequeued %u event(s) from ev_port_id=%u\n",
 				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx, task->ev_port_id);
-
+#endif
 		task->stats.rx_evts+=nb_rx;
 
 
 		if (pipeline_shortcut){
 			dpdk_port_state_t *ps;
 			for (i = 0; i < nb_rx; i++) {
+
+				if (unlikely(rx_events[i].mbuf == NULL)) {
+					continue;
+				}
 
 				rte_prefetch0(rx_events[i].mbuf);
 
@@ -1202,6 +1206,7 @@ int processing_packet_pipeline_processing(void* not_used){
 				if ((port = port_list[in_port_id]) == NULL) {
 					//rte_rwlock_read_unlock(&port_list_rwlock);
 					rte_pktmbuf_free(rx_events[i].mbuf);
+					rx_events[i].mbuf = NULL;
 					continue;
 				}
 				//rte_rwlock_read_unlock(&port_list_rwlock);
@@ -1213,7 +1218,7 @@ int processing_packet_pipeline_processing(void* not_used){
 		} else {
 			for (i = 0; i < nb_rx; i++) {
 
-				if (rx_events[i].mbuf == NULL) {
+				if (unlikely(rx_events[i].mbuf == NULL)) {
 					continue;
 				}
 
@@ -1300,10 +1305,12 @@ int processing_packet_transmission(void* not_used){
 
 		task->stats.rx_evts+=nb_rx;
 
+#if 0
 		if (nb_rx>0){
 			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: rcvd %u event(s) from ev_port_id %u on eventdev %s with max_evt_tx_burst_size %u\n",
 					lcore_id, nb_rx, task->ev_port_id, ev_task->name, max_evt_tx_burst_size);
 		}
+#endif
 
 #if 0
 		if (nb_rx==0){
@@ -1317,8 +1324,10 @@ int processing_packet_transmission(void* not_used){
 		if (nb_rx>0){
 			task->idle_loops = 0;
 
+#if 0
 			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, dequeued %u event(s) from ev_port_id=%u\n",
 					lcore_id, socket_id, nb_rx, task->ev_port_id);
+#endif
 
 			/* interate over all received events */
 			for (i = 0; i < nb_rx; i++) {
