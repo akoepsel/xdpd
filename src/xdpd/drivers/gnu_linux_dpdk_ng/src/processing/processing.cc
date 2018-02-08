@@ -72,7 +72,7 @@ tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
 /* tasks running on worker lcores */
 wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
 /* tasks running on event lcores */
-ev_core_task_t ev_core_tasks[RTE_MAX_LCORE];
+ev_core_task_t ev_core_tasks[RTE_MAX_NUMA_NODES];
 
 /*
  * lcore related parameters
@@ -720,10 +720,10 @@ rofl_result_t processing_init_eventdev(void){
 						continue;
 					}
 					XDPD_INFO(DRIVER_NAME"[processing][init][evdev] mapping service %s (%u) for eventdev %s to service lcore %u\n",
-											rte_service_get_name(service_id), service_id, ev_core_tasks[lcore_id].name, lcore_id);
+											rte_service_get_name(service_id), service_id, ev_core_tasks[socket_id].name, lcore_id);
 					if ((ret = rte_service_map_lcore_set(service_id, lcore_id, /*enable=*/1)) < 0) {
 						XDPD_ERR(DRIVER_NAME"[processing][init][evdev] mapping of service %s (%u) for eventdev %s to service lcore %u failed\n",
-								rte_service_get_name(service_id), service_id, ev_core_tasks[lcore_id].name, lcore_id);
+								rte_service_get_name(service_id), service_id, ev_core_tasks[socket_id].name, lcore_id);
 						return ROFL_FAILURE;
 					}
 				}
@@ -734,11 +734,11 @@ rofl_result_t processing_init_eventdev(void){
 				switch (ret) {
 				case -EINVAL: {
 					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] service %s (%u) for eventdev %s, setting runstate to true failed (EINVAL)\n",
-											rte_service_get_name(service_id), service_id, ev_core_tasks[lcore_id].name);
+											rte_service_get_name(service_id), service_id, ev_core_tasks[socket_id].name);
 				} break;
 				default: {
 					XDPD_ERR(DRIVER_NAME"[processing][init][evdev] service %s (%u) for eventdev %s, setting runstate to true failed\n",
-											rte_service_get_name(service_id), service_id, ev_core_tasks[lcore_id].name);
+											rte_service_get_name(service_id), service_id, ev_core_tasks[socket_id].name);
 				};
 				}
 			}
@@ -746,7 +746,7 @@ rofl_result_t processing_init_eventdev(void){
 			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] service %s (%u) for eventdev %s, runstate: %u\n",
 									rte_service_get_name(service_id),
 									service_id,
-									ev_core_tasks[lcore_id].name,
+									ev_core_tasks[socket_id].name,
 									rte_service_runstate_get(service_id));
 		}
 	}
@@ -819,10 +819,12 @@ rofl_result_t processing_run(void){
 
 	int ret;
 
-	/* start service cores */
+	/* event device(s) on all NUMA nodes */
 	for (auto socket_id : numa_nodes) {
+
+		/* start service cores */
 		for (auto lcore_id : ev_lcores[socket_id]) {
-			XDPD_DEBUG(DRIVER_NAME"[processing][run] starting  service lcore %2u on socket %2u\n", lcore_id, socket_id);
+			XDPD_INFO(DRIVER_NAME"[processing][run] starting  service lcore %2u on socket %2u\n", lcore_id, socket_id);
 			if ((ret = rte_service_lcore_start(lcore_id)) < 0) {
 				switch (ret) {
 				case -EALREADY: {
@@ -834,14 +836,16 @@ rofl_result_t processing_run(void){
 				} return ROFL_FAILURE;
 				}
 			}
-			/* start event device */
-			if (rte_event_dev_start(ev_core_tasks[lcore_id].eventdev_id) < 0) {
-				XDPD_ERR(DRIVER_NAME"[processing][run] initialization of eventdev %s, rte_event_dev_start() failed\n",
-						ev_core_tasks[lcore_id].name);
-				return ROFL_FAILURE;
-			}
-			ev_core_tasks[lcore_id].active = true;
 		}
+
+		/* start event device */
+		XDPD_INFO(DRIVER_NAME"[processing][run] starting eventdev %s on socket %u\n", ev_core_tasks[socket_id].name, socket_id);
+		if (rte_event_dev_start(ev_core_tasks[socket_id].eventdev_id) < 0) {
+			XDPD_ERR(DRIVER_NAME"[processing][run] initialization of eventdev %s, rte_event_dev_start() failed\n",
+					ev_core_tasks[socket_id].name);
+			return ROFL_FAILURE;
+		}
+		ev_core_tasks[socket_id].active = true;
 	}
 
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
@@ -976,19 +980,25 @@ rofl_result_t processing_shutdown(void){
 		}
 	}
 
-	/* stop service cores */
+	/* event device(s) on all NUMA nodes */
 	for (auto socket_id : numa_nodes) {
+
+		/* stop eventdev */
+		XDPD_INFO(DRIVER_NAME"[processing][run] shutting down eventdev %s on socket %u\n", ev_core_tasks[socket_id].name, socket_id);
+		rte_event_dev_stop(ev_core_tasks[socket_id].eventdev_id);
+		ev_core_tasks[socket_id].active = false;
+
+		/* stop service cores */
 		for (auto lcore_id : ev_lcores[socket_id]) {
-			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down event device %s\n", ev_core_tasks[lcore_id].name);
-			rte_event_dev_stop(ev_core_tasks[lcore_id].eventdev_id);
-			ev_core_tasks[lcore_id].active = false;
+			XDPD_INFO(DRIVER_NAME"[processing][shutdown] shutting down service lcore %2u on socket %u\n", lcore_id, socket_id);
+
 			if ((ret = rte_service_lcore_stop(lcore_id)) < 0) {
 				switch (ret) {
 				case -EALREADY: {
 					/* do nothing */
 				} break;
 				default: {
-					XDPD_ERR(DRIVER_NAME"[processing] stop of service lcore %u failed\n", lcore_id);
+					XDPD_ERR(DRIVER_NAME"[processing] stop of service lcore %u failed\n", socket_id);
 				};
 				}
 			}
