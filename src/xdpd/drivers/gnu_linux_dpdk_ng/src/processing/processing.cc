@@ -678,7 +678,7 @@ rofl_result_t processing_init_eventdev(void){
 
 				/* store event queues this worker task is listening to */
 				unsigned int index = 0;
-				tx_core_tasks[tx_lcore_id].rx_ev_queues[index++] = 0; /* control plane */
+				//tx_core_tasks[tx_lcore_id].rx_ev_queues[index++] = 0; /* control plane */
 				for (auto wk_lcore_id : wk_lcores[socket_id]) {
 					tx_core_tasks[tx_lcore_id].rx_ev_queues[index++] = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
 				}
