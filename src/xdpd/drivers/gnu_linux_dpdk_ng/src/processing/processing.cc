@@ -716,7 +716,7 @@ rofl_result_t processing_init_eventdev(void){
 					if (not lcores[lcore_id].is_ev_lcore) {
 						continue;
 					}
-					if (socket_id != rte_lcore_to_socket_id(lcore_id)) {
+					if (socket_id != (int)rte_lcore_to_socket_id(lcore_id)) {
 						continue;
 					}
 					XDPD_INFO(DRIVER_NAME"[processing][init][evdev] mapping service %s (%u) for eventdev %s to service lcore %u\n",
