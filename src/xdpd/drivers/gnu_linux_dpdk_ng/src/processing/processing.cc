@@ -1201,6 +1201,7 @@ int processing_packet_pipeline_processing(void* not_used){
 				//rte_rwlock_read_lock(&port_list_rwlock);
 				if ((port = port_list[in_port_id]) == NULL) {
 					//rte_rwlock_read_unlock(&port_list_rwlock);
+					rte_pktmbuf_free(rx_events[i].mbuf);
 					continue;
 				}
 				//rte_rwlock_read_unlock(&port_list_rwlock);
@@ -1223,6 +1224,7 @@ int processing_packet_pipeline_processing(void* not_used){
 				//rte_rwlock_read_lock(&port_list_rwlock);
 				if ((port = port_list[in_port_id]) == NULL) {
 					//rte_rwlock_read_unlock(&port_list_rwlock);
+					rte_pktmbuf_free(rx_events[i].mbuf);
 					continue;
 				}
 
