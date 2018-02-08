@@ -1102,8 +1102,8 @@ int processing_packet_reception(void* not_used){
 			for (i = 0; i < nb_rx; i++) {
 				event[i].flow_id = mbufs[i]->hash.rss;
 				event[i].op = RTE_EVENT_OP_NEW;
-				event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
-				//event[i].sched_type = RTE_SCHED_TYPE_PARALLEL;
+				//event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
+				event[i].sched_type = RTE_SCHED_TYPE_PARALLEL;
 				//event[i].sched_type = RTE_SCHED_TYPE_ATOMIC;
 				if (eventdev_shortcut) {
 					event[i].queue_id = tx_core_tasks[*tx_lcores[socket_id].begin()].rx_ev_queues[0];
