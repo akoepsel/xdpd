@@ -445,7 +445,7 @@ rofl_result_t processing_init_eventdev(void){
 			memset(&ev_core_tasks[lcore_id].eventdev_conf, 0, sizeof(ev_core_tasks[lcore_id].eventdev_conf));
 
 			//number of event queues: number of RX tasks + number of WK tasks + number of control plane tasks
-			ev_core_tasks[lcore_id].eventdev_conf.nb_event_queues = 2; //rx_lcores[socket_id].size() + wk_lcores[socket_id].size() + /*control plane*/1;
+			ev_core_tasks[lcore_id].eventdev_conf.nb_event_queues = EVENT_QUEUE_MAX;
 			ev_core_tasks[lcore_id].eventdev_conf.nb_event_ports =
                                             + rx_lcores[socket_id].size() /* number of all RX lcores on NUMA node socket_id */
                                             + wk_lcores[socket_id].size() /* number of all WK lcores on NUMA node socket_id */
@@ -560,7 +560,6 @@ rofl_result_t processing_init_eventdev(void){
 						ev_core_tasks[lcore_id].name, ev_queue_id, ev_port_id);
 
 				ev_port_id++;
-				ev_queue_id++;
 			}
 
 			/* assign event ports to RX tasks */
@@ -569,7 +568,7 @@ rofl_result_t processing_init_eventdev(void){
 					continue;
 				}
 
-				/* testing */
+				/* all RX tasks write to event queue EVENT_QUEUE_TO_WK in order to forward to WK tasks */
 				ev_queue_id = EVENT_QUEUE_TO_WK;
 
 				/* RX core(s) do not receive from an event queue */
@@ -594,7 +593,6 @@ rofl_result_t processing_init_eventdev(void){
 						ev_core_tasks[lcore_id].name, rx_lcore_id, ev_queue_id, ev_port_id);
 
 				ev_port_id++;
-				ev_queue_id++;
 			}
 
 			/* assign event ports to WK tasks */
@@ -603,7 +601,7 @@ rofl_result_t processing_init_eventdev(void){
 					continue;
 				}
 
-				/* testing */
+				/* all WX tasks write to event queue EVENT_QUEUE_TO_TX in order to forward to TX tasks */
 				ev_queue_id = EVENT_QUEUE_TO_TX;
 
 				/* worker core(s) read from the associated event queue on their respective NUMA node */
@@ -628,9 +626,7 @@ rofl_result_t processing_init_eventdev(void){
 
 				/* store event queues this worker task is listening to */
 				unsigned int index = 0;
-				for (auto rx_lcore_id : rx_lcores[socket_id]) {
-					wk_core_tasks[wk_lcore_id].rx_ev_queues[index++] = rx_core_tasks[rx_lcore_id].tx_ev_queue_id;
-				}
+				wk_core_tasks[wk_lcore_id].rx_ev_queues[index++] = EVENT_QUEUE_TO_WK;
 				wk_core_tasks[wk_lcore_id].nb_rx_ev_queues = index;
 
 				/* create info string */
@@ -649,7 +645,6 @@ rofl_result_t processing_init_eventdev(void){
 				}
 
 				ev_port_id++;
-				ev_queue_id++;
 			}
 
 			/* assign event ports to TX tasks */
@@ -674,14 +669,10 @@ rofl_result_t processing_init_eventdev(void){
 				}
 
 				/* link up event TX core port and associated queue */
-				assert((wk_lcores[socket_id].size() + /*control plane*/1) <= RTE_EVENT_MAX_QUEUES_PER_DEV);
 
 				/* store event queues this worker task is listening to */
 				unsigned int index = 0;
-				//tx_core_tasks[tx_lcore_id].rx_ev_queues[index++] = 0; /* control plane */
-				for (auto wk_lcore_id : wk_lcores[socket_id]) {
-					tx_core_tasks[tx_lcore_id].rx_ev_queues[index++] = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
-				}
+				tx_core_tasks[tx_lcore_id].rx_ev_queues[index++] = EVENT_QUEUE_TO_TX;
 				tx_core_tasks[tx_lcore_id].nb_rx_ev_queues = index;
 
 				/* create info string */

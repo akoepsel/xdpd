@@ -63,7 +63,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 		ps = (dpdk_port_state_t *)port->platform_port_state;
 
-		/* testing */
+		/* control plane threads write to event queue EVENT_QUEUE_TO_TX in order to forward to TX tasks */
 		ev_queue_id = EVENT_QUEUE_TO_TX;
 
 		//int socket_id = ps->socket_id;
