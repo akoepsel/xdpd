@@ -1022,6 +1022,7 @@ int processing_packet_reception(void* not_used){
 	int socket_id = rte_lcore_to_socket_id(lcore_id);
 	uint16_t port_id;
 	uint16_t queue_id;
+	bool enabled;
 
 #if 0
 	switch_port_t* port;
@@ -1041,7 +1042,8 @@ int processing_packet_reception(void* not_used){
 	for (i = 0; i < task->nb_rx_queues; i++) {
 		port_id = task->rx_queues[i].port_id;
 		queue_id = task->rx_queues[i].queue_id;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: receiving from port: %u, queue: %u\n", socket_id, lcore_id, port_id, queue_id);
+		enabled = task->rx_queues[i].enabled;
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: receiving from port: %u, queue: %u, enabled: %u\n", socket_id, lcore_id, port_id, queue_id, enabled);
 	}
 
 	//Set flag to active
@@ -1252,7 +1254,8 @@ int processing_packet_transmission(void* not_used){
 			continue;
 		}
 		uint8_t queue_id = task->tx_queues[port_id].queue_id;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: sending via port: %u, queue: %u\n", socket_id, lcore_id, port_id, queue_id);
+		bool enabled = task->tx_queues[port_id].enabled;
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: sending via port: %u, queue: %u, enabled: %u\n", socket_id, lcore_id, port_id, queue_id, enabled);
 	}
 
 	/* initialize port related parameters */
