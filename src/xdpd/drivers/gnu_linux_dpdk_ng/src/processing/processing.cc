@@ -1114,6 +1114,7 @@ int processing_packet_reception(void* not_used){
 				event[i].sub_event_type = 0;
 				event[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
 				event[i].mbuf = mbufs[i];
+				rte_prefetch0(&mbufs[i]->udata64);
 				mbufs[i]->udata64 = (uint64_t)port_id;
 
 				if (mbufs[i]->port == MBUF_INVALID_PORT) {
@@ -1194,10 +1195,7 @@ int processing_packet_pipeline_processing(void* not_used){
 			dpdk_port_state_t *ps;
 			for (i = 0; i < nb_rx; i++) {
 
-				if (unlikely(rx_events[i].mbuf == NULL)) {
-					continue;
-				}
-
+				//rx_events[i].mbuf != NULL, as RX task has already validated mbuf
 				rte_prefetch0(&rx_events[i].mbuf->udata64);
 				uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
 
@@ -1214,6 +1212,9 @@ int processing_packet_pipeline_processing(void* not_used){
 
 				rx_events[i].op = RTE_EVENT_OP_FORWARD;
 				rx_events[i].queue_id = task->tx_ev_queue_id;
+				rx_events[i].event_type = RTE_EVENT_TYPE_CPU;
+				rx_events[i].sub_event_type = 0;
+				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
 				rx_events[i].mbuf->udata64 = (uint64_t)(phyports[ps->port_id].shortcut_port_id);
 			}
 			rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
@@ -1338,6 +1339,7 @@ int processing_packet_transmission(void* not_used){
 				 }
 
 				/* process mbuf using events[i].queue_id as pipeline stage */
+				rte_prefetch0(&tx_events[i].mbuf->udata64);
 				out_port_id = (uint32_t)(tx_events[i].mbuf->udata64 & 0x00000000ffffffff);
 
 #if 0
