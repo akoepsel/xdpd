@@ -1225,9 +1225,9 @@ int processing_packet_pipeline_processing(void* not_used){
 					//rte_rwlock_read_unlock(&port_list_rwlock);
 					continue;
 				}
-				//rte_rwlock_read_unlock(&port_list_rwlock);
+
 				sw = port->attached_sw;
-				rte_rwlock_read_unlock(&port_list_rwlock);
+				//rte_rwlock_read_unlock(&port_list_rwlock);
 
 				/* inject packet into openflow pipeline */
 				rx_pkt(lcore_id, sw, rx_events[i].mbuf, &pkt, pkt_state);
