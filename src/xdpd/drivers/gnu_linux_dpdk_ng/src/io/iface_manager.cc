@@ -597,7 +597,8 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
 			if (rx_core_tasks[lcore_id].rx_queues[i].port_id == ps->port_id) {
 				rx_core_tasks[lcore_id].rx_queues[i].up = false;
-				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: disabling port %u (%u)\n", socket_id, lcore_id, ps->port_id, rx_core_tasks[lcore_id].rx_queues[i].up);
+				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: disabling port %u (%u)\n",
+						socket_id, lcore_id, ps->port_id, rx_core_tasks[lcore_id].rx_queues[i].up);
 			}
 		}
 	}
@@ -676,64 +677,6 @@ template<typename T> T iface_manager_get_port_setting_as(const std::string& pci_
 		XDPD_ERR(DRIVER_NAME" dpdk port: %s, setting: \"%s\" not found, aborting\n", pci_address.c_str(), key.c_str());
 		throw;
 	}
-}
-
-/**
-* Discovers logical cores.
-*/
-rofl_result_t iface_manager_discover_logical_cores(void){
-#if 0
-	//Initialize logical core structure: all lcores disabled
-	for (int j = 0; j < RTE_MAX_LCORE; j++) {
-		lcores[j].socket_id = -1;
-		lcores[j].is_master = 0;
-		lcores[j].is_enabled = 0;
-		lcores[j].next_lcore_id = -1;
-	}
-	sockets.clear();
-	cores.clear();
-
-	//Get master lcore
-	unsigned int master_lcore_id = rte_get_master_lcore();
-
-	//Detect all lcores and their state
-	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
-		if (lcore_id >= RTE_MAX_LCORE) {
-			continue;
-		}
-		unsigned int socket_id = rte_lcore_to_socket_id(lcore_id);
-
-		lcores[lcore_id].socket_id = socket_id;
-		lcores[lcore_id].is_enabled = rte_lcore_is_enabled(lcore_id);
-
-		//Get next lcore
-		unsigned int next_lcore_id = RTE_MAX_LCORE;
-		if ((next_lcore_id = rte_get_next_lcore(lcore_id, /*skip-master=*/1, /*wrap=*/1)) < RTE_MAX_LCORE) {
-			lcores[lcore_id].next_lcore_id = next_lcore_id;
-		}
-
-		//master lcore?
-		if (lcore_id == master_lcore_id) {
-			lcores[lcore_id].is_master = 1;
-		}
-
-		//Store socket_id in sockets
-		sockets.insert(socket_id);
-
-		//Increase number of worker lcores for this socket
-		if (lcore_id != master_lcore_id) {
-			cores[socket_id].insert(lcore_id);
-		}
-
-		XDPD_INFO(DRIVER_NAME" adding lcore: %u %s on socket: %u, next lcore is: %u, #working lcores on this socket: %u\n",
-				lcore_id,
-				(lcores[lcore_id].is_master ? " as master" : ""),
-				socket_id,
-				lcores[lcore_id].next_lcore_id,
-				cores[socket_id].size());
-	}
-#endif
-	return ROFL_SUCCESS;
 }
 
 

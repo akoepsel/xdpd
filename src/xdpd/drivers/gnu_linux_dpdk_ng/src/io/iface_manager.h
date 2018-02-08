@@ -81,10 +81,6 @@ template<typename T> T iface_manager_get_port_setting_as(const std::string& pci_
 //C++ extern C
 ROFL_BEGIN_DECLS
 
-/**
-* Discovers DPDK logical cores.
-*/
-rofl_result_t iface_manager_discover_logical_cores(void);
 
 /**
 * Setup DPDK virtual ports.
