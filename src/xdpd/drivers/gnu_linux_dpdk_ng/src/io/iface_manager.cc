@@ -1256,7 +1256,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			 * store txqueue on eth-dev for this port and TX task
 			 */
 
-			tx_core_tasks[lcore_id].tx_queues[port_id].enabled = 0;
+			tx_core_tasks[lcore_id].tx_queues[port_id].enabled = 1;
 			tx_core_tasks[lcore_id].tx_queues[port_id].up = false;
 			tx_core_tasks[lcore_id].tx_queues[port_id].queue_id = tx_queue_id;
 			tx_core_tasks[lcore_id].nb_tx_queues++;
