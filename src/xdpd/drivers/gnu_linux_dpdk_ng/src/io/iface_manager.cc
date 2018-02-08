@@ -561,18 +561,18 @@ START_RETRY:
 	for (auto lcore_id : rx_lcores[socket_id]) {
 		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
 			if (i == ps->port_id) {
-				rx_core_tasks[lcore_id].rx_queues[i].enabled = true;
+				rx_core_tasks[lcore_id].rx_queues[i].up = true;
 				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: enabling port %u (%u)\n",
-						socket_id, lcore_id, ps->port_id, rx_core_tasks[lcore_id].rx_queues[i].enabled);
+						socket_id, lcore_id, ps->port_id, rx_core_tasks[lcore_id].rx_queues[i].up);
 			}
 		}
 	}
 
 	//Inform running TX tasks
 	for (auto lcore_id : tx_lcores[socket_id]) {
-		tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled = true;
+		tx_core_tasks[lcore_id].tx_queues[ps->port_id].up = true;
 		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: enabling port %u (%u)\n",
-				socket_id, lcore_id, ps->port_id, tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled);
+				socket_id, lcore_id, ps->port_id, tx_core_tasks[lcore_id].tx_queues[ps->port_id].up);
 	}
 
 	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successfully started\n", ps->port_id, port->name);
@@ -596,17 +596,17 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 	for (auto lcore_id : rx_lcores[socket_id]) {
 		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
 			if (i == ps->port_id) {
-				rx_core_tasks[lcore_id].rx_queues[i].enabled = false;
-				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: disabling port %u (%u)\n", socket_id, lcore_id, ps->port_id, rx_core_tasks[lcore_id].rx_queues[i].enabled);
+				rx_core_tasks[lcore_id].rx_queues[i].up = false;
+				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: disabling port %u (%u)\n", socket_id, lcore_id, ps->port_id, rx_core_tasks[lcore_id].rx_queues[i].up);
 			}
 		}
 	}
 
 	//Inform running TX tasks
 	for (auto lcore_id : tx_lcores[socket_id]) {
-		tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled = false;
+		tx_core_tasks[lcore_id].tx_queues[ps->port_id].up = false;
 		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: disabling port %u (%u)\n",
-				socket_id, lcore_id, ps->port_id, tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled);
+				socket_id, lcore_id, ps->port_id, tx_core_tasks[lcore_id].tx_queues[ps->port_id].up);
 	}
 
 	//Make sure the link is down
@@ -1187,7 +1187,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 
 			uint16_t index = rx_core_tasks[lcore_id].nb_rx_queues;
-			rx_core_tasks[lcore_id].rx_queues[index].enabled = false;
+			rx_core_tasks[lcore_id].rx_queues[index].up = false;
 			rx_core_tasks[lcore_id].rx_queues[index].port_id = port_id;
 			rx_core_tasks[lcore_id].rx_queues[index].queue_id = rx_queue_id;
 			rx_core_tasks[lcore_id].nb_rx_queues++;
@@ -1257,6 +1257,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			 */
 
 			tx_core_tasks[lcore_id].tx_queues[port_id].enabled = 0;
+			tx_core_tasks[lcore_id].tx_queues[port_id].up = false;
 			tx_core_tasks[lcore_id].tx_queues[port_id].queue_id = tx_queue_id;
 			tx_core_tasks[lcore_id].nb_tx_queues++;
 			XDPD_INFO(DRIVER_NAME"[ifaces] assigning physical port: %u, txqueue: %u on socket: %u to lcore: %u on socket: %u, nb_tx_queues: %u\n",

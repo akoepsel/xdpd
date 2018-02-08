@@ -27,13 +27,14 @@
 
 typedef struct rx_port_queue {
 	/* all these elemens in rxqueues are enabled by default */
-	bool enabled;
+	bool up;
 	uint8_t port_id;
 	uint8_t queue_id;
 } __rte_cache_aligned rx_port_queue_t;
 
 typedef struct tx_port_queue {
 	uint8_t enabled;
+	uint8_t up;
 	uint8_t queue_id;
 } __rte_cache_aligned tx_port_queue_t;
 

@@ -1022,7 +1022,7 @@ int processing_packet_reception(void* not_used){
 	int socket_id = rte_lcore_to_socket_id(lcore_id);
 	uint16_t port_id;
 	uint16_t queue_id;
-	bool enabled;
+	bool up;
 
 #if 0
 	switch_port_t* port;
@@ -1042,8 +1042,8 @@ int processing_packet_reception(void* not_used){
 	for (i = 0; i < task->nb_rx_queues; i++) {
 		port_id = task->rx_queues[i].port_id;
 		queue_id = task->rx_queues[i].queue_id;
-		enabled = task->rx_queues[i].enabled;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: receiving from port: %u, queue: %u, enabled: %u\n", socket_id, lcore_id, port_id, queue_id, enabled);
+		up = task->rx_queues[i].up;
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: receiving from port: %u, queue: %u, up: %u\n", socket_id, lcore_id, port_id, queue_id, up);
 	}
 
 	//Set flag to active
@@ -1053,7 +1053,7 @@ int processing_packet_reception(void* not_used){
 
 		for (unsigned int index = 0; index < task->nb_rx_queues; ++index) {
 
-			if (not task->rx_queues[index].enabled) {
+			if (not task->rx_queues[index].up) {
 				continue;
 			}
 
@@ -1250,9 +1250,12 @@ int processing_packet_transmission(void* not_used){
 	XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: started\n", socket_id, lcore_id);
 
 	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; port_id++) {
+		if (not task->tx_queues[port_id].enabled){
+			continue;
+		}
 		uint8_t queue_id = task->tx_queues[port_id].queue_id;
-		bool enabled = task->tx_queues[port_id].enabled;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: sending via port: %u, queue: %u, enabled: %u\n", socket_id, lcore_id, port_id, queue_id, enabled);
+		bool up = task->tx_queues[port_id].up;
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: sending via port: %u, queue: %u, up: %u\n", socket_id, lcore_id, port_id, queue_id, up);
 	}
 
 	/* initialize port related parameters */
@@ -1372,7 +1375,7 @@ int processing_packet_transmission(void* not_used){
 		for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id) {
 
 			/* port not enabled in this tx-task */
-			if (not task->tx_queues[port_id].enabled) {
+			if (not task->tx_queues[port_id].enabled || not task->tx_queues[port_id].up) {
 				continue;
 			}
 
