@@ -568,6 +568,10 @@ rofl_result_t processing_init_eventdev(void){
 				if (not lcores[rx_lcore_id].is_rx_lcore) {
 					continue;
 				}
+
+				/* testing */
+				ev_queue_id = EVENT_QUEUE_TO_WK;
+
 				/* RX core(s) do not receive from an event queue */
 				rx_core_tasks[rx_lcore_id].socket_id = socket_id;
 				rx_core_tasks[rx_lcore_id].ev_port_id = ev_port_id;
@@ -598,6 +602,10 @@ rofl_result_t processing_init_eventdev(void){
 				if (not lcores[wk_lcore_id].is_wk_lcore) {
 					continue;
 				}
+
+				/* testing */
+				ev_queue_id = EVENT_QUEUE_TO_TX;
+
 				/* worker core(s) read from the associated event queue on their respective NUMA node */
 				wk_core_tasks[wk_lcore_id].socket_id = socket_id;
 				wk_core_tasks[wk_lcore_id].ev_port_id = ev_port_id;

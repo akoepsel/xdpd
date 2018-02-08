@@ -67,6 +67,12 @@ typedef struct task_statistics {
 } __rte_cache_aligned task_statistics_t;
 
 
+enum event_queue_t {
+	EVENT_QUEUE_TO_WK = 0,
+	EVENT_QUEUE_TO_TX = 1,
+	EVENT_QUEUE_MAX,
+};
+
 /**
  * RX lcore task
  */
