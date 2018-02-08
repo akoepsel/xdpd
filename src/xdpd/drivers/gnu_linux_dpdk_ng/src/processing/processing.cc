@@ -1200,6 +1200,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 				rte_prefetch0(rx_events[i].mbuf);
 
+				rx_events[i].op = RTE_EVENT_OP_FORWARD;
 				rx_events[i].queue_id = task->tx_ev_queue_id;
 				uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
 				//rte_rwlock_read_lock(&port_list_rwlock);
