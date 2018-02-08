@@ -561,17 +561,18 @@ START_RETRY:
 	for (auto lcore_id : rx_lcores[socket_id]) {
 		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
 			if (i == ps->port_id) {
-				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: enabling port %u\n", socket_id, lcore_id, ps->port_id);
 				rx_core_tasks[lcore_id].rx_queues[i].enabled = true;
-				break;
+				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: enabling port %u (%u)\n",
+						socket_id, lcore_id, ps->port_id, rx_core_tasks[lcore_id].rx_queues[i].enabled);
 			}
 		}
 	}
 
 	//Inform running TX tasks
 	for (auto lcore_id : tx_lcores[socket_id]) {
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: enabling port %u\n", socket_id, lcore_id, ps->port_id);
 		tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled = true;
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: enabling port %u (%u)\n",
+				socket_id, lcore_id, ps->port_id, tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled);
 	}
 
 	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successfully started\n", ps->port_id, port->name);
@@ -595,16 +596,17 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 	for (auto lcore_id : rx_lcores[socket_id]) {
 		for (unsigned int i = 0; i < rx_core_tasks[lcore_id].nb_rx_queues; i++) {
 			if (i == ps->port_id) {
-				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: disabling port %u\n", socket_id, lcore_id, ps->port_id);
 				rx_core_tasks[lcore_id].rx_queues[i].enabled = false;
+				XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: disabling port %u (%u)\n", socket_id, lcore_id, ps->port_id, rx_core_tasks[lcore_id].rx_queues[i].enabled);
 			}
 		}
 	}
 
 	//Inform running TX tasks
 	for (auto lcore_id : tx_lcores[socket_id]) {
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: disabling port %u\n", socket_id, lcore_id, ps->port_id);
 		tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled = false;
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: disabling port %u (%u)\n",
+				socket_id, lcore_id, ps->port_id, tx_core_tasks[lcore_id].tx_queues[ps->port_id].enabled);
 	}
 
 	//Make sure the link is down
