@@ -1198,11 +1198,12 @@ int processing_packet_pipeline_processing(void* not_used){
 
 				rx_events[i].queue_id = task->tx_ev_queue_id;
 				uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
-				rte_rwlock_read_lock(&port_list_rwlock);
+				//rte_rwlock_read_lock(&port_list_rwlock);
 				if ((port = port_list[in_port_id]) == NULL) {
-					rte_rwlock_read_unlock(&port_list_rwlock);
+					//rte_rwlock_read_unlock(&port_list_rwlock);
 					continue;
 				}
+				//rte_rwlock_read_unlock(&port_list_rwlock);
 				ps = (dpdk_port_state_t *)port->platform_port_state;
 
 				rx_events[i].mbuf->udata64 = (uint64_t)(phyports[ps->port_id].shortcut_port_id);
@@ -1219,11 +1220,12 @@ int processing_packet_pipeline_processing(void* not_used){
 
 				uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
 
-				rte_rwlock_read_lock(&port_list_rwlock);
+				//rte_rwlock_read_lock(&port_list_rwlock);
 				if ((port = port_list[in_port_id]) == NULL) {
-					rte_rwlock_read_unlock(&port_list_rwlock);
+					//rte_rwlock_read_unlock(&port_list_rwlock);
 					continue;
 				}
+				//rte_rwlock_read_unlock(&port_list_rwlock);
 				sw = port->attached_sw;
 				rte_rwlock_read_unlock(&port_list_rwlock);
 
