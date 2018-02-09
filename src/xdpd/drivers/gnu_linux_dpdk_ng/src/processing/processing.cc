@@ -224,14 +224,14 @@ rofl_result_t processing_init_lcores(void){
 	XDPD_INFO(DRIVER_NAME"[processing][init] max_eth_tx_burst_size=%u\n", max_eth_tx_burst_size);
 
 	/* enable pipeline shortcut */
-	YAML::Node pipeline_shortcut_node = y_config_dpdk_ng["dpdk"]["testing"]["pipeline_shortcut"]["pipeline"];
+	YAML::Node pipeline_shortcut_node = y_config_dpdk_ng["dpdk"]["testing"]["shortcut"]["pipeline"];
 	if (pipeline_shortcut_node && pipeline_shortcut_node.IsScalar()) {
 		pipeline_shortcut = pipeline_shortcut_node.as<bool>();
 	}
 	XDPD_INFO(DRIVER_NAME"[processing][init][testing] pipeline_shortcut=%u\n", pipeline_shortcut);
 
 	/* enable eventdev shortcut */
-	YAML::Node eventdev_shortcut_node = y_config_dpdk_ng["dpdk"]["testing"]["eventdev_shortcut"]["eventdev"];
+	YAML::Node eventdev_shortcut_node = y_config_dpdk_ng["dpdk"]["testing"]["shortcut"]["eventdev"];
 	if (eventdev_shortcut_node && eventdev_shortcut_node.IsScalar()) {
 		eventdev_shortcut = eventdev_shortcut_node.as<bool>();
 	}
