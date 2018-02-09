@@ -1132,8 +1132,8 @@ int processing_packet_reception(void* not_used){
 
 			if (unlikely(rxtask_dropping)) {
 				for (i = 0; i < nb_rx; i++) {
-					if (event[i].mbuf) {
-						rte_pktmbuf_free(event[i].mbuf);
+					if (mbufs[i]) {
+						rte_pktmbuf_free(mbufs[i]);
 					}
 				}
 				continue;
