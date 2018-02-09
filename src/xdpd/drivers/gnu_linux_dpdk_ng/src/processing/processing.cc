@@ -1268,7 +1268,7 @@ int processing_packet_pipeline_processing(void* not_used){
 				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
 				rx_events[i].mbuf->udata64 = (uint64_t)(phyports[ps->port_id].shortcut_port_id);
 
-				l2fwd_swap_ether_addrs(rx_events[i].mbuf);
+				//l2fwd_swap_ether_addrs(rx_events[i].mbuf);
 			}
 			nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
 			task->stats.tx_evts += nb_tx;
@@ -1820,9 +1820,9 @@ void processing_update_stats(void)
 
 
 void l2fwd_swap_ether_addrs(struct rte_mbuf *m) {
+	struct ether_hdr *eth = rte_pktmbuf_mtod(m, struct ether_hdr *);
 	struct ether_addr tmp_addr;
-	struct ether_hdr *eth;
-	eth = rte_pktmbuf_mtod(m, struct ether_hdr *);
+
 	ether_addr_copy(&eth->d_addr, &tmp_addr);
 	ether_addr_copy(&eth->s_addr, &eth->d_addr);
 	ether_addr_copy(&tmp_addr, &eth->d_addr);
