@@ -1782,21 +1782,21 @@ void processing_update_stats(void)
 		}
 
 		std::stringstream ss;
-		ss << "Summary rx-tasks" << ": ";
+		ss << "Summary rx-tasks" << "(" << socket_id  << ")" << ": ";
 					ss << "rx-pkts=" << std::setw(16) << rx_pkts_RX << ", ";
 					ss << "tx-evts=" << std::setw(16) << tx_evts_RX << ", ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
-		ss.clear();
-		ss << "Summary wk-tasks" << ": ";
+		ss.str("");
+		ss << "Summary wk-tasks" << "(" << socket_id  << ")" << ": ";
 					ss << "rx-evts=" << std::setw(16) << rx_evts_WK << ", ";
 					ss << "tx-evts=" << std::setw(16) << tx_evts_WK << ", ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
-		ss.clear();
-		ss << "Summary tx-tasks" << ": ";
+		ss.str("");
+		ss << "Summary tx-tasks" << "(" << socket_id  << ")" << ": ";
 					ss << "rx-evts=" << std::setw(16) << rx_evts_TX << ", ";
 					ss << "tx-pkts=" << std::setw(16) << tx_pkts_TX << ", ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
-		ss.clear();
+		ss.str("");
 		ss << "Summary socket-" << socket_id << ": ";
 		ss << "(RX)rx-pkts: " << (unsigned long long)rx_pkts_RX << ", ";
 		ss << "(RX)tx-evts: " << (unsigned long long)tx_evts_RX << ", ";
