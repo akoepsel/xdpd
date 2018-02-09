@@ -48,9 +48,16 @@ dpdk:
     max_evt_tx_burst_size: 64
     max_eth_rx_burst_size: 64
     max_eth_tx_burst_size: 4096
+  testing:
     shortcut:
       pipeline: false
       eventdev: false
+    rxtask:
+      dropping: true
+    txtask:
+      dropping: true
+    wktask:
+      dropping: true
   interfaces:
     ens1f1: 
       enabled: false

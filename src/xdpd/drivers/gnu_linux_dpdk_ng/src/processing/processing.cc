@@ -42,10 +42,17 @@ unsigned int max_eth_rx_burst_size = MAX_ETH_RX_BURST_SIZE_DEFAULT;
 unsigned int max_evt_wk_burst_size = MAX_EVT_WK_BURST_SIZE_DEFAULT;
 unsigned int max_evt_tx_burst_size = MAX_EVT_TX_BURST_SIZE_DEFAULT;
 unsigned int max_eth_tx_burst_size = MAX_ETH_TX_BURST_SIZE_DEFAULT;
-/* shortcutting the openflow pipeline => for testing pure I/O performance including eventdev subsystem */
+/* testing: shortcutting the openflow pipeline => for testing pure I/O performance including eventdev subsystem */
 bool pipeline_shortcut = false;
-/* shortcutting the eventdev subsystem => for testing raw I/O performance excluding eventdev subsystem */
+/* testing: shortcutting the eventdev subsystem => for testing raw I/O performance excluding eventdev subsystem */
 bool eventdev_shortcut = false;
+/* testing: drop all ethernet frames received in rx-burst */
+bool rxtask_dropping = false;
+/* testing: drop all ethernet frames received in evt-burst */
+bool wktask_dropping = false;
+/* testing: drop all ethernet frames received in evt-burst */
+bool txtask_dropping = false;
+
 /* rwlock for eventdev port used by control plane threads */
 rte_rwlock_t rwlock_eventdev_cp_port;
 
@@ -217,18 +224,40 @@ rofl_result_t processing_init_lcores(void){
 	XDPD_INFO(DRIVER_NAME"[processing][init] max_eth_tx_burst_size=%u\n", max_eth_tx_burst_size);
 
 	/* enable pipeline shortcut */
-	YAML::Node pipeline_shortcut_node = y_config_dpdk_ng["dpdk"]["processing"]["pipeline_shortcut"]["pipeline"];
+	YAML::Node pipeline_shortcut_node = y_config_dpdk_ng["dpdk"]["testing"]["pipeline_shortcut"]["pipeline"];
 	if (pipeline_shortcut_node && pipeline_shortcut_node.IsScalar()) {
 		pipeline_shortcut = pipeline_shortcut_node.as<bool>();
 	}
-	XDPD_INFO(DRIVER_NAME"[processing][init] pipeline_shortcut=%u\n", pipeline_shortcut);
+	XDPD_INFO(DRIVER_NAME"[processing][init][testing] pipeline_shortcut=%u\n", pipeline_shortcut);
 
 	/* enable eventdev shortcut */
-	YAML::Node eventdev_shortcut_node = y_config_dpdk_ng["dpdk"]["processing"]["eventdev_shortcut"]["eventdev"];
+	YAML::Node eventdev_shortcut_node = y_config_dpdk_ng["dpdk"]["testing"]["eventdev_shortcut"]["eventdev"];
 	if (eventdev_shortcut_node && eventdev_shortcut_node.IsScalar()) {
 		eventdev_shortcut = eventdev_shortcut_node.as<bool>();
 	}
-	XDPD_INFO(DRIVER_NAME"[processing][init] eventdev_shortcut=%u\n", eventdev_shortcut);
+	XDPD_INFO(DRIVER_NAME"[processing][init][testing] eventdev_shortcut=%u\n", eventdev_shortcut);
+
+	/* enable rxtask dropping */
+	YAML::Node rxtask_dropping_node = y_config_dpdk_ng["dpdk"]["testing"]["rxtask"]["dropping"];
+	if (rxtask_dropping_node && rxtask_dropping_node.IsScalar()) {
+		rxtask_dropping = rxtask_dropping_node.as<bool>();
+	}
+	XDPD_INFO(DRIVER_NAME"[processing][init][testing] rxtask_dropping=%u\n", rxtask_dropping);
+
+	/* enable txtask dropping */
+	YAML::Node txtask_dropping_node = y_config_dpdk_ng["dpdk"]["testing"]["txtask"]["dropping"];
+	if (txtask_dropping_node && txtask_dropping_node.IsScalar()) {
+		txtask_dropping = txtask_dropping_node.as<bool>();
+	}
+	XDPD_INFO(DRIVER_NAME"[processing][init][testing] txtask_dropping=%u\n", txtask_dropping);
+
+	/* enable wktask dropping */
+	YAML::Node wktask_dropping_node = y_config_dpdk_ng["dpdk"]["testing"]["wktask"]["dropping"];
+	if (wktask_dropping_node && wktask_dropping_node.IsScalar()) {
+		wktask_dropping = wktask_dropping_node.as<bool>();
+	}
+	XDPD_INFO(DRIVER_NAME"[processing][init][testing] wktask_dropping=%u\n", wktask_dropping);
+
 
 	/* detect all lcores and their state */
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
@@ -1098,6 +1127,18 @@ int processing_packet_reception(void* not_used){
 				continue;
 			}
 
+			/* update statistics */
+			task->stats.rx_pkts+=nb_rx;
+
+			if (unlikely(rxtask_dropping)) {
+				for (i = 0; i < nb_rx; i++) {
+					if (event[i].mbuf) {
+						rte_pktmbuf_free(event[i].mbuf);
+					}
+				}
+				continue;
+			}
+
 			/* map received mbufs to event structure */
 			for (i = 0; i < nb_rx; i++) {
 				event[i].flow_id = mbufs[i]->hash.rss;
@@ -1121,7 +1162,7 @@ int processing_packet_reception(void* not_used){
 					mbufs[i]->port = port_id;
 				}
 			}
-			task->stats.rx_pkts+=nb_rx;
+
 
 			/* enqueue events to event device */
 			const int nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, event, nb_rx);
@@ -1188,8 +1229,17 @@ int processing_packet_pipeline_processing(void* not_used){
 		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, dequeued %u event(s) from ev_port_id=%u\n",
 				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx, task->ev_port_id);
 #endif
+		/* update statistics */
 		task->stats.rx_evts+=nb_rx;
 
+		if (unlikely(wktask_dropping)) {
+			for (i = 0; i < nb_rx; i++) {
+				if (rx_events[i].mbuf) {
+					rte_pktmbuf_free(rx_events[i].mbuf);
+				}
+			}
+			continue;
+		}
 
 		if (pipeline_shortcut){
 			dpdk_port_state_t *ps;
@@ -1305,7 +1355,17 @@ int processing_packet_transmission(void* not_used){
 		int timeout = 0;
 		uint16_t nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, tx_events, max_evt_tx_burst_size, timeout);
 
+		/* update statistics */
 		task->stats.rx_evts+=nb_rx;
+
+		if (unlikely(txtask_dropping)) {
+			for (i = 0; i < nb_rx; i++) {
+				if (tx_events[i].mbuf) {
+					rte_pktmbuf_free(tx_events[i].mbuf);
+				}
+			}
+			continue;
+		}
 
 #if 0
 		if (nb_rx>0){
@@ -1665,8 +1725,12 @@ void processing_update_stats(void)
 {
 	XDPD_INFO(DRIVER_NAME"[processing] task status:\n");
 	for (auto socket_id : numa_nodes) {
-		uint64_t rx_pkts = 0;
-		uint64_t tx_pkts = 0;
+		uint64_t rx_pkts_RX = 0;
+		uint64_t tx_pkts_TX = 0;
+		uint64_t tx_evts_RX = 0;
+		uint64_t rx_evts_WK = 0;
+		uint64_t tx_evts_WK = 0;
+		uint64_t rx_evts_TX = 0;
 
 		for (auto lcore_id : rx_lcores[socket_id]) {
 			rx_core_task_t *task = &rx_core_tasks[lcore_id];
@@ -1681,7 +1745,8 @@ void processing_update_stats(void)
 			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
 			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
 			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
-			rx_pkts += task->stats.rx_pkts;
+			rx_pkts_RX += task->stats.rx_pkts;
+			tx_evts_RX += task->stats.rx_evts;
 		}
 		for (auto lcore_id : wk_lcores[socket_id]) {
 			wk_core_task_t *task = &wk_core_tasks[lcore_id];
@@ -1696,6 +1761,8 @@ void processing_update_stats(void)
 			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
 			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
 			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
+			rx_evts_WK += task->stats.rx_evts;
+			tx_evts_WK += task->stats.tx_evts;
 		}
 		for (auto lcore_id : tx_lcores[socket_id]) {
 			tx_core_task_t *task = &tx_core_tasks[lcore_id];
@@ -1710,14 +1777,21 @@ void processing_update_stats(void)
 			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
 			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
 			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
-			tx_pkts += task->stats.tx_pkts;
+			rx_evts_TX += task->stats.rx_evts;
+			tx_pkts_TX += task->stats.tx_pkts;
 		}
 
 		std::stringstream ss;
 		ss << "Summary socket-" << socket_id << ": ";
-		ss << "rx-pkts: " << (unsigned long long)rx_pkts << ", ";
-		ss << "tx-pkts: " << (unsigned long long)tx_pkts << ", ";
-		ss << "ratio: " << 100*((double)tx_pkts)/((double)rx_pkts) << "% ";
+		ss << "(RX)rx-pkts: " << (unsigned long long)rx_pkts_RX << ", ";
+		ss << "(RX)tx-evts: " << (unsigned long long)tx_evts_RX << ", ";
+		ss << "(WK)rx-evts: " << (unsigned long long)rx_evts_WK << ", ";
+		ss << "(WK)tx-evts: " << (unsigned long long)tx_evts_WK << ", ";
+		ss << "(TX)rx-evts: " << (unsigned long long)rx_evts_TX << ", ";
+		ss << "(TX)tx-pkts: " << (unsigned long long)tx_pkts_TX << ", ";
+		ss << "(RX=>TX)ratio: " << 100*((double)tx_pkts_TX)/((double)rx_pkts_RX) << "% ";
+		ss << "(RX=>WK)ratio: " << 100*((double)rx_evts_WK)/((double)tx_evts_RX) << "% ";
+		ss << "(WK=>TX)ratio: " << 100*((double)rx_evts_TX)/((double)tx_evts_WK) << "% ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 	}
 }
