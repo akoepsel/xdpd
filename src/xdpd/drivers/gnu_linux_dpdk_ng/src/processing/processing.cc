@@ -1746,7 +1746,7 @@ void processing_update_stats(void)
 			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
 			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 			rx_pkts_RX += task->stats.rx_pkts;
-			tx_evts_RX += task->stats.rx_evts;
+			tx_evts_RX += task->stats.tx_evts;
 		}
 		for (auto lcore_id : wk_lcores[socket_id]) {
 			wk_core_task_t *task = &wk_core_tasks[lcore_id];
