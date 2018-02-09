@@ -1241,77 +1241,263 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		//Configure the port
 		struct rte_eth_conf eth_conf;
 		memset(&eth_conf, 0, sizeof(eth_conf));
+		const std::string devname(iface_manager_get_port_setting_as<std::string>(s_pci_addr, "ifname"));
+
+
+		uint32_t max_rx_pkt_len(MAX_RX_PKT_LEN_DEFAULT);
+		YAML::Node offload_max_rx_pkt_len_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["max_rx_pkt_len"];
+		if (offload_max_rx_pkt_len_node && offload_max_rx_pkt_len_node.IsScalar()) {
+			max_rx_pkt_len = offload_max_rx_pkt_len_node.as<uint32_t>();
+		}
+
+		//activate all rx offload capabilities by default
+		uint64_t rx_offloads = dev_info.rx_offload_capa;
+
+		/*
+		 * deactivate certain offload features based on user configuration
+		 */
+
+		//VLAN STRIP
+		YAML::Node offload_rx_vlan_strip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_vlan_strip"];
+		if (offload_rx_vlan_strip_node && offload_rx_vlan_strip_node.IsScalar() && (not offload_rx_vlan_strip_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_VLAN_STRIP;
+		}
+		//IPV4 CKSUM
+		YAML::Node offload_rx_ipv4_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_ipv4_cksum"];
+		if (offload_rx_ipv4_cksum_node && offload_rx_ipv4_cksum_node.IsScalar() && (not offload_rx_ipv4_cksum_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_IPV4_CKSUM;
+		}
+		//UDP CKSUM
+		YAML::Node offload_rx_udp_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_udp_cksum"];
+		if (offload_rx_udp_cksum_node && offload_rx_udp_cksum_node.IsScalar() && (not offload_rx_udp_cksum_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_UDP_CKSUM;
+		}
+		//TCP CKSUM
+		YAML::Node offload_rx_tcp_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_tcp_cksum"];
+		if (offload_rx_tcp_cksum_node && offload_rx_tcp_cksum_node.IsScalar() && (not offload_rx_tcp_cksum_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_TCP_CKSUM;
+		}
+		//TCP LRO
+		YAML::Node offload_rx_tcp_lro_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_tcp_lro"];
+		if (offload_rx_tcp_lro_node && offload_rx_tcp_lro_node.IsScalar() && (not offload_rx_tcp_lro_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_TCP_LRO;
+		}
+		//QINQ STRIP
+		YAML::Node offload_rx_qinq_strip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_qinq_strip"];
+		if (offload_rx_qinq_strip_node && offload_rx_qinq_strip_node.IsScalar() && (not offload_rx_qinq_strip_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_QINQ_STRIP;
+		}
+		//OUTER IPV4 CKSUM
+		YAML::Node offload_rx_outer_ipv4_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_outer_ipv4_cksum"];
+		if (offload_rx_outer_ipv4_cksum_node && offload_rx_outer_ipv4_cksum_node.IsScalar() && (not offload_rx_outer_ipv4_cksum_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_OUTER_IPV4_CKSUM;
+		}
+		//MACSEC STRIP
+		YAML::Node offload_rx_macsec_strip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_macsec_strip"];
+		if (offload_rx_macsec_strip_node && offload_rx_macsec_strip_node.IsScalar() && (not offload_rx_macsec_strip_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_MACSEC_STRIP;
+		}
+		//HEADER SPLIT
+		YAML::Node offload_rx_header_split_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_header_split"];
+		if (offload_rx_header_split_node && offload_rx_header_split_node.IsScalar() && (not offload_rx_header_split_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_HEADER_SPLIT;
+		}
+		//VLAN FILTER
+		YAML::Node offload_rx_vlan_filter_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_vlan_filter"];
+		if (offload_rx_vlan_filter_node && offload_rx_vlan_filter_node.IsScalar() && (not offload_rx_vlan_filter_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_VLAN_FILTER;
+		}
+		//VLAN EXTEND
+		YAML::Node offload_rx_vlan_extend_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_vlan_extend"];
+		if (offload_rx_vlan_extend_node && offload_rx_vlan_extend_node.IsScalar() && (not offload_rx_vlan_extend_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_VLAN_EXTEND;
+		}
+		//JUMBO FRAME
+		YAML::Node offload_rx_jumbo_frame_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_jumbo_frame"];
+		if (offload_rx_jumbo_frame_node && offload_rx_jumbo_frame_node.IsScalar() && (not offload_rx_jumbo_frame_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_JUMBO_FRAME;
+		}
+		//CRC STRIP
+		YAML::Node offload_rx_crc_strip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_crc_strip"];
+		if (offload_rx_crc_strip_node && offload_rx_crc_strip_node.IsScalar() && (not offload_rx_crc_strip_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_CRC_STRIP;
+		}
+		//SCATTER
+		YAML::Node offload_rx_scatter_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_scatter"];
+		if (offload_rx_scatter_node && offload_rx_scatter_node.IsScalar() && (not offload_rx_scatter_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_SCATTER;
+		}
+		//TIMESTAMP
+		YAML::Node offload_rx_timestamp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_timestamp"];
+		if (offload_rx_timestamp_node && offload_rx_timestamp_node.IsScalar() && (not offload_rx_timestamp_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_TIMESTAMP;
+		}
+		//SECURITY
+		YAML::Node offload_rx_security_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_security"];
+		if (offload_rx_security_node && offload_rx_security_node.IsScalar() && (not offload_rx_security_node.as<bool>())) {
+			rx_offloads &= ~DEV_RX_OFFLOAD_SECURITY;
+		}
+
+		//activate all tx offload capabilities by default
+		uint64_t tx_offloads = dev_info.tx_offload_capa;
+
+		/*
+		 * deactivate certain offload features based on user configuration
+		 */
+
+		//VLAN INSERT
+		YAML::Node offload_tx_vlan_insert_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_vlan_insert"];
+		if (offload_tx_vlan_insert_node && offload_tx_vlan_insert_node.IsScalar() && (not offload_tx_vlan_insert_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_VLAN_INSERT;
+		}
+		//IPV4 CKSUM
+		YAML::Node offload_tx_ipv4_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_ipv4_cksum"];
+		if (offload_tx_ipv4_cksum_node && offload_tx_ipv4_cksum_node.IsScalar() && (not offload_tx_ipv4_cksum_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_IPV4_CKSUM;
+		}
+		//UDP CKSUM
+		YAML::Node offload_tx_udp_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_udp_cksum"];
+		if (offload_tx_udp_cksum_node && offload_tx_udp_cksum_node.IsScalar() && (not offload_tx_udp_cksum_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_UDP_CKSUM;
+		}
+		//TCP CKSUM
+		YAML::Node offload_tx_tcp_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_tcp_cksum"];
+		if (offload_tx_tcp_cksum_node && offload_tx_tcp_cksum_node.IsScalar() && (not offload_tx_tcp_cksum_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_TCP_CKSUM;
+		}
+		//SCTP CKSUM
+		YAML::Node offload_tx_sctp_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_sctp_cksum"];
+		if (offload_tx_sctp_cksum_node && offload_tx_sctp_cksum_node.IsScalar() && (not offload_tx_sctp_cksum_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_SCTP_CKSUM;
+		}
+		//TCP TSO
+		YAML::Node offload_tx_tcp_tso_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_tcp_tso"];
+		if (offload_tx_tcp_tso_node && offload_tx_tcp_tso_node.IsScalar() && (not offload_tx_tcp_tso_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_TCP_TSO;
+		}
+		//UDP TSO
+		YAML::Node offload_tx_udp_tso_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_udp_tso"];
+		if (offload_tx_udp_tso_node && offload_tx_udp_tso_node.IsScalar() && (not offload_tx_udp_tso_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_UDP_TSO;
+		}
+		//OUTER IPV4 CKSUM
+		YAML::Node offload_tx_outer_ipv4_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_outer_ipv4_cksum"];
+		if (offload_tx_outer_ipv4_cksum_node && offload_tx_outer_ipv4_cksum_node.IsScalar() && (not offload_tx_outer_ipv4_cksum_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_OUTER_IPV4_CKSUM;
+		}
+		//QINQ INSERT
+		YAML::Node offload_tx_qinq_insert_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_qinq_insert"];
+		if (offload_tx_qinq_insert_node && offload_tx_qinq_insert_node.IsScalar() && (not offload_tx_qinq_insert_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_QINQ_INSERT;
+		}
+		//VXLAN TNL TSO
+		YAML::Node offload_tx_vxlan_tnl_tso_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_vxlan_tnl_tso"];
+		if (offload_tx_vxlan_tnl_tso_node && offload_tx_vxlan_tnl_tso_node.IsScalar() && (not offload_tx_vxlan_tnl_tso_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_VXLAN_TNL_TSO;
+		}
+		//GRE TNL TSO
+		YAML::Node offload_tx_gre_tnl_tso_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_gre_tnl_tso"];
+		if (offload_tx_gre_tnl_tso_node && offload_tx_gre_tnl_tso_node.IsScalar() && (not offload_tx_gre_tnl_tso_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_GRE_TNL_TSO;
+		}
+		//IPIP TNL TSO
+		YAML::Node offload_tx_ipip_tnl_tso_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_ipip_tnl_tso"];
+		if (offload_tx_ipip_tnl_tso_node && offload_tx_ipip_tnl_tso_node.IsScalar() && (not offload_tx_ipip_tnl_tso_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_IPIP_TNL_TSO;
+		}
+		//GENEVE TNL TSO
+		YAML::Node offload_tx_geneve_tnl_tso_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_geneve_tnl_tso"];
+		if (offload_tx_geneve_tnl_tso_node && offload_tx_geneve_tnl_tso_node.IsScalar() && (not offload_tx_geneve_tnl_tso_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_GENEVE_TNL_TSO;
+		}
+		//MACSEC INSERT
+		YAML::Node offload_tx_macsec_insert_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["tx_macsec_insert"];
+		if (offload_tx_macsec_insert_node && offload_tx_macsec_insert_node.IsScalar() && (not offload_tx_macsec_insert_node.as<bool>())) {
+			tx_offloads &= ~DEV_TX_OFFLOAD_MACSEC_INSERT;
+		}
+
+		/*
+		 * RSS hash functions
+		 */
+
+		uint64_t rss_hf = dev_info.flow_type_rss_offloads;
+
+		/*
+		 * deactivate certain RSS hash functions based on user configuration
+		 */
+
+		YAML::Node rss_hf_port_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["port"];
+		if (rss_hf_port_node && rss_hf_port_node.IsScalar() && (not rss_hf_port_node.as<bool>())) {
+			rss_hf &= ~ETH_RSS_PORT;
+		}
+
+		YAML::Node rss_hf_l2_payload_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["l2_payload"];
+		if (rss_hf_l2_payload_node && rss_hf_l2_payload_node.IsScalar() && (not rss_hf_l2_payload_node.as<bool>())) {
+			rss_hf &= ~ETH_RSS_L2_PAYLOAD;
+		}
+
+		YAML::Node rss_hf_ip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["ip"];
+		if (rss_hf_ip_node && rss_hf_ip_node.IsScalar() && (not rss_hf_ip_node.as<bool>())) {
+			rss_hf &= ~ETH_RSS_IP;
+		}
+
+		YAML::Node rss_hf_udp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["udp"];
+		if (rss_hf_udp_node && rss_hf_udp_node.IsScalar() && (not rss_hf_udp_node.as<bool>())) {
+			rss_hf &= ~ETH_RSS_UDP;
+		}
+
+		YAML::Node rss_hf_tcp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["tcp"];
+		if (rss_hf_tcp_node && rss_hf_tcp_node.IsScalar() && (not rss_hf_tcp_node.as<bool>())) {
+			rss_hf &= ~ETH_RSS_TCP;
+		}
+
+		YAML::Node rss_hf_sctp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["sctp"];
+		if (rss_hf_sctp_node && rss_hf_sctp_node.IsScalar() && (not rss_hf_sctp_node.as<bool>())) {
+			rss_hf &= ~ETH_RSS_SCTP;
+		}
+
+		YAML::Node rss_hf_tunnel_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["tunnel"];
+		if (rss_hf_tunnel_node && rss_hf_tunnel_node.IsScalar() && (not rss_hf_tunnel_node.as<bool>())) {
+			rss_hf &= ~ETH_RSS_TUNNEL;
+		}
+
+		YAML::Node rss_hf_vxlan_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["vxlan"];
+		if (rss_hf_vxlan_node && rss_hf_vxlan_node.IsScalar() && (not rss_hf_vxlan_node.as<bool>())) {
+			rss_hf &= ~ETH_RSS_VXLAN;
+		}
+
+		YAML::Node rss_hf_geneve_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["geneve"];
+		if (rss_hf_geneve_node && rss_hf_geneve_node.IsScalar() && (not rss_hf_geneve_node.as<bool>())) {
+			rss_hf &= ~ETH_RSS_GENEVE;
+		}
+
+		YAML::Node rss_hf_nvgre_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["nvgre"];
+		if (rss_hf_nvgre_node && rss_hf_nvgre_node.IsScalar() && (not rss_hf_nvgre_node.as<bool>())) {
+			rss_hf &= ~ETH_RSS_NVGRE;
+		}
+
 
 		//receive side
-		uint32_t max_rx_pkt_len(MAX_RX_PKT_LEN_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "max_rx_pkt_len")) {
-			max_rx_pkt_len = iface_manager_get_port_setting_as<uint32_t>(s_pci_addr, "max_rx_pkt_len");
-		}
-
-		bool hw_ip_checksum(HW_IP_CHKSUM_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "hw_ip_checksum")) {
-			hw_ip_checksum = iface_manager_get_port_setting_as<bool>(s_pci_addr, "hw_ip_checksum");
-		}
-
-		bool hw_vlan_extend(HW_VLAN_EXTEND_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "hw_vlan_extend")) {
-			hw_vlan_extend = iface_manager_get_port_setting_as<bool>(s_pci_addr, "hw_vlan_extend");
-		}
-
-		bool hw_vlan_filter(HW_VLAN_FILTER_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "hw_vlan_filter")) {
-			hw_vlan_filter = iface_manager_get_port_setting_as<bool>(s_pci_addr, "hw_vlan_filter");
-		}
-
-		bool hw_vlan_strip(HW_VLAN_STRIP_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "hw_vlan_strip")) {
-			hw_vlan_strip = iface_manager_get_port_setting_as<bool>(s_pci_addr, "hw_vlan_strip");
-		}
-
-		bool hw_strip_crc(HW_STRIP_CRC_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "hw_strip_crc")) {
-			hw_strip_crc = iface_manager_get_port_setting_as<bool>(s_pci_addr, "hw_strip_crc");
-		}
-
-		bool jumbo_frame(JUMBO_FRAME_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "jumbo_frame")) {
-			jumbo_frame = iface_manager_get_port_setting_as<bool>(s_pci_addr, "jumbo_frame");
-		}
-
 		eth_conf.link_speeds = ETH_LINK_SPEED_AUTONEG; //auto negotiation enabled
 		eth_conf.lpbk_mode = 0; //loopback disabled
 		eth_conf.rxmode.mq_mode = ETH_MQ_RX_RSS; //enable Receive Side Scaling (RSS) only
-		eth_conf.rxmode.offloads = dev_info.rx_offload_capa;
 		eth_conf.rxmode.max_rx_pkt_len = max_rx_pkt_len;
-		eth_conf.rxmode.header_split = 0;
-		eth_conf.rxmode.hw_ip_checksum = hw_ip_checksum;
-		eth_conf.rxmode.hw_vlan_extend = hw_vlan_extend;
-		eth_conf.rxmode.hw_vlan_filter = hw_vlan_filter;
-		eth_conf.rxmode.hw_vlan_strip = hw_vlan_strip;
-		eth_conf.rxmode.hw_strip_crc = hw_strip_crc;
-		eth_conf.rxmode.jumbo_frame = jumbo_frame;
-		eth_conf.rxmode.enable_scatter = 0;
-		eth_conf.rxmode.enable_lro = 0;
 		eth_conf.rxmode.split_hdr_size = 0;
+		eth_conf.rxmode.offloads = rx_offloads;
+		eth_conf.rxmode.ignore_offload_bitfield = 1;
 		eth_conf.rx_adv_conf.rss_conf.rss_key = sym_rss_hash_key;
 		eth_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(sym_rss_hash_key);
-		eth_conf.rx_adv_conf.rss_conf.rss_hf = /*ETH_RSS_L2_PAYLOAD |*/ ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP;
-		//eth_conf.rx_adv_conf.rss_conf.rss_hf = ETH_RSS_L2_PAYLOAD | ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP;
+		eth_conf.rx_adv_conf.rss_conf.rss_hf = rss_hf;
 
 		//transmit side
 		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
-		eth_conf.txmode.offloads = dev_info.tx_offload_capa;
+		eth_conf.txmode.offloads = tx_offloads;
 
-		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, offloads: 0x%x, max_rx_pkt_len: %u, hw_ip_checksum: %u, hw_vlan_extend: %u, hw_vlan_filter: %u, hw_vlan_strip: %u, hw_strip_crc: %u, jumbo_frame: %u\n",
+		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, rx-offloads: 0x%x, max_rx_pkt_len: %u, tx-offloads: 0x%x\n",
 				port_id, socket_id,
 				eth_conf.rxmode.offloads,
 				eth_conf.rxmode.max_rx_pkt_len,
-				eth_conf.rxmode.hw_ip_checksum,
-				eth_conf.rxmode.hw_vlan_extend,
-				eth_conf.rxmode.hw_vlan_filter,
-				eth_conf.rxmode.hw_vlan_strip,
-				eth_conf.rxmode.hw_strip_crc,
-				eth_conf.rxmode.jumbo_frame);
+				eth_conf.txmode.offloads);
 
 		//configure port
 		if ((ret = rte_eth_dev_configure(port_id, nb_rx_queues, nb_tx_queues, &eth_conf)) < 0) {

@@ -75,13 +75,50 @@ dpdk:
       rx_host_threshold: 8
       rx_writeback_threshold: 0
       rx_free_treshold: 32
-      max_rx_pkt_len: 1518
-      hw_ip_checksum: true
-      hw_vlan_extend: false
-      hw_vlan_filter: true
-      hw_vlan_strip: true
-      hw_strip_crc: true
-      jumbo_frame: false
+      ethconf:
+        max_rx_pkt_len: 1518
+        offloads:
+          rx_vlan_strip: true
+          rx_ipv4_cksum: true
+          rx_udp_cksum: true
+          rx_tcp_cksum: true
+          rx_tcp_lro: true
+          rx_qinq_strip: true
+          rx_ipv4_cksum: true
+          rx_macsec_strip: true
+          rx_header_split: true
+          rx_vlan_filter: true
+          rx_vlan_extend: true
+          rx_jumbo_frame: true
+          rx_crc_strip: true
+          rx_scatter: true
+          rx_timestamp: true
+          rx_security: true
+          tx_vlan_insert: true
+          tx_ipv4_cksum: true
+          tx_udp_cksum: true
+          tx_tcp_cksum: true
+          tx_sctp_cksum: true
+          tx_tcp_tso: true
+          tx_udp_tso: true
+          tx_outer_ipv4_cksum: true
+          tx_qinq_insert: true
+          tx_vxlan_tnl_tso: true
+          tx_gre_tnl_tso: true
+          tx_ipip_tnl_tso: true
+          tx_geneve_tnl_tso: true
+          tx_macsec_insert: true
+        rss:
+          port: true
+          l2_payload: true
+          ip: true
+          udp: true
+          tcp: true
+          sctp: true
+          tunnel: true
+          vxlan: true
+          geneve: true
+          nvgre: true
       tx_loopback: false
       promisc: true
       allmulticast: true
