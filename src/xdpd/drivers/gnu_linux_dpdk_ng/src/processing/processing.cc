@@ -1202,6 +1202,7 @@ int processing_packet_pipeline_processing(void* not_used){
 	switch_port_t* port;
 	of_switch_t* sw;
 	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
+	uint16_t nb_rx, nb_tx;
 
 	//Parsing and pipeline extra state
 	datapacket_t pkt;
@@ -1219,7 +1220,7 @@ int processing_packet_pipeline_processing(void* not_used){
 	while(likely(task->active)) {
 
 		int timeout = 0;
-		uint16_t nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
+		nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
 
 		if (nb_rx == 0) {
 			//rte_pause();
@@ -1267,7 +1268,8 @@ int processing_packet_pipeline_processing(void* not_used){
 				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
 				rx_events[i].mbuf->udata64 = (uint64_t)(phyports[ps->port_id].shortcut_port_id);
 			}
-			rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
+			nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
+			task->stats.tx_evts += nb_tx;
 		} else {
 			for (i = 0; i < nb_rx; i++) {
 
@@ -1278,15 +1280,15 @@ int processing_packet_pipeline_processing(void* not_used){
 				rte_prefetch0(&rx_events[i].mbuf->udata64);
 				uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
 
-				//rte_rwlock_read_lock(&port_list_rwlock);
+				rte_rwlock_read_lock(&port_list_rwlock);
 				if ((port = port_list[in_port_id]) == NULL) {
-					//rte_rwlock_read_unlock(&port_list_rwlock);
+					rte_rwlock_read_unlock(&port_list_rwlock);
 					rte_pktmbuf_free(rx_events[i].mbuf);
 					continue;
 				}
 
 				sw = port->attached_sw;
-				//rte_rwlock_read_unlock(&port_list_rwlock);
+				rte_rwlock_read_unlock(&port_list_rwlock);
 
 				/* inject packet into openflow pipeline */
 				rx_pkt(lcore_id, sw, rx_events[i].mbuf, &pkt, pkt_state);
