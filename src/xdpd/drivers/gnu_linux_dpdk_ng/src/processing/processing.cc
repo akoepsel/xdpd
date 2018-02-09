@@ -1249,14 +1249,14 @@ int processing_packet_pipeline_processing(void* not_used){
 				rte_prefetch0(&rx_events[i].mbuf->udata64);
 				uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
 
-				//rte_rwlock_read_lock(&port_list_rwlock);
+				rte_rwlock_read_lock(&port_list_rwlock);
 				if ((port = port_list[in_port_id]) == NULL) {
-					//rte_rwlock_read_unlock(&port_list_rwlock);
+					rte_rwlock_read_unlock(&port_list_rwlock);
 					rte_pktmbuf_free(rx_events[i].mbuf);
 					rx_events[i].mbuf = NULL;
 					continue;
 				}
-				//rte_rwlock_read_unlock(&port_list_rwlock);
+				rte_rwlock_read_unlock(&port_list_rwlock);
 
 				ps = (dpdk_port_state_t *)port->platform_port_state;
 
