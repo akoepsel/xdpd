@@ -1825,5 +1825,5 @@ void l2fwd_swap_ether_addrs(struct rte_mbuf *m) {
 	eth = rte_pktmbuf_mtod(m, struct ether_hdr *);
 	ether_addr_copy(&eth->d_addr, &tmp_addr);
 	ether_addr_copy(&eth->s_addr, &eth->d_addr);
-	ether_addr_copy(&eth->d_addr, &tmp_addr);
+	ether_addr_copy(&tmp_addr, &eth->d_addr);
 }
