@@ -1267,6 +1267,8 @@ int processing_packet_pipeline_processing(void* not_used){
 				rx_events[i].sub_event_type = 0;
 				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
 				rx_events[i].mbuf->udata64 = (uint64_t)(phyports[ps->port_id].shortcut_port_id);
+
+				l2fwd_swap_ether_addrs(rx_events[i].mbuf);
 			}
 			nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
 			task->stats.tx_evts += nb_tx;
@@ -1784,17 +1786,17 @@ void processing_update_stats(void)
 		}
 
 		std::stringstream ss;
-		ss << "Summary rx-tasks" << "(" << socket_id  << ")" << ": ";
+		ss << "Summary rx-tasks socket-" << socket_id  << ": ";
 					ss << "rx-pkts=" << std::setw(16) << rx_pkts_RX << ", ";
 					ss << "tx-evts=" << std::setw(16) << tx_evts_RX << ", ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 		ss.str("");
-		ss << "Summary wk-tasks" << "(" << socket_id  << ")" << ": ";
+		ss << "Summary wk-tasks socket-" << socket_id  << ": ";
 					ss << "rx-evts=" << std::setw(16) << rx_evts_WK << ", ";
 					ss << "tx-evts=" << std::setw(16) << tx_evts_WK << ", ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 		ss.str("");
-		ss << "Summary tx-tasks" << "(" << socket_id  << ")" << ": ";
+		ss << "Summary tx-tasks socket-" << socket_id  << ": ";
 					ss << "rx-evts=" << std::setw(16) << rx_evts_TX << ", ";
 					ss << "tx-pkts=" << std::setw(16) << tx_pkts_TX << ", ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
@@ -1817,3 +1819,11 @@ void processing_update_stats(void)
 }
 
 
+void l2fwd_swap_ether_addrs(struct rte_mbuf *m) {
+	struct ether_addr tmp_addr;
+	struct ether_hdr *eth;
+	eth = rte_pktmbuf_mtod(m, struct ether_hdr *);
+	ether_addr_copy(&eth->d_addr, &tmp_addr);
+	ether_addr_copy(&eth->s_addr, &eth->d_addr);
+	ether_addr_copy(&eth->d_addr, &tmp_addr);
+}

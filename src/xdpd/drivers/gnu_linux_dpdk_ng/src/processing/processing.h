@@ -20,6 +20,7 @@
 #include <rte_launch.h>
 #include <rte_rwlock.h>
 #include <rte_eventdev.h>
+#include <rte_ether.h>
 
 #include <string>
 
@@ -307,6 +308,11 @@ int processing_packet_transmission(void*);
 * Dump core state
 */
 void processing_dump_core_states(void);
+
+/**
+ * Swap ethernet mac addresses for testing
+ */
+void l2fwd_swap_ether_addrs(struct rte_mbuf *m);
 
 //C++ extern C
 ROFL_END_DECLS
