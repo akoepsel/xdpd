@@ -1804,9 +1804,12 @@ void processing_update_stats(void)
 		ss << "(WK)tx-evts: " << (unsigned long long)tx_evts_WK << ", ";
 		ss << "(TX)rx-evts: " << (unsigned long long)rx_evts_TX << ", ";
 		ss << "(TX)tx-pkts: " << (unsigned long long)tx_pkts_TX << ", ";
+		ss << "(RX=>RX)ratio: " << 100*((double)tx_evts_RX)/((double)rx_pkts_RX) << "% ";
 		ss << "(RX=>TX)ratio: " << 100*((double)tx_pkts_TX)/((double)rx_pkts_RX) << "% ";
+		ss << "(WK=>WK)ratio: " << 100*((double)rx_evts_WK)/((double)tx_evts_WK) << "% ";
 		ss << "(RX=>WK)ratio: " << 100*((double)rx_evts_WK)/((double)tx_evts_RX) << "% ";
 		ss << "(WK=>TX)ratio: " << 100*((double)rx_evts_TX)/((double)tx_evts_WK) << "% ";
+		ss << "(TX=>TX)ratio: " << 100*((double)rx_evts_TX)/((double)tx_pkts_TX) << "% ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 	}
 }
