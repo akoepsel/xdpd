@@ -82,6 +82,23 @@ extern unsigned int dpdk_memory_mempool_direct_priv_size;
 extern unsigned int dpdk_memory_mempool_indirect_cache_size;
 extern unsigned int dpdk_memory_mempool_indirect_priv_size;
 
+/* Shinae Woo and KyoungSoo Park
+ * "Scalable TCP Session Monitoring with Symmetric Receive-side Scaling"
+ */
+static uint8_t sym_rss_hash_key[] = {
+		0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A,
+};
+
+
 static int set_vf_vlan_filter(uint16_t port_id, uint16_t vlan_id, uint64_t vf_mask, uint8_t on)
 {
 	struct rte_eth_dev_info dev_info;
@@ -1276,10 +1293,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.rxmode.enable_scatter = 0;
 		eth_conf.rxmode.enable_lro = 0;
 		eth_conf.rxmode.split_hdr_size = 0;
-		eth_conf.rx_adv_conf.rss_conf.rss_key = NULL;
-		eth_conf.rx_adv_conf.rss_conf.rss_key_len = 0;
+		eth_conf.rx_adv_conf.rss_conf.rss_key = sym_rss_hash_key;
+		eth_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(sym_rss_hash_key);
 		eth_conf.rx_adv_conf.rss_conf.rss_hf = /*ETH_RSS_L2_PAYLOAD |*/ ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP;
-		//eth_conf.rx_adv_conf.rss_conf.rss_hf = ETH_RSS_L2_PAYLOAD | ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP;
+		eth_conf.rx_adv_conf.rss_conf.rss_hf = ETH_RSS_L2_PAYLOAD | ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP;
 
 		//transmit side
 		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
