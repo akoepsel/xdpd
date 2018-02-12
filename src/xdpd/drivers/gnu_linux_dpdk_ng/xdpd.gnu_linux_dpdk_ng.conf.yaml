@@ -77,6 +77,8 @@ dpdk:
       rx_free_treshold: 32
       ethconf:
         max_rx_pkt_len: 1518
+        workarounds:
+          i40evf: true
         offloads:
           rx_vlan_strip: true
           rx_ipv4_cksum: true
@@ -91,7 +93,6 @@ dpdk:
           rx_vlan_extend: true
           rx_jumbo_frame: true
           rx_crc_strip: true
-          rx_crc_strip_i40evf_workaround: true
           rx_scatter: true
           rx_timestamp: true
           rx_security: true
