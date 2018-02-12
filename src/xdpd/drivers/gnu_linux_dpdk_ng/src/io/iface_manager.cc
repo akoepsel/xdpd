@@ -1262,7 +1262,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		 * DEV_RX_OFFLOAD_CRC_STRIP to the set of available rx_offload capas
 		 */
 		if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] adding DEV_RX_OFFLOAD_CRC_STRIP to rx_offload capabilities for net_i40e_vf driver\n", devname.c_str());
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] adding DEV_RX_OFFLOAD_CRC_STRIP workaround to rx_offload capabilities for %s driver\n", devname.c_str(), DPDK_DRIVER_NAME_I40E_VF);
 			rx_offloads |= DEV_RX_OFFLOAD_CRC_STRIP;
 		}
 
