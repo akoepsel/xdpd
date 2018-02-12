@@ -1253,15 +1253,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		//activate all rx offload capabilities by default
 		uint64_t rx_offloads = dev_info.rx_offload_capa;
 
-		//get hw_crc_strip boolean variable, as the i40e vf driver checks this field, even if ignore_offload_bitfield is set to true
-		bool hw_crc_strip = true;
-		//get hw_vlan_strip boolean variable, as the i40e vf driver checks this field, even if ignore_offload_bitfield is set to true
-		bool hw_vlan_strip = true;
-		//get jumbo_frame boolean variable, as the i40e vf driver checks this field, even if ignore_offload_bitfield is set to true
-		bool jumbo_frame = true;
-		//get enable_scatter boolean variable, as the i40e vf driver checks this field, even if ignore_offload_bitfield is set to true
-		bool enable_scatter = true;
-
 		/*
 		 * deactivate certain offload features based on user configuration
 		 */
@@ -1270,7 +1261,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		YAML::Node offload_rx_vlan_strip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_vlan_strip"];
 		if (offload_rx_vlan_strip_node && offload_rx_vlan_strip_node.IsScalar() && (not offload_rx_vlan_strip_node.as<bool>())) {
 			rx_offloads &= ~DEV_RX_OFFLOAD_VLAN_STRIP;
-			hw_vlan_strip = false;
 		}
 		//IPV4 CKSUM
 		YAML::Node offload_rx_ipv4_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_ipv4_cksum"];
@@ -1326,19 +1316,16 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		YAML::Node offload_rx_jumbo_frame_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_jumbo_frame"];
 		if (offload_rx_jumbo_frame_node && offload_rx_jumbo_frame_node.IsScalar() && (not offload_rx_jumbo_frame_node.as<bool>())) {
 			rx_offloads &= ~DEV_RX_OFFLOAD_JUMBO_FRAME;
-			jumbo_frame = false;
 		}
 		//CRC STRIP
 		YAML::Node offload_rx_crc_strip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_crc_strip"];
 		if (offload_rx_crc_strip_node && offload_rx_crc_strip_node.IsScalar() && (not offload_rx_crc_strip_node.as<bool>())) {
 			rx_offloads &= ~DEV_RX_OFFLOAD_CRC_STRIP;
-			hw_crc_strip = false;
 		}
 		//SCATTER
 		YAML::Node offload_rx_scatter_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_scatter"];
 		if (offload_rx_scatter_node && offload_rx_scatter_node.IsScalar() && (not offload_rx_scatter_node.as<bool>())) {
 			rx_offloads &= ~DEV_RX_OFFLOAD_SCATTER;
-			enable_scatter = false;
 		}
 		//TIMESTAMP
 		YAML::Node offload_rx_timestamp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_timestamp"];
@@ -1349,6 +1336,57 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		YAML::Node offload_rx_security_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_security"];
 		if (offload_rx_security_node && offload_rx_security_node.IsScalar() && (not offload_rx_security_node.as<bool>())) {
 			rx_offloads &= ~DEV_RX_OFFLOAD_SECURITY;
+		}
+
+		//helper string
+		std::stringstream s_rx_offloads;
+		if (rx_offloads & DEV_RX_OFFLOAD_VLAN_STRIP){
+			s_rx_offloads << "RX_VLAN_STRIP, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_IPV4_CKSUM){
+			s_rx_offloads << "RX_IPV4_CKSUM, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_UDP_CKSUM){
+			s_rx_offloads << "RX_UDP_CKSUM, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_TCP_CKSUM){
+			s_rx_offloads << "RX_TCP_CKSUM, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_TCP_LRO){
+			s_rx_offloads << "RX_TCP_LRO, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_QINQ_STRIP){
+			s_rx_offloads << "RX_QINQ_STRIP, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_OUTER_IPV4_CKSUM){
+			s_rx_offloads << "RX_OUTER_IPV4_CKSUM, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_MACSEC_STRIP){
+			s_rx_offloads << "RX_MACSEC_STRIP, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_HEADER_SPLIT){
+			s_rx_offloads << "RX_HEADER_SPLIT, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_VLAN_FILTER){
+			s_rx_offloads << "RX_VLAN_FILTER, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_VLAN_EXTEND){
+			s_rx_offloads << "RX_VLAN_EXTEND, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_JUMBO_FRAME){
+			s_rx_offloads << "RX_JUMBO_FRAME, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_CRC_STRIP){
+			s_rx_offloads << "RX_CRC_STRIP, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_SCATTER){
+			s_rx_offloads << "RX_SCATTER, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_TIMESTAMP){
+			s_rx_offloads << "RX_TIMESTAMP, ";
+		}
+		if (rx_offloads & DEV_RX_OFFLOAD_SECURITY){
+			s_rx_offloads << "RX_SECURITY, ";
 		}
 
 		//activate all tx offload capabilities by default
@@ -1429,6 +1467,51 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			tx_offloads &= ~DEV_TX_OFFLOAD_MACSEC_INSERT;
 		}
 
+		//helper string
+		std::stringstream s_tx_offloads;
+		if (tx_offloads & DEV_TX_OFFLOAD_VLAN_INSERT){
+			s_tx_offloads << "TX_VLAN_STRIP, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_IPV4_CKSUM){
+			s_tx_offloads << "TX_IPV4_CKSUM, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_UDP_CKSUM){
+			s_tx_offloads << "TX_UDP_CKSUM, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_TCP_CKSUM){
+			s_tx_offloads << "TX_TCP_CKSUM, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_SCTP_CKSUM){
+			s_tx_offloads << "TX_SCTP_CKSUM, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_TCP_TSO){
+			s_tx_offloads << "TX_TCP_TSO, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_UDP_TSO){
+			s_tx_offloads << "TX_UDP_TSO, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_OUTER_IPV4_CKSUM){
+			s_tx_offloads << "TX_OUTER_IPV4_CKSUM, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_QINQ_INSERT){
+			s_tx_offloads << "TX_QINQ_INSERT, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_VXLAN_TNL_TSO){
+			s_tx_offloads << "TX_VXLAN_TNL_TSO, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_GRE_TNL_TSO){
+			s_tx_offloads << "TX_GRE_TNL_TSO, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_IPIP_TNL_TSO){
+			s_tx_offloads << "TX_IPIP_TNL_TSO, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_GENEVE_TNL_TSO){
+			s_tx_offloads << "TX_GENEVE_TNL_TSO, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_MACSEC_INSERT){
+			s_tx_offloads << "TX_MACSEC_INSERT, ";
+		}
+
 		/*
 		 * RSS hash functions
 		 */
@@ -1489,6 +1572,39 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rss_hf |= ETH_RSS_NVGRE;
 		}
 
+		//helper string
+		std::stringstream s_rss_hf;
+		if (rss_hf & ETH_RSS_PORT){
+			s_rss_hf << "ETH_RSS_PORT | ";
+		}
+		if (rss_hf & ETH_RSS_L2_PAYLOAD){
+			s_rss_hf << "ETH_RSS_L2_PAYLOAD | ";
+		}
+		if (rss_hf & ETH_RSS_IP){
+			s_rss_hf << "ETH_RSS_IP | ";
+		}
+		if (rss_hf & ETH_RSS_UDP){
+			s_rss_hf << "ETH_RSS_UDP | ";
+		}
+		if (rss_hf & ETH_RSS_TCP){
+			s_rss_hf << "ETH_RSS_TCP | ";
+		}
+		if (rss_hf & ETH_RSS_SCTP){
+			s_rss_hf << "ETH_RSS_SCTP | ";
+		}
+		if (rss_hf & ETH_RSS_TUNNEL){
+			s_rss_hf << "ETH_RSS_TUNNEL | ";
+		}
+		if (rss_hf & ETH_RSS_VXLAN){
+			s_rss_hf << "ETH_RSS_VXLAN | ";
+		}
+		if (rss_hf & ETH_RSS_GENEVE){
+			s_rss_hf << "ETH_RSS_GENEVE | ";
+		}
+		if (rss_hf & ETH_RSS_NVGRE){
+			s_rss_hf << "ETH_RSS_NVGRE | ";
+		}
+
 
 		//receive side
 		eth_conf.link_speeds = ETH_LINK_SPEED_AUTONEG; //auto negotiation enabled
@@ -1501,10 +1617,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.rxmode.split_hdr_size = 0;
 		eth_conf.rxmode.offloads = rx_offloads;
 		eth_conf.rxmode.ignore_offload_bitfield = 1;
-		eth_conf.rxmode.hw_strip_crc = hw_crc_strip; //this is a workaround for the i40evf driver
-		eth_conf.rxmode.hw_vlan_strip = hw_vlan_strip; //this is a workaround for the i40evf driver
-		eth_conf.rxmode.jumbo_frame = jumbo_frame; //this is a workaround for the i40evf driver
-		eth_conf.rxmode.enable_scatter = enable_scatter; //this is a workaround for the i40evf driver
 		eth_conf.rx_adv_conf.rss_conf.rss_key = sym_rss_hash_key;
 		eth_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(sym_rss_hash_key);
 		eth_conf.rx_adv_conf.rss_conf.rss_hf = rss_hf;
@@ -1513,17 +1625,20 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
 		eth_conf.txmode.offloads = tx_offloads;
 
-		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, nb-rx-queues: %u, nb-tx-queues: %u, max_rx_pkt_len: %u, rss-hf: 0x%x (caps:0x%x), rx-offloads: 0x%x (caps:0x%x), tx-offloads: 0x%x (caps:0x%x)\n",
+		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, nb-rx-queues: %u, nb-tx-queues: %u, max_rx_pkt_len: %u, rss-hf: 0x%x (caps:0x%x) [%s], rx-offloads: 0x%x (caps:0x%x) [%s], tx-offloads: 0x%x (caps:0x%x) [%s]\n",
 				port_id, socket_id,
 				nb_rx_queues,
 				nb_tx_queues,
 				eth_conf.rxmode.max_rx_pkt_len,
 				rss_hf,
 				dev_info.flow_type_rss_offloads,
+				s_rss_hf.str().c_str(),
 				eth_conf.rxmode.offloads,
 				dev_info.rx_offload_capa,
+				s_rx_offloads.str().c_str(),
 				eth_conf.txmode.offloads,
-				dev_info.tx_offload_capa);
+				dev_info.tx_offload_capa,
+				s_tx_offloads.str().c_str());
 
 		//configure port
 		if ((ret = rte_eth_dev_configure(port_id, nb_rx_queues, nb_tx_queues, &eth_conf)) < 0) {
