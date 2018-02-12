@@ -1679,7 +1679,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_tx_desc")) {
 			nb_tx_desc = iface_manager_get_port_setting_as<uint16_t>(s_pci_addr, "nb_tx_desc");
 		}
-
+#if 0
 		uint64_t tx_prefetch_threshold(TX_PREFETCH_THRESHOLD_DEFAULT);
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "tx_prefetch_threshold")) {
 			tx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_prefetch_threshold");
@@ -1699,7 +1699,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "tx_free_threshold")) {
 			tx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_free_threshold");
 		}
-
+#endif
 		for (uint16_t tx_queue_id = 0; tx_queue_id < /*no typo!*/nb_tx_queues; tx_queue_id++) {
 			struct rte_eth_txconf eth_txconf = dev_info.default_txconf;
 #if 0
@@ -1775,7 +1775,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_rx_desc")) {
 			nb_rx_desc = iface_manager_get_port_setting_as<uint16_t>(s_pci_addr, "nb_rx_desc");
 		}
-
+#if 0
 		uint64_t rx_prefetch_threshold(RX_PREFETCH_THRESHOLD_DEFAULT);
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_prefetch_threshold")) {
 			rx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_prefetch_threshold");
@@ -1795,7 +1795,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_free_threshold")) {
 			rx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_free_threshold");
 		}
-
+#endif
 		for (uint16_t rx_queue_id = 0; rx_queue_id < nb_rx_queues; rx_queue_id++) {
 			struct rte_eth_rxconf eth_rxconf = dev_info.default_rxconf;
 #if 0
