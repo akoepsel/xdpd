@@ -1575,34 +1575,34 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		//helper string
 		std::stringstream s_rss_hf;
 		if (rss_hf & ETH_RSS_PORT){
-			s_rss_hf << "ETH_RSS_PORT | ";
+			s_rss_hf << "ETH_RSS_PORT, ";
 		}
 		if (rss_hf & ETH_RSS_L2_PAYLOAD){
-			s_rss_hf << "ETH_RSS_L2_PAYLOAD | ";
+			s_rss_hf << "ETH_RSS_L2_PAYLOAD, ";
 		}
 		if (rss_hf & ETH_RSS_IP){
-			s_rss_hf << "ETH_RSS_IP | ";
+			s_rss_hf << "ETH_RSS_IP, ";
 		}
 		if (rss_hf & ETH_RSS_UDP){
-			s_rss_hf << "ETH_RSS_UDP | ";
+			s_rss_hf << "ETH_RSS_UDP, ";
 		}
 		if (rss_hf & ETH_RSS_TCP){
-			s_rss_hf << "ETH_RSS_TCP | ";
+			s_rss_hf << "ETH_RSS_TCP, ";
 		}
 		if (rss_hf & ETH_RSS_SCTP){
-			s_rss_hf << "ETH_RSS_SCTP | ";
+			s_rss_hf << "ETH_RSS_SCTP, ";
 		}
 		if (rss_hf & ETH_RSS_TUNNEL){
-			s_rss_hf << "ETH_RSS_TUNNEL | ";
+			s_rss_hf << "ETH_RSS_TUNNEL, ";
 		}
 		if (rss_hf & ETH_RSS_VXLAN){
-			s_rss_hf << "ETH_RSS_VXLAN | ";
+			s_rss_hf << "ETH_RSS_VXLAN, ";
 		}
 		if (rss_hf & ETH_RSS_GENEVE){
-			s_rss_hf << "ETH_RSS_GENEVE | ";
+			s_rss_hf << "ETH_RSS_GENEVE, ";
 		}
 		if (rss_hf & ETH_RSS_NVGRE){
-			s_rss_hf << "ETH_RSS_NVGRE | ";
+			s_rss_hf << "ETH_RSS_NVGRE, ";
 		}
 
 
