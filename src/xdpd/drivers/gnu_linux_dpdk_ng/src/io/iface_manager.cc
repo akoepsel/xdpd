@@ -1253,6 +1253,15 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		//activate all rx offload capabilities by default
 		uint64_t rx_offloads = dev_info.rx_offload_capa;
 
+		//get hw_crc_strip boolean variable, as the i40e vf driver checks this field, even if ignore_offload_bitfield is set to true
+		bool hw_crc_strip = true;
+		//get hw_vlan_strip boolean variable, as the i40e vf driver checks this field, even if ignore_offload_bitfield is set to true
+		bool hw_vlan_strip = true;
+		//get jumbo_frame boolean variable, as the i40e vf driver checks this field, even if ignore_offload_bitfield is set to true
+		bool jumbo_frame = true;
+		//get enable_scatter boolean variable, as the i40e vf driver checks this field, even if ignore_offload_bitfield is set to true
+		bool enable_scatter = true;
+
 		/*
 		 * deactivate certain offload features based on user configuration
 		 */
@@ -1261,6 +1270,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		YAML::Node offload_rx_vlan_strip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_vlan_strip"];
 		if (offload_rx_vlan_strip_node && offload_rx_vlan_strip_node.IsScalar() && (not offload_rx_vlan_strip_node.as<bool>())) {
 			rx_offloads &= ~DEV_RX_OFFLOAD_VLAN_STRIP;
+			hw_vlan_strip = false;
 		}
 		//IPV4 CKSUM
 		YAML::Node offload_rx_ipv4_cksum_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_ipv4_cksum"];
@@ -1316,16 +1326,19 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		YAML::Node offload_rx_jumbo_frame_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_jumbo_frame"];
 		if (offload_rx_jumbo_frame_node && offload_rx_jumbo_frame_node.IsScalar() && (not offload_rx_jumbo_frame_node.as<bool>())) {
 			rx_offloads &= ~DEV_RX_OFFLOAD_JUMBO_FRAME;
+			jumbo_frame = false;
 		}
 		//CRC STRIP
 		YAML::Node offload_rx_crc_strip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_crc_strip"];
 		if (offload_rx_crc_strip_node && offload_rx_crc_strip_node.IsScalar() && (not offload_rx_crc_strip_node.as<bool>())) {
 			rx_offloads &= ~DEV_RX_OFFLOAD_CRC_STRIP;
+			hw_crc_strip = false;
 		}
 		//SCATTER
 		YAML::Node offload_rx_scatter_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_scatter"];
 		if (offload_rx_scatter_node && offload_rx_scatter_node.IsScalar() && (not offload_rx_scatter_node.as<bool>())) {
 			rx_offloads &= ~DEV_RX_OFFLOAD_SCATTER;
+			enable_scatter = false;
 		}
 		//TIMESTAMP
 		YAML::Node offload_rx_timestamp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_timestamp"];
@@ -1488,6 +1501,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.rxmode.split_hdr_size = 0;
 		eth_conf.rxmode.offloads = rx_offloads;
 		eth_conf.rxmode.ignore_offload_bitfield = 1;
+		eth_conf.rxmode.hw_strip_crc = hw_crc_strip; //this is a workaround for the i40evf driver
+		eth_conf.rxmode.hw_vlan_strip = hw_vlan_strip; //this is a workaround for the i40evf driver
+		eth_conf.rxmode.jumbo_frame = jumbo_frame; //this is a workaround for the i40evf driver
+		eth_conf.rxmode.enable_scatter = enable_scatter; //this is a workaround for the i40evf driver
 		eth_conf.rx_adv_conf.rss_conf.rss_key = sym_rss_hash_key;
 		eth_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(sym_rss_hash_key);
 		eth_conf.rx_adv_conf.rss_conf.rss_hf = rss_hf;
