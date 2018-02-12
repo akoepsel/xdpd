@@ -1496,8 +1496,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
 		eth_conf.txmode.offloads = tx_offloads;
 
-		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, max_rx_pkt_len: %u, rss-hf: 0x%x (caps:0x%x), rx-offloads: 0x%x (caps:0x%x), tx-offloads: 0x%x (caps:0x%x)\n",
+		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, nb-rx-queues: %u, nb-tx-queues: %u, max_rx_pkt_len: %u, rss-hf: 0x%x (caps:0x%x), rx-offloads: 0x%x (caps:0x%x), tx-offloads: 0x%x (caps:0x%x)\n",
 				port_id, socket_id,
+				nb_rx_queues,
+				nb_tx_queues,
 				eth_conf.rxmode.max_rx_pkt_len,
 				rss_hf,
 				dev_info.flow_type_rss_offloads,
