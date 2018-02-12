@@ -1237,10 +1237,16 @@ int processing_packet_pipeline_processing(void* not_used){
 
 		if (unlikely(wktask_dropping)) {
 			for (i = 0; i < nb_rx; i++) {
+				rx_events[i].op = RTE_EVENT_OP_RELEASE;
+				rx_events[i].event_type = RTE_EVENT_TYPE_CPU;
+				rx_events[i].sub_event_type = 0;
 				if (rx_events[i].mbuf) {
 					rte_pktmbuf_free(rx_events[i].mbuf);
 				}
+				rx_events[i].mbuf = NULL;
 			}
+			nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
+			task->stats.tx_evts += nb_tx;
 			continue;
 		}
 
