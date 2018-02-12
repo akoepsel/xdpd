@@ -1130,14 +1130,6 @@ int processing_packet_reception(void* not_used){
 			/* update statistics */
 			task->stats.rx_pkts+=nb_rx;
 
-			if (unlikely(rxtask_dropping)) {
-				for (i = 0; i < nb_rx; i++) {
-					if (mbufs[i]) {
-						rte_pktmbuf_free(mbufs[i]);
-					}
-				}
-				continue;
-			}
 
 			/* map received mbufs to event structure */
 			for (i = 0; i < nb_rx; i++) {
@@ -1161,6 +1153,16 @@ int processing_packet_reception(void* not_used){
 				if (mbufs[i]->port == MBUF_INVALID_PORT) {
 					mbufs[i]->port = port_id;
 				}
+			}
+
+
+			if (unlikely(rxtask_dropping)) {
+				for (i = 0; i < nb_rx; i++) {
+					if (mbufs[i]) {
+						rte_pktmbuf_free(mbufs[i]);
+					}
+				}
+				continue;
 			}
 
 
