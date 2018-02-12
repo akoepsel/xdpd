@@ -1420,67 +1420,70 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		 * RSS hash functions
 		 */
 
-		uint64_t rss_hf = dev_info.flow_type_rss_offloads;
+		uint64_t rss_hf = 0;
 
 		/*
 		 * deactivate certain RSS hash functions based on user configuration
 		 */
 
 		YAML::Node rss_hf_port_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["port"];
-		if (rss_hf_port_node && rss_hf_port_node.IsScalar() && (not rss_hf_port_node.as<bool>())) {
-			rss_hf &= ~ETH_RSS_PORT;
+		if (rss_hf_port_node && rss_hf_port_node.IsScalar() && (rss_hf_port_node.as<bool>())) {
+			rss_hf |= ETH_RSS_PORT;
 		}
 
 		YAML::Node rss_hf_l2_payload_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["l2_payload"];
-		if (rss_hf_l2_payload_node && rss_hf_l2_payload_node.IsScalar() && (not rss_hf_l2_payload_node.as<bool>())) {
-			rss_hf &= ~ETH_RSS_L2_PAYLOAD;
+		if (rss_hf_l2_payload_node && rss_hf_l2_payload_node.IsScalar() && (rss_hf_l2_payload_node.as<bool>())) {
+			rss_hf |= ETH_RSS_L2_PAYLOAD;
 		}
 
 		YAML::Node rss_hf_ip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["ip"];
-		if (rss_hf_ip_node && rss_hf_ip_node.IsScalar() && (not rss_hf_ip_node.as<bool>())) {
-			rss_hf &= ~ETH_RSS_IP;
+		if (rss_hf_ip_node && rss_hf_ip_node.IsScalar() && (rss_hf_ip_node.as<bool>())) {
+			rss_hf |= ETH_RSS_IP;
 		}
 
 		YAML::Node rss_hf_udp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["udp"];
-		if (rss_hf_udp_node && rss_hf_udp_node.IsScalar() && (not rss_hf_udp_node.as<bool>())) {
-			rss_hf &= ~ETH_RSS_UDP;
+		if (rss_hf_udp_node && rss_hf_udp_node.IsScalar() && (rss_hf_udp_node.as<bool>())) {
+			rss_hf |= ETH_RSS_UDP;
 		}
 
 		YAML::Node rss_hf_tcp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["tcp"];
-		if (rss_hf_tcp_node && rss_hf_tcp_node.IsScalar() && (not rss_hf_tcp_node.as<bool>())) {
-			rss_hf &= ~ETH_RSS_TCP;
+		if (rss_hf_tcp_node && rss_hf_tcp_node.IsScalar() && (rss_hf_tcp_node.as<bool>())) {
+			rss_hf |= ETH_RSS_TCP;
 		}
 
 		YAML::Node rss_hf_sctp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["sctp"];
-		if (rss_hf_sctp_node && rss_hf_sctp_node.IsScalar() && (not rss_hf_sctp_node.as<bool>())) {
-			rss_hf &= ~ETH_RSS_SCTP;
+		if (rss_hf_sctp_node && rss_hf_sctp_node.IsScalar() && (rss_hf_sctp_node.as<bool>())) {
+			rss_hf |= ETH_RSS_SCTP;
 		}
 
 		YAML::Node rss_hf_tunnel_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["tunnel"];
-		if (rss_hf_tunnel_node && rss_hf_tunnel_node.IsScalar() && (not rss_hf_tunnel_node.as<bool>())) {
-			rss_hf &= ~ETH_RSS_TUNNEL;
+		if (rss_hf_tunnel_node && rss_hf_tunnel_node.IsScalar() && (rss_hf_tunnel_node.as<bool>())) {
+			rss_hf |= ETH_RSS_TUNNEL;
 		}
 
 		YAML::Node rss_hf_vxlan_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["vxlan"];
-		if (rss_hf_vxlan_node && rss_hf_vxlan_node.IsScalar() && (not rss_hf_vxlan_node.as<bool>())) {
-			rss_hf &= ~ETH_RSS_VXLAN;
+		if (rss_hf_vxlan_node && rss_hf_vxlan_node.IsScalar() && (rss_hf_vxlan_node.as<bool>())) {
+			rss_hf |= ETH_RSS_VXLAN;
 		}
 
 		YAML::Node rss_hf_geneve_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["geneve"];
-		if (rss_hf_geneve_node && rss_hf_geneve_node.IsScalar() && (not rss_hf_geneve_node.as<bool>())) {
-			rss_hf &= ~ETH_RSS_GENEVE;
+		if (rss_hf_geneve_node && rss_hf_geneve_node.IsScalar() && (rss_hf_geneve_node.as<bool>())) {
+			rss_hf |= ETH_RSS_GENEVE;
 		}
 
 		YAML::Node rss_hf_nvgre_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["nvgre"];
-		if (rss_hf_nvgre_node && rss_hf_nvgre_node.IsScalar() && (not rss_hf_nvgre_node.as<bool>())) {
-			rss_hf &= ~ETH_RSS_NVGRE;
+		if (rss_hf_nvgre_node && rss_hf_nvgre_node.IsScalar() && (rss_hf_nvgre_node.as<bool>())) {
+			rss_hf |= ETH_RSS_NVGRE;
 		}
 
 
 		//receive side
 		eth_conf.link_speeds = ETH_LINK_SPEED_AUTONEG; //auto negotiation enabled
 		eth_conf.lpbk_mode = 0; //loopback disabled
-		eth_conf.rxmode.mq_mode = ETH_MQ_RX_RSS; //enable Receive Side Scaling (RSS) only
+		if (rss_hf==0)
+			eth_conf.rxmode.mq_mode = 0;
+		else
+			eth_conf.rxmode.mq_mode = ETH_MQ_RX_RSS; //enable Receive Side Scaling (RSS) only
 		eth_conf.rxmode.max_rx_pkt_len = max_rx_pkt_len;
 		eth_conf.rxmode.split_hdr_size = 0;
 		eth_conf.rxmode.offloads = rx_offloads;
