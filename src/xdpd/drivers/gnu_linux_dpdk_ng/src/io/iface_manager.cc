@@ -1427,52 +1427,52 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		 */
 
 		YAML::Node rss_hf_port_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["port"];
-		if (rss_hf_port_node && rss_hf_port_node.IsScalar() && (rss_hf_port_node.as<bool>())) {
+		if (rss_hf_port_node && rss_hf_port_node.IsScalar() && (rss_hf_port_node.as<bool>()) && (dev_info.flow_type_rss_offloads & ETH_RSS_PORT)) {
 			rss_hf |= ETH_RSS_PORT;
 		}
 
 		YAML::Node rss_hf_l2_payload_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["l2_payload"];
-		if (rss_hf_l2_payload_node && rss_hf_l2_payload_node.IsScalar() && (rss_hf_l2_payload_node.as<bool>())) {
+		if (rss_hf_l2_payload_node && rss_hf_l2_payload_node.IsScalar() && (rss_hf_l2_payload_node.as<bool>()) && (dev_info.flow_type_rss_offloads & ETH_RSS_L2_PAYLOAD)) {
 			rss_hf |= ETH_RSS_L2_PAYLOAD;
 		}
 
 		YAML::Node rss_hf_ip_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["ip"];
-		if (rss_hf_ip_node && rss_hf_ip_node.IsScalar() && (rss_hf_ip_node.as<bool>())) {
+		if (rss_hf_ip_node && rss_hf_ip_node.IsScalar() && (rss_hf_ip_node.as<bool>()) && (dev_info.flow_type_rss_offloads & ETH_RSS_IP)) {
 			rss_hf |= ETH_RSS_IP;
 		}
 
 		YAML::Node rss_hf_udp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["udp"];
-		if (rss_hf_udp_node && rss_hf_udp_node.IsScalar() && (rss_hf_udp_node.as<bool>())) {
+		if (rss_hf_udp_node && rss_hf_udp_node.IsScalar() && (rss_hf_udp_node.as<bool>()) && (dev_info.flow_type_rss_offloads & ETH_RSS_UDP)) {
 			rss_hf |= ETH_RSS_UDP;
 		}
 
 		YAML::Node rss_hf_tcp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["tcp"];
-		if (rss_hf_tcp_node && rss_hf_tcp_node.IsScalar() && (rss_hf_tcp_node.as<bool>())) {
+		if (rss_hf_tcp_node && rss_hf_tcp_node.IsScalar() && (rss_hf_tcp_node.as<bool>()) && (dev_info.flow_type_rss_offloads & ETH_RSS_TCP)) {
 			rss_hf |= ETH_RSS_TCP;
 		}
 
 		YAML::Node rss_hf_sctp_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["sctp"];
-		if (rss_hf_sctp_node && rss_hf_sctp_node.IsScalar() && (rss_hf_sctp_node.as<bool>())) {
+		if (rss_hf_sctp_node && rss_hf_sctp_node.IsScalar() && (rss_hf_sctp_node.as<bool>()) && (dev_info.flow_type_rss_offloads & ETH_RSS_SCTP)) {
 			rss_hf |= ETH_RSS_SCTP;
 		}
 
 		YAML::Node rss_hf_tunnel_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["tunnel"];
-		if (rss_hf_tunnel_node && rss_hf_tunnel_node.IsScalar() && (rss_hf_tunnel_node.as<bool>())) {
+		if (rss_hf_tunnel_node && rss_hf_tunnel_node.IsScalar() && (rss_hf_tunnel_node.as<bool>()) && (dev_info.flow_type_rss_offloads & ETH_RSS_TUNNEL)) {
 			rss_hf |= ETH_RSS_TUNNEL;
 		}
 
 		YAML::Node rss_hf_vxlan_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["vxlan"];
-		if (rss_hf_vxlan_node && rss_hf_vxlan_node.IsScalar() && (rss_hf_vxlan_node.as<bool>())) {
+		if (rss_hf_vxlan_node && rss_hf_vxlan_node.IsScalar() && (rss_hf_vxlan_node.as<bool>()) && (dev_info.flow_type_rss_offloads & ETH_RSS_VXLAN)) {
 			rss_hf |= ETH_RSS_VXLAN;
 		}
 
 		YAML::Node rss_hf_geneve_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["geneve"];
-		if (rss_hf_geneve_node && rss_hf_geneve_node.IsScalar() && (rss_hf_geneve_node.as<bool>())) {
+		if (rss_hf_geneve_node && rss_hf_geneve_node.IsScalar() && (rss_hf_geneve_node.as<bool>()) && (dev_info.flow_type_rss_offloads & ETH_RSS_GENEVE)) {
 			rss_hf |= ETH_RSS_GENEVE;
 		}
 
 		YAML::Node rss_hf_nvgre_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["rss"]["nvgre"];
-		if (rss_hf_nvgre_node && rss_hf_nvgre_node.IsScalar() && (rss_hf_nvgre_node.as<bool>())) {
+		if (rss_hf_nvgre_node && rss_hf_nvgre_node.IsScalar() && (rss_hf_nvgre_node.as<bool>()) && (dev_info.flow_type_rss_offloads & ETH_RSS_NVGRE)) {
 			rss_hf |= ETH_RSS_NVGRE;
 		}
 
