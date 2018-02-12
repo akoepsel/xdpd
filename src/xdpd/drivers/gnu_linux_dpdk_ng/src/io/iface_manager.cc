@@ -1259,8 +1259,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		 * it is mandatory by the kernel based i40e driver, so the user can add
 		 * DEV_RX_OFFLOAD_CRC_STRIP to the set of available rx_offload capas
 		 */
-		YAML::Node offload_rx_crc_strip_i40evf_workaround_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_crc_strip_i40evf_workaround"];
-		if (offload_rx_crc_strip_i40evf_workaround_node && offload_rx_crc_strip_i40evf_workaround_node.IsScalar() && (offload_rx_crc_strip_i40evf_workaround_node.as<bool>())) {
+		YAML::Node offload_crc_strip_i40evf_workaround_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["crc_strip_i40evf_workaround"];
+		if (offload_crc_strip_i40evf_workaround_node && offload_crc_strip_i40evf_workaround_node.IsScalar() && (offload_crc_strip_i40evf_workaround_node.as<bool>())) {
 			rx_offloads |= DEV_RX_OFFLOAD_CRC_STRIP;
 		}
 
