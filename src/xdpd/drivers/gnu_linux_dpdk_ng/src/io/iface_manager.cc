@@ -1255,12 +1255,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 
 		/* workaround for i40evf PMD driver with kernel based i40e PF
-		 * dev_info.rx_offload_capa does not contain DEV_RX_OFFLOAD_VLAN_STRIP, although
-		 * it is mandatory by the kernel based i40e driver, so the user can add
+		 * dev_info.rx_offload_capa does not contain DEV_RX_OFFLOAD_CRC_STRIP, although
+		 * it is mandatory by the kernel based i40e driver, so we add
 		 * DEV_RX_OFFLOAD_CRC_STRIP to the set of available rx_offload capas
 		 */
-		YAML::Node workaround_i40evf_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["workarounds"]["i40evf"];
-		if (workaround_i40evf_node && workaround_i40evf_node.IsScalar() && (workaround_i40evf_node.as<bool>())) {
+		if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] adding DEV_RX_OFFLOAD_CRC_STRIP to rx_offload capabilities for net_i40e_vf driver\n", devname.c_str());
 			rx_offloads |= DEV_RX_OFFLOAD_CRC_STRIP;
 		}
 
