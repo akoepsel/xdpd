@@ -91,6 +91,7 @@ dpdk:
           rx_vlan_extend: true
           rx_jumbo_frame: true
           rx_crc_strip: true
+          rx_crc_strip_i40evf_workaround: true
           rx_scatter: true
           rx_timestamp: true
           rx_security: true

@@ -1251,7 +1251,18 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		//activate all rx offload capabilities by default
-		uint64_t rx_offloads = dev_info.rx_offload_capa | DEV_RX_OFFLOAD_CRC_STRIP;
+		uint64_t rx_offloads = dev_info.rx_offload_capa;
+
+
+		/* workaround for i40evf PMD driver with kernel based i40e PF
+		 * dev_info.rx_offload_capa does not contain DEV_RX_OFFLOAD_VLAN_STRIP, although
+		 * it is mandatory by the kernel based i40e driver, so the user can add
+		 * DEV_RX_OFFLOAD_CRC_STRIP to the set of available rx_offload capas
+		 */
+		YAML::Node offload_rx_crc_strip_i40evf_workaround_node = y_config_dpdk_ng["dpdk"]["interfaces"][devname]["ethconf"]["offloads"]["rx_crc_strip_i40evf_workaround"];
+		if (offload_rx_crc_strip_i40evf_workaround_node && offload_rx_crc_strip_i40evf_workaround_node.IsScalar() && (offload_rx_crc_strip_i40evf_workaround_node.as<bool>())) {
+			rx_offloads |= DEV_RX_OFFLOAD_CRC_STRIP;
+		}
 
 		/*
 		 * deactivate certain offload features based on user configuration
