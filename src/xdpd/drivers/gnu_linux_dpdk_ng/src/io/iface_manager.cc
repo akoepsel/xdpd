@@ -1481,7 +1481,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.link_speeds = ETH_LINK_SPEED_AUTONEG; //auto negotiation enabled
 		eth_conf.lpbk_mode = 0; //loopback disabled
 		if (rss_hf==0)
-			eth_conf.rxmode.mq_mode = 0;
+			eth_conf.rxmode.mq_mode = ETH_MQ_RX_NONE;
 		else
 			eth_conf.rxmode.mq_mode = ETH_MQ_RX_RSS; //enable Receive Side Scaling (RSS) only
 		eth_conf.rxmode.max_rx_pkt_len = max_rx_pkt_len;
