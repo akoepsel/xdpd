@@ -1493,11 +1493,13 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
 		eth_conf.txmode.offloads = tx_offloads;
 
-		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, rx-offloads: 0x%x, max_rx_pkt_len: %u, tx-offloads: 0x%x\n",
+		XDPD_INFO(DRIVER_NAME"[ifaces] configuring ethdev on physical port: %u, socket: %u, rx-offloads: 0x%x (caps:0x%x), max_rx_pkt_len: %u, tx-offloads: 0x%x (caps:0x%x)\n",
 				port_id, socket_id,
 				eth_conf.rxmode.offloads,
+				dev_info.rx_offload_capa,
 				eth_conf.rxmode.max_rx_pkt_len,
-				eth_conf.txmode.offloads);
+				eth_conf.txmode.offloads,
+				dev_info.tx_offload_capa);
 
 		//configure port
 		if ((ret = rte_eth_dev_configure(port_id, nb_rx_queues, nb_tx_queues, &eth_conf)) < 0) {
