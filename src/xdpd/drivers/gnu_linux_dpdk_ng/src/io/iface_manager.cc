@@ -1701,8 +1701,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		for (uint16_t tx_queue_id = 0; tx_queue_id < /*no typo!*/nb_tx_queues; tx_queue_id++) {
-			struct rte_eth_txconf eth_txconf;
-
+			struct rte_eth_txconf eth_txconf = dev_info.default_txconf;
+#if 0
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
 
 				// values for i40e PF
@@ -1752,7 +1752,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			}
-
+#endif
 			XDPD_INFO(DRIVER_NAME"[ifaces][%s] configuring txqueue on physical port: %u, txqueue: %u on socket: %u, nb_tx_desc: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: 0x%x\n",
 					devname.c_str(), port_id, tx_queue_id, socket_id, nb_tx_desc,
 					eth_txconf.tx_thresh.pthresh,
@@ -1797,8 +1797,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		for (uint16_t rx_queue_id = 0; rx_queue_id < nb_rx_queues; rx_queue_id++) {
-			struct rte_eth_rxconf eth_rxconf;
-
+			struct rte_eth_rxconf eth_rxconf = dev_info.default_rxconf;
+#if 0
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
 
 				// values for i40e PF
@@ -1843,7 +1843,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
 
 			}
-
+#endif
 			XDPD_INFO(DRIVER_NAME"[ifaces][%s] configuring rxqueue on physical port: %u, rxqueue: %u on socket: %u, nb_rx_desc: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: 0x%x\n",
 					devname.c_str(), port_id, rx_queue_id, socket_id, nb_rx_desc,
 					eth_rxconf.rx_thresh.pthresh,
