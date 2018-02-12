@@ -2171,7 +2171,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		socket_id = phyports[port_id].socket_id;
 
-		XDPD_INFO(DRIVER_NAME" adding xdpd port: %s for dpdk port: %u on socket: %u\n", port_name, port_id, socket_id);
+		XDPD_INFO(DRIVER_NAME"[ifaces][%s] adding xdpd port: %s for dpdk port: %u on socket: %u\n", port_name, port_name, port_id, socket_id);
 
 		//Initialize pipeline port
 		port = switch_port_init(port_name, false, PORT_TYPE_PHYSICAL, PORT_STATE_NONE);
