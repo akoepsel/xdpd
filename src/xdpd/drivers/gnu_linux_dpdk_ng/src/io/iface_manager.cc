@@ -1251,7 +1251,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		//activate all rx offload capabilities by default
-		uint64_t rx_offloads = dev_info.rx_offload_capa;
+		uint64_t rx_offloads = dev_info.rx_offload_capa | DEV_RX_OFFLOAD_CRC_STRIP;
 
 		/*
 		 * deactivate certain offload features based on user configuration
