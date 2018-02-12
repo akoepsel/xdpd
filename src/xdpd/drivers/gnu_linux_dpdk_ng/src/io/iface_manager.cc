@@ -1679,7 +1679,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_tx_desc")) {
 			nb_tx_desc = iface_manager_get_port_setting_as<uint16_t>(s_pci_addr, "nb_tx_desc");
 		}
-#if 0
+#if 1
 		uint64_t tx_prefetch_threshold(TX_PREFETCH_THRESHOLD_DEFAULT);
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "tx_prefetch_threshold")) {
 			tx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_prefetch_threshold");
@@ -1702,7 +1702,15 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 #endif
 		for (uint16_t tx_queue_id = 0; tx_queue_id < /*no typo!*/nb_tx_queues; tx_queue_id++) {
 			struct rte_eth_txconf eth_txconf = dev_info.default_txconf;
-#if 0
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] default txconf on physical port: %u, txqueue: %u on socket: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: 0x%x\n",
+					devname.c_str(), port_id, tx_queue_id, socket_id,
+					eth_txconf.tx_thresh.pthresh,
+					eth_txconf.tx_thresh.hthresh,
+					eth_txconf.tx_thresh.wthresh,
+					eth_txconf.tx_free_thresh,
+					eth_txconf.txq_flags,
+					eth_txconf.offloads);
+#if 1
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
 
 				// values for i40e PF
@@ -1775,7 +1783,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_rx_desc")) {
 			nb_rx_desc = iface_manager_get_port_setting_as<uint16_t>(s_pci_addr, "nb_rx_desc");
 		}
-#if 0
+#if 1
 		uint64_t rx_prefetch_threshold(RX_PREFETCH_THRESHOLD_DEFAULT);
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_prefetch_threshold")) {
 			rx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_prefetch_threshold");
@@ -1798,7 +1806,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 #endif
 		for (uint16_t rx_queue_id = 0; rx_queue_id < nb_rx_queues; rx_queue_id++) {
 			struct rte_eth_rxconf eth_rxconf = dev_info.default_rxconf;
-#if 0
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] default rxconf on physical port: %u, rxqueue: %u on socket: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: 0x%x\n",
+					devname.c_str(), port_id, rx_queue_id, socket_id,
+					eth_rxconf.rx_thresh.pthresh,
+					eth_rxconf.rx_thresh.hthresh,
+					eth_rxconf.rx_thresh.wthresh,
+					eth_rxconf.rx_free_thresh,
+					eth_rxconf.offloads);
+#if 1
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_PF, sizeof(DPDK_DRIVER_NAME_I40E_PF)) == 0){
 
 				// values for i40e PF
