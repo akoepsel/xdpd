@@ -1237,7 +1237,6 @@ int processing_packet_pipeline_processing(void* not_used){
 		task->stats.rx_evts+=nb_rx;
 
 		if (wktask_dropping) {
-#if 0
 			for (i = 0; i < nb_rx; i++) {
 				rx_events[i].op = RTE_EVENT_OP_FORWARD;
 				rx_events[i].event_type = RTE_EVENT_TYPE_CPU;
@@ -1248,6 +1247,7 @@ int processing_packet_pipeline_processing(void* not_used){
 				}
 				rx_events[i].mbuf = NULL;
 			}
+#if 0
 			nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
 			task->stats.tx_evts += nb_tx;
 #endif
