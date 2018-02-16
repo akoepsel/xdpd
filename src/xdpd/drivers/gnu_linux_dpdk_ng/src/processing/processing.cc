@@ -1140,7 +1140,7 @@ int processing_packet_reception(void* not_used){
 			const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, max_eth_rx_burst_size);
 
 			/* no packets received => continue with next port */
-			if (nb_rx==0){
+			if (unlikely(nb_rx==0)){
 				continue;
 			}
 
@@ -1185,7 +1185,7 @@ int processing_packet_reception(void* not_used){
 					lcore_id, rte_lcore_to_socket_id(lcore_id), nb_rx, port_id, nb_tx, task->ev_port_id);
 #endif
 			/* release mbufs not queued in event device */
-			if (nb_tx < nb_rx) {
+			if (unlikely(nb_tx < nb_rx)) {
 				task->stats.evts_dropped+=(nb_rx-nb_tx);
 #if 0
 				RTE_LOG(WARNING, XDPD, "rx-task-%02u: dropping %u packets, worker event receive queue full on socket %u, task->stats.evts_dropped=%" PRIu64 "\n",
