@@ -42,6 +42,7 @@ unsigned int max_eth_rx_burst_size = MAX_ETH_RX_BURST_SIZE_DEFAULT;
 unsigned int max_evt_wk_burst_size = MAX_EVT_WK_BURST_SIZE_DEFAULT;
 unsigned int max_evt_tx_burst_size = MAX_EVT_TX_BURST_SIZE_DEFAULT;
 unsigned int max_eth_tx_burst_size = MAX_ETH_TX_BURST_SIZE_DEFAULT;
+unsigned int dequeue_timeout_ns = 0;
 /* testing: shortcutting the openflow pipeline => for testing pure I/O performance including eventdev subsystem */
 bool pipeline_shortcut = false;
 /* testing: shortcutting the eventdev subsystem => for testing raw I/O performance excluding eventdev subsystem */
@@ -500,10 +501,10 @@ rofl_result_t processing_init_eventdev(void){
 		/* dequeue_timeout_ns */
 		YAML::Node dequeue_timeout_ns_node = y_config_dpdk_ng["dpdk"]["processing"]["dequeue_timeout_ns"];
 		if (dequeue_timeout_ns_node && dequeue_timeout_ns_node.IsScalar()) {
-			ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = dequeue_timeout_ns_node.as<uint32_t>();
+			dequeue_timeout_ns = dequeue_timeout_ns_node.as<uint32_t>();
 		}
-		ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = RTE_MIN(ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns, ev_core_tasks[socket_id].eventdev_info.max_dequeue_timeout_ns);
-		ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = RTE_MAX(ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns, ev_core_tasks[socket_id].eventdev_info.min_dequeue_timeout_ns);
+		ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = RTE_MIN(dequeue_timeout_ns, ev_core_tasks[socket_id].eventdev_info.max_dequeue_timeout_ns);
+		ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = RTE_MAX(dequeue_timeout_ns, ev_core_tasks[socket_id].eventdev_info.min_dequeue_timeout_ns);
 
 		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] configuring eventdev: %s, nb_event_queues: %u, nb_event_ports: %u, nb_events_limit: %u, nb_event_queue_flows: %u, nb_event_port_dequeue_depth: %u, nb_event_port_enqueue_depth: %u, dequeue_timeout_ns: %u\n",
 				ev_core_tasks[socket_id].name,
@@ -596,6 +597,7 @@ rofl_result_t processing_init_eventdev(void){
 			port_conf.dequeue_depth = ev_core_tasks[socket_id].eventdev_conf.nb_event_port_dequeue_depth;
 			port_conf.enqueue_depth = ev_core_tasks[socket_id].eventdev_conf.nb_event_port_enqueue_depth;
 			port_conf.new_event_threshold = ev_core_tasks[socket_id].eventdev_conf.nb_events_limit;
+			port_conf.disable_implicit_release = 0;
 
 			if (rte_event_port_setup(ev_core_tasks[socket_id].eventdev_id, ev_port_id, &port_conf) < 0) {
 				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n", ev_core_tasks[socket_id].name, ev_port_id);
@@ -628,6 +630,7 @@ rofl_result_t processing_init_eventdev(void){
 			port_conf.dequeue_depth = ev_core_tasks[socket_id].eventdev_conf.nb_event_port_dequeue_depth;
 			port_conf.enqueue_depth = ev_core_tasks[socket_id].eventdev_conf.nb_event_port_enqueue_depth;
 			port_conf.new_event_threshold = ev_core_tasks[socket_id].eventdev_conf.nb_events_limit;
+			port_conf.disable_implicit_release = 0;
 
 			if (rte_event_port_setup(ev_core_tasks[socket_id].eventdev_id, ev_port_id, &port_conf) < 0) {
 				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n",
@@ -1220,6 +1223,7 @@ int processing_packet_pipeline_processing(void* not_used){
 	of_switch_t* sw;
 	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
 	uint16_t nb_rx, nb_tx;
+	uint64_t timeout;
 
 	//Parsing and pipeline extra state
 	datapacket_t pkt;
@@ -1236,7 +1240,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 	while(likely(task->active)) {
 
-		int timeout = 100;
+		timeout = dequeue_timeout_ns;
 		nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
 
 		if (nb_rx == 0) {
