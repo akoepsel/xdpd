@@ -1135,8 +1135,8 @@ int processing_packet_reception(void* not_used){
 			for (i = 0; i < nb_rx; i++) {
 				event[i].flow_id = mbufs[i]->hash.rss;
 				event[i].op = RTE_EVENT_OP_NEW;
-				event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
-				//event[i].sched_type = RTE_SCHED_TYPE_PARALLEL;
+				//event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
+				event[i].sched_type = RTE_SCHED_TYPE_PARALLEL;
 				//event[i].sched_type = RTE_SCHED_TYPE_ATOMIC;
 				if (eventdev_shortcut) {
 					event[i].queue_id = tx_core_tasks[*tx_lcores[socket_id].begin()].rx_ev_queues[0];
@@ -1156,7 +1156,7 @@ int processing_packet_reception(void* not_used){
 			}
 
 
-			if (unlikely(rxtask_dropping)) {
+			if (rxtask_dropping) {
 				for (i = 0; i < nb_rx; i++) {
 					if (mbufs[i]) {
 						rte_pktmbuf_free(mbufs[i]);
@@ -1235,7 +1235,7 @@ int processing_packet_pipeline_processing(void* not_used){
 		/* update statistics */
 		task->stats.rx_evts+=nb_rx;
 
-		if (unlikely(wktask_dropping)) {
+		if (wktask_dropping) {
 			for (i = 0; i < nb_rx; i++) {
 				rx_events[i].op = RTE_EVENT_OP_RELEASE;
 				rx_events[i].event_type = RTE_EVENT_TYPE_CPU;
