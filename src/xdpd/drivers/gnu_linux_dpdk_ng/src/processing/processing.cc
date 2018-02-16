@@ -1275,7 +1275,7 @@ int processing_packet_pipeline_processing(void* not_used){
 				rx_events[i].queue_id = task->tx_ev_queue_id;
 				rx_events[i].event_type = RTE_EVENT_TYPE_CPU;
 				rx_events[i].sub_event_type = 0;
-				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
+				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
 				rx_events[i].mbuf->udata64 = (uint64_t)(phyports[ps->port_id].shortcut_port_id);
 
 				//l2fwd_swap_ether_addrs(rx_events[i].mbuf);
