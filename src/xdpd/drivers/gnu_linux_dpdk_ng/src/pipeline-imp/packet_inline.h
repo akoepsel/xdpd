@@ -32,7 +32,7 @@
 #include "../io/dpdk_datapacket.h"
 
 //MBUF pool
-extern struct rte_mempool* direct_pools[NB_SOCKETS];
+extern struct rte_mempool* mempools_direct[NB_SOCKETS];
 
 /*
 * ROFL-Pipeline packet mangling platform API implementation
@@ -146,7 +146,7 @@ STATIC_PACKET_INLINE__ datapacket_t* platform_packet_replicate__(datapacket_t* p
 		if (rte_socket==0xffffffff) rte_socket=0; 
 		//for non-EAL threads rte_socket_id() apparently returns 0xffffffff
 
-		mbuf = rte_pktmbuf_alloc(direct_pools[rte_socket]);
+		mbuf = rte_pktmbuf_alloc(mempools_direct[rte_socket]);
 		
 		if(unlikely(mbuf == NULL)){	
 			XDPD_DEBUG("Replicate packet; could not hard clone pkt(%p). rte_pktmbuf_clone failed. errno: %d - %s\n", pkt_replica, rte_errno, rte_strerror(rte_errno));

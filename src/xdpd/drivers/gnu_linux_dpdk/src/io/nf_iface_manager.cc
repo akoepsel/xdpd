@@ -20,7 +20,7 @@
 
 //fwd decl
 extern pthread_rwlock_t iface_manager_rwlock;
-extern struct rte_mempool* direct_pools[MAX_CPU_SOCKETS];
+extern struct rte_mempool* mempools_direct[MAX_CPU_SOCKETS];
 
 switch_port_t* nf_port_mapping[PORT_MANAGER_MAX_PORTS] = {0};
 struct rte_ring* port_tx_nf_lcore_queue[PORT_MANAGER_MAX_PORTS] = {NULL};
@@ -204,7 +204,7 @@ static switch_port_t* configure_nf_port_kni(const char *nf_name, const char *nf_
 	ops.port_id = nf_id;
 	ops.config_network_if = kni_config_network_interface;
 
-	ps->kni = rte_kni_alloc(direct_pools[0], &conf, &ops);
+	ps->kni = rte_kni_alloc(mempools_direct[0], &conf, &ops);
 
 	if (ps->kni == NULL){
 		XDPD_ERR(DRIVER_NAME"[port_manager] Cannot create KNI context for port: %s\n",nf_port);

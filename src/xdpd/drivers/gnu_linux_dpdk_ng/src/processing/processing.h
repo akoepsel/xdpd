@@ -24,18 +24,30 @@
 
 #include <string>
 
+#include "../processing/mem_manager.h"
 #include "../io/dpdk_datapacket.h"
 
 typedef struct rx_port_queue {
-	/* all these elemens in rxqueues are enabled by default */
-	bool up;
+	/* all these elements in rxqueues are enabled by default */
+	uint8_t up;
+	/* ethdev port */
 	uint8_t port_id;
+	/* ethdev queue */
 	uint8_t queue_id;
+	/* worker lcore */
+	unsigned lcore_id;
+	/* eventdev queue */
+	uint8_t ev_queue_id;
 } __rte_cache_aligned rx_port_queue_t;
 
 typedef struct tx_port_queue {
-	uint8_t enabled;
+	/* all these elements in txqueues are enabled by default */
 	uint8_t up;
+	/* hm ... */
+	uint8_t enabled;
+	/* ethdev port */
+	uint8_t port_id;
+	/* ethdev queue */
 	uint8_t queue_id;
 } __rte_cache_aligned tx_port_queue_t;
 
@@ -87,7 +99,7 @@ typedef struct rx_core_task {
 	/*
 	 * receiving from ethdevs
 	 */
-	rx_port_queue_t rx_queues[RTE_MAX_ETHPORTS];  // (port_id, queue_id) = rx_queues[i] for i in (0...RTE_MAX_ETHPORTS-1)
+	rx_port_queue_t rx_queues[RTE_MAX_LCORE];  // (port_id, queue_id) = rx_queues[i] for i in (0...RTE_MAX_ETHPORTS-1)
 	uint16_t nb_rx_queues; // number of valid fields in rx_queues (0, nb_rx_queues-1)
 
 	/*
@@ -97,8 +109,6 @@ typedef struct rx_core_task {
 	unsigned int socket_id;
 	/* event port-id */
 	uint8_t ev_port_id;
-	/* event queue-id for transmitting events to worker cores */
-	uint8_t tx_ev_queue_id;
 
 } __rte_cache_aligned rx_core_task_t;
 
@@ -116,8 +126,8 @@ typedef struct tx_core_task {
 	 * transmitting to ethdevs
 	 */
 	/* queue-id to be used by this task for given port-id */
-	tx_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // queue_id = tx_queues[port_id] => for all ports in the system
-	uint16_t nb_tx_queues; // number if valid tx_queues
+	tx_port_queue_t tx_queues[RTE_MAX_LCORE]; // tx_queues[ev_queue_id] => bound to event queues
+	uint16_t nb_tx_queues; // number of valid fields in tx_queues (0, nb_tx_queues-1)
 
 	/*
 	 * dequeuing from event device
@@ -128,7 +138,7 @@ typedef struct tx_core_task {
 	/* event port-id */
 	uint8_t ev_port_id;
 
-	/* list of event queues this task is linked to for receving events */
+	/* list of event queues this task is linked to for receiving events */
 	uint8_t rx_ev_queues[RTE_EVENT_MAX_QUEUES_PER_DEV];
 	/* number of event queues stored in ex_ev_queues */
 	unsigned int nb_rx_ev_queues;
@@ -163,13 +173,10 @@ typedef struct wk_core_task {
 	unsigned int socket_id;
 	/* event port-id */
 	uint8_t ev_port_id;
-	/* event queue-id for sending events to the appropriate TX lcore event queue */
+	/* event queue-id for receiving events from RX tasks */
+	uint8_t rx_ev_queue_id;
+	/* event queue-id for sending events to TX tasks */
 	uint8_t tx_ev_queue_id;
-
-	/* list of event queues this task is linked to for receving events */
-	uint8_t rx_ev_queues[RTE_EVENT_MAX_QUEUES_PER_DEV];
-	/* number of event queues stored in ex_ev_queues */
-	unsigned int nb_rx_ev_queues;
 
 } __rte_cache_aligned wk_core_task_t;
 
@@ -201,8 +208,6 @@ extern rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
 extern tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
 extern wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
 extern ev_core_task_t ev_core_tasks[RTE_MAX_NUMA_NODES];
-extern struct rte_mempool* direct_pools[RTE_MAX_NUMA_NODES];
-extern struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
 extern switch_port_t* port_list[PROCESSING_MAX_PORTS];
 extern rte_rwlock_t port_list_rwlock;
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];

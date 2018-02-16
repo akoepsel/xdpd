@@ -8,28 +8,36 @@ extern "C" {
 #include <utils/c_logger.h>
 }
 
-struct rte_mempool* direct_pools[RTE_MAX_NUMA_NODES];
-struct rte_mempool* indirect_pools[RTE_MAX_NUMA_NODES];
+mempool_task_t mempool_per_task[RTE_MAX_LCORE];
 
 /**
  * Allocate memory pools
  */
-rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, unsigned int mbuf_dataroom, unsigned int direct_cache_size, unsigned int direct_priv_size, unsigned int indirect_cache_size, unsigned int indirect_priv_size){
+rofl_result_t memory_init(
+		unsigned int lcore_id, unsigned int mem_pool_size, unsigned int mbuf_dataroom,
+		unsigned int direct_cache_size, unsigned int direct_priv_size,
+		unsigned int indirect_cache_size, unsigned int indirect_priv_size){
 
-	/* direct mbufs */
-	if(direct_pools[socket_id] == NULL){
+	char pool_name[RTE_MEMPOOL_NAMESIZE];
+	int socket_id = rte_lcore_to_socket_id(lcore_id);
+
+	if(mempool_per_task[lcore_id].available == 0){
+
+		/*
+		 * direct mempool
+		 */
+
 		//cache_size = 16383; // 16383
 		//priv_size = 32; //RTE_ALIGN(sizeof(struct rte_pktmbuf_pool_private), RTE_MBUF_PRIV_ALIGN); // 32
 
 		/**
-		*  create the mbuf pool for that socket id
+		*  create the mbuf pool for that lcore id
 		*/
-		char pool_name[RTE_MEMPOOL_NAMESIZE];
-		snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_direct_%u", socket_id);
-		XDPD_INFO(DRIVER_NAME"[memory][init] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u, cache_size: %u, priv_size: %u\n",
-				pool_name, mem_pool_size, mbuf_dataroom, socket_id, direct_cache_size, direct_priv_size);
+		snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "lcore_%u_direct", lcore_id);
+		XDPD_INFO(DRIVER_NAME"[memory][init] lcore: %u => creating mempool %s with %u mbufs each of size %u bytes on socket %u, cache_size: %u, priv_size: %u\n",
+				lcore_id, pool_name, mem_pool_size, mbuf_dataroom, socket_id, direct_cache_size, direct_priv_size);
 
-		direct_pools[socket_id] = rte_pktmbuf_pool_create(
+		mempool_per_task[lcore_id].pool_direct = rte_pktmbuf_pool_create(
 				pool_name,
 				/*number of elements in pool=*/mem_pool_size,
 				direct_cache_size,
@@ -37,26 +45,26 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 				/*data_room_size=*/mbuf_dataroom,
 				socket_id);
 
-		if (direct_pools[socket_id] == NULL) {
+		if (mempool_per_task[lcore_id].pool_direct == NULL) {
 			XDPD_INFO(DRIVER_NAME"[memory][init] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
 			rte_panic("Cannot initialize direct mbuf pool for CPU socket: %u\n", socket_id);
 		}
-	}
 
-	/* indirect mbufs */
-	if(indirect_pools[socket_id] == NULL){
+		/*
+		 * indirect mempool
+		 */
+
 		//cache_size = sizeof(struct rte_mbuf);
 		//priv_size = 32;
 
 		/**
-		*  create the mbuf pool for that socket id
+		*  create the mbuf pool for that lcore id
 		*/
-		char pool_name[RTE_MEMPOOL_NAMESIZE];
-		snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "pool_indirect_%u", socket_id);
-		XDPD_INFO(DRIVER_NAME"[memory][init] creating mempool %s with %u mbufs each of size %u bytes for CPU socket %u, cache_size: %u, priv_size: %u\n",
-				pool_name, mem_pool_size, mbuf_dataroom, socket_id, indirect_cache_size, indirect_priv_size);
+		snprintf (pool_name, RTE_MEMPOOL_NAMESIZE, "lcore_%u_indirect", lcore_id);
+		XDPD_INFO(DRIVER_NAME"[memory][init] lcore: %u => creating mempool %s with %u mbufs each of size %u bytes on socket %u, cache_size: %u, priv_size: %u\n",
+				lcore_id, pool_name, mem_pool_size, mbuf_dataroom, socket_id, indirect_cache_size, indirect_priv_size);
 
-		indirect_pools[socket_id] = rte_pktmbuf_pool_create(
+		mempool_per_task[lcore_id].pool_indirect = rte_pktmbuf_pool_create(
 				pool_name,
 				/*number of elements in pool=*/mem_pool_size,
 				indirect_cache_size,
@@ -64,10 +72,15 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 				/*data_room_size=*/mbuf_dataroom,
 				socket_id);
 
-		if (indirect_pools[socket_id] == NULL) {
+		if (mempool_per_task[lcore_id].pool_indirect == NULL) {
 			XDPD_INFO(DRIVER_NAME"[memory][init] unable to allocate mempool %s due to error %u (%s)\n", pool_name, rte_errno, rte_strerror(rte_errno));
 			rte_panic("Cannot initialize indirect mbuf pool for CPU socket: %u\n", socket_id);
 		}
+
+		/*
+		 * memory pools (direct/indirect) successfully allocated for lcore_id
+		 */
+		mempool_per_task[lcore_id].available = 1;
 	}
 
 	return ROFL_SUCCESS;
@@ -76,18 +89,18 @@ rofl_result_t memory_init(unsigned int socket_id, unsigned int mem_pool_size, un
 /**
  * Deallocate memory pools
  */
-rofl_result_t memory_destroy(unsigned int socket_id){
+rofl_result_t memory_destroy(unsigned int lcore_id){
 
 	/* direct mbufs */
-	if(direct_pools[socket_id] != NULL){
-		rte_mempool_free(direct_pools[socket_id]);
-		direct_pools[socket_id] = NULL;
+	if(mempool_per_task[lcore_id].pool_direct != NULL){
+		rte_mempool_free(mempool_per_task[lcore_id].pool_direct);
+		mempool_per_task[lcore_id].pool_direct = NULL;
 	}
 
 	/* indirect mbufs */
-	if(indirect_pools[socket_id] != NULL){
-		rte_mempool_free(indirect_pools[socket_id]);
-		indirect_pools[socket_id] = NULL;
+	if(mempool_per_task[lcore_id].pool_indirect != NULL){
+		rte_mempool_free(mempool_per_task[lcore_id].pool_indirect);
+		mempool_per_task[lcore_id].pool_indirect = NULL;
 	}
 
 	return ROFL_SUCCESS;

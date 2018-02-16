@@ -33,9 +33,6 @@ unsigned int total_num_of_nf_ports = 0;
 unsigned int running_hash = 0;
 
 
-struct rte_mempool* direct_pools[MAX_CPU_SOCKETS];
-struct rte_mempool* indirect_pools[MAX_CPU_SOCKETS];
-
 /*
 * Initialize data structures for processing to work
 */
@@ -49,8 +46,8 @@ rofl_result_t processing_init(void){
 	char pool_name[POOL_MAX_LEN_NAME];
 
 	//Cleanup
-	memset(direct_pools, 0, sizeof(direct_pools));
-	memset(indirect_pools, 0, sizeof(indirect_pools));
+	memset(mempools_direct, 0, sizeof(mempools_direct));
+	memset(mempools_indirect, 0, sizeof(mempools_indirect));
 	memset(processing_core_tasks,0,sizeof(core_tasks_t)*RTE_MAX_LCORE);
 
 	//Initialize basics
@@ -74,7 +71,7 @@ rofl_result_t processing_init(void){
 			//Recover CPU socket for the lcore
 			sock_id = rte_lcore_to_socket_id(i);
 
-			if(direct_pools[sock_id] == NULL){
+			if(mempools_direct[sock_id] == NULL){
 
 				/**
 				*  create the mbuf pool for that socket id
@@ -83,7 +80,7 @@ rofl_result_t processing_init(void){
 				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_direct_%u", sock_id);
 				XDPD_INFO(DRIVER_NAME"[processing] Creating %s with #mbufs %u for CPU socket %u\n", pool_name, mbuf_pool_size, sock_id);
 
-				direct_pools[sock_id] = rte_mempool_create(
+				mempools_direct[sock_id] = rte_mempool_create(
 					pool_name,
 					mbuf_pool_size,
 					MBUF_SIZE, 32,
@@ -92,14 +89,14 @@ rofl_result_t processing_init(void){
 					rte_pktmbuf_init, NULL,
 					sock_id, flags);
 
-				if (direct_pools[sock_id] == NULL)
+				if (mempools_direct[sock_id] == NULL)
 					rte_panic("Cannot init direct mbuf pool for CPU socket: %u\n", sock_id);
 
 //Softclonning is disabled
 #if 0
 				snprintf (pool_name, POOL_MAX_LEN_NAME, "pool_indirect_%u", sock_id);
 				XDPD_INFO(DRIVER_NAME"[processing] Creating %s with #mbufs %u for CPU socket %u\n", pool_name, mbuf_pool_size, sock_id);
-				indirect_pools[sock_id] = rte_mempool_create(
+				mempools_indirect[sock_id] = rte_mempool_create(
 						pool_name,
 						mbuf_pool_size,
 						sizeof(struct rte_mbuf), 32,
@@ -108,11 +105,11 @@ rofl_result_t processing_init(void){
 						rte_pktmbuf_init, NULL,
 						sock_id, 0);
 
-				if(indirect_pools[sock_id] == NULL)
+				if(mempools_indirect[sock_id] == NULL)
 					rte_panic("Cannot init indirect mbuf pool for CPU socket: %u\n", sock_id);
 #else
 				//Avoid compiler to complain
-				(void)indirect_pools;
+				(void)mempools_indirect;
 #endif
 			}
 

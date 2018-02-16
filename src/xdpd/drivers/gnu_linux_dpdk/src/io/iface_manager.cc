@@ -16,7 +16,7 @@
 
 #include <fcntl.h>  
 
-extern struct rte_mempool* direct_pools[MAX_CPU_SOCKETS];
+extern struct rte_mempool* mempools_direct[MAX_CPU_SOCKETS];
 
 switch_port_t* phy_port_mapping[PORT_MANAGER_MAX_PORTS] = {0};
 struct rte_ring* port_tx_lcore_queue[PORT_MANAGER_MAX_PORTS][IO_IFACE_NUM_QUEUES] = {{NULL}};
@@ -157,7 +157,7 @@ rofl_result_t iface_manager_set_queues(switch_port_t* port, unsigned int core_id
 		return ROFL_SUCCESS;
 	
 	//Setup RX
-	if( (ret=rte_eth_rx_queue_setup(port_id, 0, RTE_RX_DESC_DEFAULT, rte_eth_dev_socket_id(port_id), &rx_conf, direct_pools[sock_id])) < 0 ){
+	if( (ret=rte_eth_rx_queue_setup(port_id, 0, RTE_RX_DESC_DEFAULT, rte_eth_dev_socket_id(port_id), &rx_conf, mempools_direct[sock_id])) < 0 ){
 		XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot setup RX queue: %s\n", rte_strerror(ret));
 		assert(0);
 		return ROFL_FAILURE;
