@@ -494,15 +494,21 @@ rofl_result_t processing_init_eventdev(void){
 		ev_core_tasks[socket_id].eventdev_conf.nb_event_queue_flows = ev_core_tasks[socket_id].eventdev_info.max_event_queue_flows;
 		ev_core_tasks[socket_id].eventdev_conf.nb_event_port_dequeue_depth = ev_core_tasks[socket_id].eventdev_info.max_event_port_dequeue_depth;
 		ev_core_tasks[socket_id].eventdev_conf.nb_event_port_enqueue_depth = ev_core_tasks[socket_id].eventdev_info.max_event_port_enqueue_depth;
+		ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = ev_core_tasks[socket_id].eventdev_info.max_dequeue_timeout_ns;
 
-		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] configuring eventdev: %s, nb_event_queues: %u, nb_event_ports: %u, nb_events_limit: %u, nb_event_queue_flows: %u, nb_event_port_dequeue_depth: %u, nb_event_port_enqueue_depth: %u\n",
+		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] configuring eventdev: %s, nb_event_queues: %u, nb_event_ports: %u, nb_events_limit: %u, nb_event_queue_flows: %u, nb_event_port_dequeue_depth: %u, nb_event_port_enqueue_depth: %u, dequeue_timeout_ns: %u (max: %u, min: %u)\n",
 				ev_core_tasks[socket_id].name,
 				ev_core_tasks[socket_id].eventdev_conf.nb_event_queues,
 				ev_core_tasks[socket_id].eventdev_conf.nb_event_ports,
 				ev_core_tasks[socket_id].eventdev_conf.nb_events_limit,
 				ev_core_tasks[socket_id].eventdev_conf.nb_event_queue_flows,
 				ev_core_tasks[socket_id].eventdev_conf.nb_event_port_dequeue_depth,
-				ev_core_tasks[socket_id].eventdev_conf.nb_event_port_enqueue_depth);
+				ev_core_tasks[socket_id].eventdev_conf.nb_event_port_enqueue_depth,
+				ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns,
+				ev_core_tasks[socket_id].eventdev_info.max_dequeue_timeout_ns,
+				ev_core_tasks[socket_id].eventdev_info.min_dequeue_timeout_ns);
+
+
 
 		if ((ret = rte_event_dev_configure(ev_core_tasks[socket_id].eventdev_id, &ev_core_tasks[socket_id].eventdev_conf)) < 0) {
 			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_dev_configure() failed\n", ev_core_tasks[socket_id].name);
@@ -1223,7 +1229,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 	while(likely(task->active)) {
 
-		int timeout = 0;
+		int timeout = ev_task->eventdev_conf.dequeue_timeout_ns;
 		nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
 
 		if (nb_rx == 0) {
