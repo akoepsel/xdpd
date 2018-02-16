@@ -502,6 +502,8 @@ rofl_result_t processing_init_eventdev(void){
 		if (dequeue_timeout_ns_node && dequeue_timeout_ns_node.IsScalar()) {
 			ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = dequeue_timeout_ns_node.as<uint32_t>();
 		}
+		ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = RTE_MIN(ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns, ev_core_tasks[socket_id].eventdev_info.max_dequeue_timeout_ns);
+		ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = RTE_MAX(ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns, ev_core_tasks[socket_id].eventdev_info.min_dequeue_timeout_ns);
 
 		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] configuring eventdev: %s, nb_event_queues: %u, nb_event_ports: %u, nb_events_limit: %u, nb_event_queue_flows: %u, nb_event_port_dequeue_depth: %u, nb_event_port_enqueue_depth: %u, dequeue_timeout_ns: %u\n",
 				ev_core_tasks[socket_id].name,
