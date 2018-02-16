@@ -1221,7 +1221,9 @@ int processing_packet_pipeline_processing(void* not_used){
 	of_switch_t* sw;
 	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
 	uint16_t nb_rx, nb_tx;
-	uint64_t timeout;
+	const uint64_t timeout = dequeue_timeout_ns;
+	const uint8_t dev_id = ev_task->eventdev_id;
+	const uint8_t port_id = task->ev_port_id;
 
 	//Parsing and pipeline extra state
 	datapacket_t pkt;
@@ -1238,8 +1240,8 @@ int processing_packet_pipeline_processing(void* not_used){
 
 	while(likely(task->active)) {
 
-		timeout = dequeue_timeout_ns;
-		nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
+		//nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
+		nb_rx = rte_event_dequeue_burst(dev_id, port_id, rx_events, max_evt_wk_burst_size, timeout);
 
 		if (nb_rx == 0) {
 			continue;
