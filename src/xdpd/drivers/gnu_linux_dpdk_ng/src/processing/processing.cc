@@ -468,11 +468,13 @@ rofl_result_t processing_init_eventdev(void){
 			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] unable to retrieve info struct for eventdev %s\n", ev_core_tasks[socket_id].name);
 		}
 
-		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev: %s, max_event_ports: %u, max_event_queues: %u, max_num_events: %u\n",
+		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev: %s, max_event_ports: %u, max_event_queues: %u, max_num_events: %u, max_dequeue_timeout_ns: %u, min_dequeue_timeout_ns: %u\n",
 				ev_core_tasks[socket_id].name,
 				ev_core_tasks[socket_id].eventdev_info.max_event_ports,
 				ev_core_tasks[socket_id].eventdev_info.max_event_queues,
-				ev_core_tasks[socket_id].eventdev_info.max_num_events);
+				ev_core_tasks[socket_id].eventdev_info.max_num_events,
+				ev_core_tasks[socket_id].eventdev_info.max_dequeue_timeout_ns,
+				ev_core_tasks[socket_id].eventdev_info.min_dequeue_timeout_ns);
 
 
 		/* configure event device */
@@ -495,8 +497,13 @@ rofl_result_t processing_init_eventdev(void){
 		ev_core_tasks[socket_id].eventdev_conf.nb_event_port_dequeue_depth = ev_core_tasks[socket_id].eventdev_info.max_event_port_dequeue_depth;
 		ev_core_tasks[socket_id].eventdev_conf.nb_event_port_enqueue_depth = ev_core_tasks[socket_id].eventdev_info.max_event_port_enqueue_depth;
 		ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = ev_core_tasks[socket_id].eventdev_info.max_dequeue_timeout_ns;
+		/* dequeue_timeout_ns */
+		YAML::Node dequeue_timeout_ns_node = y_config_dpdk_ng["dpdk"]["processing"]["dequeue_timeout_ns"];
+		if (dequeue_timeout_ns_node && dequeue_timeout_ns_node.IsScalar()) {
+			ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns = dequeue_timeout_ns_node.as<uint32_t>();
+		}
 
-		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] configuring eventdev: %s, nb_event_queues: %u, nb_event_ports: %u, nb_events_limit: %u, nb_event_queue_flows: %u, nb_event_port_dequeue_depth: %u, nb_event_port_enqueue_depth: %u, dequeue_timeout_ns: %u (max: %u, min: %u)\n",
+		XDPD_INFO(DRIVER_NAME"[processing][init][evdev] configuring eventdev: %s, nb_event_queues: %u, nb_event_ports: %u, nb_events_limit: %u, nb_event_queue_flows: %u, nb_event_port_dequeue_depth: %u, nb_event_port_enqueue_depth: %u, dequeue_timeout_ns: %u\n",
 				ev_core_tasks[socket_id].name,
 				ev_core_tasks[socket_id].eventdev_conf.nb_event_queues,
 				ev_core_tasks[socket_id].eventdev_conf.nb_event_ports,
@@ -504,9 +511,7 @@ rofl_result_t processing_init_eventdev(void){
 				ev_core_tasks[socket_id].eventdev_conf.nb_event_queue_flows,
 				ev_core_tasks[socket_id].eventdev_conf.nb_event_port_dequeue_depth,
 				ev_core_tasks[socket_id].eventdev_conf.nb_event_port_enqueue_depth,
-				ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns,
-				ev_core_tasks[socket_id].eventdev_info.max_dequeue_timeout_ns,
-				ev_core_tasks[socket_id].eventdev_info.min_dequeue_timeout_ns);
+				ev_core_tasks[socket_id].eventdev_conf.dequeue_timeout_ns);
 
 
 

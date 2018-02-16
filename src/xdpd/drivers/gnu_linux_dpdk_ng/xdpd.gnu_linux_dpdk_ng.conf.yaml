@@ -48,6 +48,7 @@ dpdk:
     max_evt_tx_burst_size: 64
     max_eth_rx_burst_size: 64
     max_eth_tx_burst_size: 4096
+    dequeue_timeout_ns: 100
   testing:
     shortcut:
       pipeline: false
