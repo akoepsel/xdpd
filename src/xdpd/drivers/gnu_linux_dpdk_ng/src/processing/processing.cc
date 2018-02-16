@@ -1249,8 +1249,8 @@ int processing_packet_pipeline_processing(void* not_used){
 				rx_events[i].mbuf = NULL;
 			}
 			nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
-#endif
 			task->stats.tx_evts += nb_tx;
+#endif
 			continue;
 		}
 
