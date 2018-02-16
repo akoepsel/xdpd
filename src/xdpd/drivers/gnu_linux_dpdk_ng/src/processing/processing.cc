@@ -1227,7 +1227,6 @@ int processing_packet_pipeline_processing(void* not_used){
 		nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
 
 		if (nb_rx == 0) {
-			//rte_pause();
 			continue;
 		}
 #if 0
@@ -1238,16 +1237,19 @@ int processing_packet_pipeline_processing(void* not_used){
 		task->stats.rx_evts+=nb_rx;
 
 		if (wktask_dropping) {
+#if 0
 			for (i = 0; i < nb_rx; i++) {
-				rx_events[i].op = RTE_EVENT_OP_RELEASE;
+				rx_events[i].op = RTE_EVENT_OP_FORWARD;
 				rx_events[i].event_type = RTE_EVENT_TYPE_CPU;
 				rx_events[i].sub_event_type = 0;
+				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
 				if (rx_events[i].mbuf) {
 					rte_pktmbuf_free(rx_events[i].mbuf);
 				}
 				rx_events[i].mbuf = NULL;
 			}
 			nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
+#endif
 			task->stats.tx_evts += nb_tx;
 			continue;
 		}
