@@ -1169,15 +1169,17 @@ int processing_packet_reception(void* not_used){
 			/* enqueue events to event device */
 			const int nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, event, nb_rx);
 			task->stats.tx_evts+=nb_tx;
-
+#if 0
 			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, dequeued %u pkt(s) from eth_port_id=%u and enqueued %u pkt(s) to ev_port_id=%u (rx-eth-burst)\n",
 					lcore_id, rte_lcore_to_socket_id(lcore_id), nb_rx, port_id, nb_tx, task->ev_port_id);
-
+#endif
 			/* release mbufs not queued in event device */
 			if (nb_tx < nb_rx) {
 				task->stats.evts_dropped+=(nb_rx-nb_tx);
+#if 0
 				RTE_LOG(WARNING, XDPD, "rx-task-%02u: dropping %u packets, worker event receive queue full on socket %u, task->stats.evts_dropped=%" PRIu64 "\n",
 						lcore_id, nb_rx - nb_tx, rte_lcore_to_socket_id(lcore_id), task->stats.evts_dropped);
+#endif
 				for(i = nb_tx; i < nb_rx; i++) {
 					rte_pktmbuf_free(mbufs[i]);
 				}
