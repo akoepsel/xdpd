@@ -1090,6 +1090,9 @@ int processing_packet_reception(void* not_used){
 	struct rte_mbuf* mbufs[max_eth_rx_burst_size];
 	struct rte_event event[max_eth_rx_burst_size];
 	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
+	const uint8_t ev_dev_id = ev_task->eventdev_id;
+	const uint8_t ev_port_id = task->ev_port_id;
+	const uint8_t ev_queue_id = task->tx_ev_queue_id;
 
 	XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: started\n", socket_id, lcore_id);
 
@@ -1149,14 +1152,8 @@ int processing_packet_reception(void* not_used){
 			for (i = 0; i < nb_rx; i++) {
 				event[i].flow_id = mbufs[i]->hash.rss;
 				event[i].op = RTE_EVENT_OP_NEW;
-				//event[i].sched_type = RTE_SCHED_TYPE_ORDERED;
+				event[i].queue_id = ev_queue_id;
 				event[i].sched_type = RTE_SCHED_TYPE_PARALLEL;
-				//event[i].sched_type = RTE_SCHED_TYPE_ATOMIC;
-				if (eventdev_shortcut) {
-					event[i].queue_id = tx_core_tasks[*tx_lcores[socket_id].begin()].rx_ev_queues[0];
-				} else {
-					event[i].queue_id = task->tx_ev_queue_id;
-				}
 				event[i].event_type = RTE_EVENT_TYPE_ETHDEV;
 				event[i].sub_event_type = 0;
 				event[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
@@ -1170,7 +1167,7 @@ int processing_packet_reception(void* not_used){
 			}
 
 
-			if (rxtask_dropping) {
+			if (unlikely(rxtask_dropping)) {
 				for (i = 0; i < nb_rx; i++) {
 					if (mbufs[i]) {
 						rte_pktmbuf_free(mbufs[i]);
@@ -1181,7 +1178,7 @@ int processing_packet_reception(void* not_used){
 
 
 			/* enqueue events to event device */
-			const int nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, event, nb_rx);
+			const int nb_tx = rte_event_enqueue_burst(ev_dev_id, ev_port_id, event, nb_rx);
 			task->stats.tx_evts+=nb_tx;
 #if 0
 			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, dequeued %u pkt(s) from eth_port_id=%u and enqueued %u pkt(s) to ev_port_id=%u (rx-eth-burst)\n",
@@ -1222,8 +1219,8 @@ int processing_packet_pipeline_processing(void* not_used){
 	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
 	uint16_t nb_rx, nb_tx;
 	const uint64_t timeout = dequeue_timeout_ns;
-	const uint8_t dev_id = ev_task->eventdev_id;
-	const uint8_t port_id = task->ev_port_id;
+	const uint8_t ev_dev_id = ev_task->eventdev_id;
+	const uint8_t ev_port_id = task->ev_port_id;
 
 	//Parsing and pipeline extra state
 	datapacket_t pkt;
@@ -1241,9 +1238,9 @@ int processing_packet_pipeline_processing(void* not_used){
 	while(likely(task->active)) {
 
 		//nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
-		nb_rx = rte_event_dequeue_burst(dev_id, port_id, rx_events, max_evt_wk_burst_size, timeout);
+		nb_rx = rte_event_dequeue_burst(ev_dev_id, ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
 
-		if (nb_rx == 0) {
+		if (likely(nb_rx == 0)) {
 			continue;
 		}
 #if 0
@@ -1261,7 +1258,7 @@ int processing_packet_pipeline_processing(void* not_used){
 				rx_events[i].sub_event_type = 0;
 				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
 #endif
-				if (rx_events[i].mbuf) {
+				if (likely(rx_events[i].mbuf)) {
 					rte_pktmbuf_free(rx_events[i].mbuf);
 				}
 #if 0
