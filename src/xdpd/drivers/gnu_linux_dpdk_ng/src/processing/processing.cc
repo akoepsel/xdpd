@@ -1824,6 +1824,16 @@ void processing_update_stats(void)
 		ss << "(TX=>TX)ratio: " << 100*((double)tx_pkts_TX)/((double)rx_evts_TX) << "% ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 	}
+
+	for (auto socket_id : numa_nodes) {
+		char filename[256];
+		memset(filename, 0, sizeof(filename));
+		snprintf(filename, sizeof(filename), "eventdev_dump_socket_%u.txt", socket_id);
+		FILE* f = NULL;
+		f = fopen(filename, "a");
+		rte_event_dev_dump(ev_core_tasks[socket_id].eventdev_id, f);
+		fclose(f);
+	}
 }
 
 
