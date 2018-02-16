@@ -1236,7 +1236,7 @@ int processing_packet_pipeline_processing(void* not_used){
 
 	while(likely(task->active)) {
 
-		int timeout = ev_task->eventdev_conf.dequeue_timeout_ns;
+		int timeout = 100;
 		nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
 
 		if (nb_rx == 0) {
