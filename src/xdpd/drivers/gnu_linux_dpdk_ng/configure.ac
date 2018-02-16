@@ -27,6 +27,7 @@ LDFLAGS=" -Wl,-export-dynamic"
 
 AC_DEFINE(__STDC_FORMAT_MACROS)
 AC_DEFINE(__STDC_LIMIT_MACROS)
+AC_DEFINE(ALLOW_EXPERIMENTAL_API)
 
 #Driver environment. Must go first
 m4_include([../../../../config/driver.m4])

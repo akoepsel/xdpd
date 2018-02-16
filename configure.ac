@@ -32,7 +32,6 @@ LDFLAGS="-Wl,--as-needed -Wl,-export-dynamic -Wl,--build-id"
 
 AC_DEFINE(__STDC_FORMAT_MACROS)
 AC_DEFINE(__STDC_CONSTANT_MACROS)
-AC_DEFINE(ALLOW_EXPERIMENTAL_API)
 
 #Check libs used
 AC_CHECK_LIB(pthread, pthread_kill,,AC_MSG_ERROR([pthread library not found])) 
