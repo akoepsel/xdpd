@@ -40,6 +40,7 @@
 #include "../io/bufferpool.h"
 #include "../io/iface_manager.h"
 #include "../io/pktin_dispatcher.h"
+#include "../memory/memory.h"
 #include "../processing/processing.h"
 
 //Extensions
@@ -173,6 +174,10 @@ hal_result_t hal_driver_init(hal_extension_ops_t* extensions, const char* extra_
 
 	//Initialize pipeline
 	if(physical_switch_init() != ROFL_SUCCESS)
+		return HAL_FAILURE;
+
+	//Initialize memory
+	if(memory_init() != ROFL_SUCCESS)
 		return HAL_FAILURE;
 
 	//Initialize processing

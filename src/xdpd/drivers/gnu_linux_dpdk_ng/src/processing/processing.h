@@ -22,34 +22,35 @@
 #include <rte_eventdev.h>
 #include <rte_ether.h>
 
+#include <map>
+#include <set>
 #include <string>
 
-#include "../processing/mem_manager.h"
+#include "../memory/memory.h"
 #include "../io/dpdk_datapacket.h"
 
-typedef struct rx_port_queue {
+typedef struct rx_ethdev_port_queue {
 	/* all these elements in rxqueues are enabled by default */
 	uint8_t up;
 	/* ethdev port */
 	uint8_t port_id;
 	/* ethdev queue */
 	uint8_t queue_id;
-	/* worker lcore */
-	unsigned lcore_id;
-	/* eventdev queue */
+	/* associated worker lcore (=ev_queue_id) */
 	uint8_t ev_queue_id;
-} __rte_cache_aligned rx_port_queue_t;
+} __rte_cache_aligned rx_ethdev_port_queue_t;
 
-typedef struct tx_port_queue {
+typedef struct tx_ethdev_port_queue {
+	uint8_t enabled;
 	/* all these elements in txqueues are enabled by default */
 	uint8_t up;
-	/* hm ... */
-	uint8_t enabled;
 	/* ethdev port */
 	uint8_t port_id;
 	/* ethdev queue */
 	uint8_t queue_id;
-} __rte_cache_aligned tx_port_queue_t;
+	/* associated worker lcore (=ev_queue_id) */
+	uint8_t ev_queue_id;
+} __rte_cache_aligned tx_ethdev_port_queue_t;
 
 #if 0
 // Burst definition(queue)
@@ -94,21 +95,18 @@ enum event_queue_t {
 typedef struct rx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
+	uint8_t ev_port_id; // eventdev port
+	unsigned int socket_id; // NUMA socket id
 	task_statistics_t stats;
 
-	/*
-	 * receiving from ethdevs
+	/* Idea:
+	 * We have a number of worker lcores on this NUMA socket. Each worker lcore has assigned
+	 * a port/queue pair on all ethernet devices with a dedicated mempool. We forward packets
+	 * received on this port/queue to a single worker lcore to avoid invalidation of memory
+	 * caches.
 	 */
-	rx_port_queue_t rx_queues[RTE_MAX_LCORE];  // (port_id, queue_id) = rx_queues[i] for i in (0...RTE_MAX_ETHPORTS-1)
+	rx_ethdev_port_queue_t rx_queues[RTE_MAX_QUEUES_PER_PORT];  // (port_id, queue_id) = rx_queues[i] for i in (0...RTE_MAX_ETHPORTS-1)
 	uint16_t nb_rx_queues; // number of valid fields in rx_queues (0, nb_rx_queues-1)
-
-	/*
-	 * enqueuing on event device
-	 */
-	/* NUMA node socket-id */
-	unsigned int socket_id;
-	/* event port-id */
-	uint8_t ev_port_id;
 
 } __rte_cache_aligned rx_core_task_t;
 
@@ -118,25 +116,20 @@ typedef struct rx_core_task {
 typedef struct tx_core_task {
 	bool available; // task is runnable on lcore
 	bool active; // task is running
+	uint8_t ev_port_id; // eventdev port
+	unsigned int socket_id; // NUMA socket id
 	task_statistics_t stats;
-	bool lead_task; // true: first tx-task on this NUMA socket (will never be switched off in idle phases)
-	unsigned int idle_loops; // number of idle loops for reading events from event device
 
 	/*
 	 * transmitting to ethdevs
 	 */
 	/* queue-id to be used by this task for given port-id */
-	tx_port_queue_t tx_queues[RTE_MAX_LCORE]; // tx_queues[ev_queue_id] => bound to event queues
+	tx_ethdev_port_queue_t tx_queues[RTE_MAX_QUEUES_PER_PORT]; // tx_queues[ev_queue_id] => bound to event queues
 	uint16_t nb_tx_queues; // number of valid fields in tx_queues (0, nb_tx_queues-1)
 
 	/*
 	 * dequeuing from event device
 	 */
-
-	/* NUMA node socket-id */
-	unsigned int socket_id;
-	/* event port-id */
-	uint8_t ev_port_id;
 
 	/* list of event queues this task is linked to for receiving events */
 	uint8_t rx_ev_queues[RTE_EVENT_MAX_QUEUES_PER_DEV];
@@ -204,13 +197,31 @@ typedef struct ev_core_task {
 /**
 * Processing tasks: receive, transmit, worker
 */
+/* rx tasks */
 extern rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
+/* tx tasks */
 extern tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
+/* wk tasks */
 extern wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
+/* ev tasks */
 extern ev_core_task_t ev_core_tasks[RTE_MAX_NUMA_NODES];
+/* portlist */
 extern switch_port_t* port_list[PROCESSING_MAX_PORTS];
+/* portlist rwlock */
 extern rte_rwlock_t port_list_rwlock;
+/* deprecated spnlock */
 extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
+
+/* a set of available NUMA sockets (socket_id) */
+extern std::set<int> numa_nodes;
+/* a map of available event logical cores per NUMA socket (set of lcore_id) */
+extern std::map<unsigned int, std::set<unsigned int> > ev_lcores;
+/* a map of available RX logical cores per NUMA socket (set of lcore_id) */
+extern std::map<unsigned int, std::set<unsigned int> > rx_lcores;
+/* a map of available TX logical cores per NUMA socket (set of lcore_id) */
+extern std::map<unsigned int, std::set<unsigned int> > tx_lcores;
+/* a map of available worker logical cores per NUMA socket (set of lcore_id) */
+extern std::map<unsigned int, std::set<unsigned int> > wk_lcores;
 
 
 

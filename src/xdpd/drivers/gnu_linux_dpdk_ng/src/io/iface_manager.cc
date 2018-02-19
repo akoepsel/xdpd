@@ -1,5 +1,5 @@
 #include "iface_manager.h"
-#include "../processing/mem_manager.h"
+#include "../memory/memory.h"
 #include <math.h>
 #include <rofl/datapath/hal/cmm.h>
 #include <utils/c_logger.h>
@@ -75,12 +75,6 @@ extern std::map<unsigned int, std::set<unsigned int> > rx_lcores;
 /* a map of available TX logical cores per NUMA socket (set of lcore_id) */
 extern std::map<unsigned int, std::set<unsigned int> > tx_lcores;
 
-extern unsigned int mem_pool_size;
-extern unsigned int mbuf_dataroom;
-extern unsigned int dpdk_memory_mempool_direct_cache_size;
-extern unsigned int dpdk_memory_mempool_direct_priv_size;
-extern unsigned int dpdk_memory_mempool_indirect_cache_size;
-extern unsigned int dpdk_memory_mempool_indirect_priv_size;
 
 /* Shinae Woo and KyoungSoo Park
  * "Scalable TCP Session Monitoring with Symmetric Receive-side Scaling"
@@ -1101,10 +1095,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		//number of configured RX queues on device should not exceed number of worker lcores on socket
-		unsigned int nb_rx_queues = RTE_MIN(rx_lcores[socket_id].size(), dev_info.max_rx_queues);
+		unsigned int nb_rx_queues = RTE_MIN(wk_lcores[socket_id].size(), dev_info.max_rx_queues);
 
 		//number of configured TX queues on device should not exceed number of worker lcores on socket
-		unsigned int nb_tx_queues = RTE_MIN(tx_lcores[socket_id].size(), dev_info.max_tx_queues);
+		unsigned int nb_tx_queues = RTE_MIN(wk_lcores[socket_id].size(), dev_info.max_tx_queues);
 
 		phyports[port_id].nb_rx_queues = nb_rx_queues;
 		phyports[port_id].nb_tx_queues = nb_tx_queues;
@@ -1127,103 +1121,96 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 
 		/* all RX lcores for this port's (port_id) NUMA node (socket_id) */
-		uint16_t rx_queue_id = 0;
-		for (auto lcore_id : rx_lcores[socket_id]) {
-			if (not lcores[lcore_id].is_enabled) {
-				continue;
-			}
-			if (not lcores[lcore_id].is_rx_lcore) {
-				continue;
-			}
+		for (auto rx_lcore_id : rx_lcores[socket_id]) {
 
-			uint16_t index = rx_core_tasks[lcore_id].nb_rx_queues;
-			rx_core_tasks[lcore_id].rx_queues[index].up = false;
-			rx_core_tasks[lcore_id].rx_queues[index].port_id = port_id;
-			rx_core_tasks[lcore_id].rx_queues[index].queue_id = rx_queue_id;
-			rx_core_tasks[lcore_id].nb_rx_queues++;
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] assigning physical port: %u, rxqueue: %u on socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
-					devname.c_str(), port_id, rx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id), rx_core_tasks[lcore_id].nb_rx_queues);
-			if (rx_queue_id >= (phyports[port_id].nb_rx_queues - 1)) {
-				break;
+			/* Assign each worker lcore a unique queue on active port with dedicated mempool */
+			uint16_t rx_queue_id = 0;
+			for (auto wk_lcore_id : wk_lcores[socket_id]) {
+
+				unsigned int index = rx_core_tasks[rx_lcore_id].nb_rx_queues;
+
+				rx_core_tasks[rx_lcore_id].rx_queues[index].up = false;
+				rx_core_tasks[rx_lcore_id].rx_queues[index].port_id = port_id;
+				rx_core_tasks[rx_lcore_id].rx_queues[index].queue_id = rx_queue_id;
+				rx_core_tasks[rx_lcore_id].rx_queues[index].ev_queue_id = wk_core_tasks[wk_lcore_id].rx_ev_queue_id;
+				rx_core_tasks[rx_lcore_id].nb_rx_queues++;
+
+				XDPD_INFO(DRIVER_NAME"[ifaces][%s] assigning physical port: %u, rxqueue: %u on socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
+						devname.c_str(), port_id, rx_queue_id, socket_id, rx_lcore_id, rte_lcore_to_socket_id(rx_lcore_id), rx_core_tasks[rx_lcore_id].nb_rx_queues);
+
+				if (rx_queue_id >= (phyports[port_id].nb_rx_queues - 1)) {
+					break;
+				}
+				rx_queue_id = (rx_queue_id < (phyports[port_id].nb_rx_queues - 1)) ? rx_queue_id + 1 : 0;
 			}
-			rx_queue_id = (rx_queue_id < (phyports[port_id].nb_rx_queues - 1)) ? rx_queue_id + 1 : 0;
 		}
 
-
 		/* all TX lcores for this port's (port_id) NUMA node (socket_id) */
-		uint16_t tx_queue_id = 0;
-		for (auto lcore_id : tx_lcores[socket_id]) {
-			if (not lcores[lcore_id].is_enabled) {
-				continue;
+		for (auto tx_lcore_id : tx_lcores[socket_id]) {
+
+			/* Assign each worker lcore a unique queue on active port with dedicated mempool */
+			uint16_t tx_queue_id = 0;
+			for (auto wk_lcore_id : wk_lcores[socket_id]) {
+
+				unsigned int index = tx_core_tasks[tx_lcore_id].nb_tx_queues;
+
+				tx_core_tasks[tx_lcore_id].tx_queues[index].up = false;
+				tx_core_tasks[tx_lcore_id].tx_queues[index].port_id = port_id;
+				tx_core_tasks[tx_lcore_id].tx_queues[index].queue_id = tx_queue_id;
+				tx_core_tasks[tx_lcore_id].tx_queues[index].ev_queue_id = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
+				tx_core_tasks[tx_lcore_id].nb_tx_queues++;
+
+				XDPD_INFO(DRIVER_NAME"[ifaces][%s] assigning physical port: %u, rxqueue: %u on socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
+						devname.c_str(), port_id, tx_queue_id, socket_id, tx_lcore_id, rte_lcore_to_socket_id(tx_lcore_id), tx_core_tasks[tx_lcore_id].nb_tx_queues);
+
+				/*
+				 * RTE tx ring for this port
+				 */
+
+				/* allocate txring for tx-task */
+				std::stringstream rgname("tx-ring-");
+				rgname << "task-" << tx_lcore_id << "." << "port-" << port_id << "." << "queue-" << tx_queue_id;
+
+				/* store txring-drain-max-queuesize parameter for this port */
+				if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_queue_capacity")) {
+					tx_core_tasks[tx_lcore_id].txring_drain_queue_capacity[tx_queue_id] = pow(2, (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring_drain_queue_capacity"))));
+				} else {
+					tx_core_tasks[tx_lcore_id].txring_drain_queue_capacity[tx_queue_id] = pow(2, (unsigned int)ceil(log2((unsigned int)PROCESSING_TXRING_DRAIN_QUEUE_CAPACITY_DEFAULT)));
+				}
+
+				/* store txring-drain-interval parameter for this port */
+				uint64_t txring_drain_interval;
+				if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_interval")) {
+					txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring_drain_interval") * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
+				} else {
+					txring_drain_interval = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
+				}
+				tx_core_tasks[tx_lcore_id].txring_drain_interval[tx_queue_id] = txring_drain_interval;
+
+				/* store txring-drain-threshold parameter for this port */
+				if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_threshold")) {
+					tx_core_tasks[tx_lcore_id].txring_drain_threshold[tx_queue_id] = iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring_drain_threshold");
+				} else {
+					tx_core_tasks[tx_lcore_id].txring_drain_threshold[tx_queue_id] = PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT;
+				}
+
+				XDPD_INFO(DRIVER_NAME"[ifaces][%s] physical port: %u on socket: %u for tx-task-%02u, txring: %s, capacity: %u\n",
+						devname.c_str(), port_id, socket_id, tx_lcore_id, rgname.str().c_str(), tx_core_tasks[tx_lcore_id].txring_drain_queue_capacity[tx_queue_id]);
+
+				/* create RTE ring for queuing packets between workers and tx threads */
+				if ((tx_core_tasks[tx_lcore_id].txring[tx_queue_id] = rte_ring_create(rgname.str().c_str(), tx_core_tasks[tx_lcore_id].txring_drain_queue_capacity[tx_queue_id], socket_id, RING_F_SP_ENQ | RING_F_SC_DEQ)) == NULL) {
+					XDPD_DEBUG(DRIVER_NAME"[ifaces] unable to create tx-ring: %s for queue-id: %u\n", rgname.str().c_str(), tx_queue_id);
+					return ROFL_FAILURE;
+				}
+
+				if (tx_queue_id >= (phyports[port_id].nb_tx_queues - 1)) {
+					break;
+				}
+				tx_queue_id = (tx_queue_id < (phyports[port_id].nb_tx_queues - 1)) ? tx_queue_id + 1 : 0;
 			}
-			if (not lcores[lcore_id].is_tx_lcore) {
-				continue;
-			}
 
-
-			/*
-			 * RTE tx ring for this port
-			 */
-
-			/* allocate txring for tx-task */
-			std::stringstream rgname("tx-ring-");
-			rgname << "task-" << lcore_id << "." << "port-" << port_id;
-
-			/* store txring-drain-max-queuesize parameter for this port */
-			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_queue_capacity")) {
-				tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id] = pow(2, (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring_drain_queue_capacity"))));
-			} else {
-				tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id] = pow(2, (unsigned int)ceil(log2((unsigned int)PROCESSING_TXRING_DRAIN_QUEUE_CAPACITY_DEFAULT)));
-			}
-
-			/* store txring-drain-interval parameter for this port */
-			uint64_t txring_drain_interval;
-			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_interval")) {
-				txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring_drain_interval") * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
-			} else {
-				txring_drain_interval = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
-			}
-			tx_core_tasks[lcore_id].txring_drain_interval[port_id] = txring_drain_interval;
-
-			/* store txring-drain-threshold parameter for this port */
-			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_threshold")) {
-				tx_core_tasks[lcore_id].txring_drain_threshold[port_id] = iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring_drain_threshold");
-			} else {
-				tx_core_tasks[lcore_id].txring_drain_threshold[port_id] = PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT;
-			}
-
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] physical port: %u on socket: %u for tx-task-%02u, txring: %s, capacity: %u\n",
-					devname.c_str(), port_id, socket_id, lcore_id, rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id]);
-
-			/* create RTE ring for queuing packets between workers and tx threads */
-			if ((tx_core_tasks[lcore_id].txring[port_id] = rte_ring_create(rgname.str().c_str(), tx_core_tasks[lcore_id].txring_drain_queue_capacity[port_id], socket_id, RING_F_SP_ENQ | RING_F_SC_DEQ)) == NULL) {
-				XDPD_DEBUG(DRIVER_NAME"[ifaces] unable to create tx-ring: %s for port-id: %u\n", rgname.str().c_str(), port_id);
-				return ROFL_FAILURE;
-			}
-
-
-			/*
-			 * store txqueue on eth-dev for this port and TX task
-			 */
-
-			tx_core_tasks[lcore_id].tx_queues[port_id].enabled = 1;
-			tx_core_tasks[lcore_id].tx_queues[port_id].up = false;
-			tx_core_tasks[lcore_id].tx_queues[port_id].queue_id = tx_queue_id;
-			tx_core_tasks[lcore_id].nb_tx_queues++;
 			XDPD_INFO(DRIVER_NAME"[ifaces][%s] assigning physical port: %u, txqueue: %u on socket: %u to lcore: %u on socket: %u, nb_tx_queues: %u\n",
-					devname.c_str(), port_id, tx_queue_id, socket_id, lcore_id, rte_lcore_to_socket_id(lcore_id), tx_core_tasks[lcore_id].nb_tx_queues);
-			/* if the number of TX lcores exceeds the number of tx-queues on the port and
-			 * the TX queue is not able to handle multiple threads without locking, 
-			 * abort here and give a hint to the user */
-			if ((not (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MT_LOCKFREE)) && (tx_queue_id > (phyports[port_id].nb_tx_queues - 1))) {
-				XDPD_ERR(DRIVER_NAME"[ifaces][%s] number of TX tasks on NUMA node socket %u exceeds number of TX queues on port %u (%s) and port is not DEV_TX_OFFLOAD_MT_LOCKFREE capable, you have 3 options:\n", devname.c_str(), socket_id, port_id, ifname);
-				XDPD_ERR(DRIVER_NAME"[ifaces][%s] 1. increase number of TX queues on port %s\n", devname.c_str(), ifname);
-				XDPD_ERR(DRIVER_NAME"[ifaces][%s] 2. reduce number of TX tasks on NUMA node socket %u\n", devname.c_str(), socket_id);
-				XDPD_ERR(DRIVER_NAME"[ifaces][%s] 3. disable port %s\n", devname.c_str(), ifname);
-				XDPD_ERR(DRIVER_NAME"[ifaces][%s] aborting ...\n", devname.c_str());
-				return ROFL_FAILURE;
-			}
-			tx_queue_id = (tx_queue_id < (phyports[port_id].nb_tx_queues - 1)) ? tx_queue_id + 1 : 0;
+					devname.c_str(), port_id, tx_queue_id, socket_id, tx_lcore_id, rte_lcore_to_socket_id(tx_lcore_id), tx_core_tasks[tx_lcore_id].nb_tx_queues);
 		}
 
 
@@ -1854,8 +1841,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					eth_rxconf.rx_free_thresh,
 					eth_rxconf.offloads);
 
-			//configure rxqueue
-			if (rte_eth_rx_queue_setup(port_id, rx_queue_id, nb_rx_desc, socket_id, &eth_rxconf, mempool_task_t[lcore_id].pool_direct) < 0) {
+			//configure rxqueue, here rx_queue_id also refers to a dedicated memory pool, which is served by a single worker lcore
+			if (rte_eth_rx_queue_setup(port_id, rx_queue_id, nb_rx_desc, socket_id, &eth_rxconf, mempool_per_task[rx_queue_id].pool_direct) < 0) {
 				XDPD_ERR(DRIVER_NAME" failed to configure port: %u rx-queue: %u, aborting\n", port_id, rx_queue_id);
 				return ROFL_FAILURE;
 			}

@@ -24,8 +24,6 @@
 
 #include <rte_memcpy.h>
 
-extern struct rte_mempool* mempools_direct[];
-
 using namespace xdpd::gnu_linux;
 
 //Port config
@@ -283,7 +281,7 @@ hal_result_t hal_driver_of1x_process_packet_out(uint64_t dpid, uint32_t buffer_i
 		}	
 	
 		//Initialize the packet and copy
-		struct rte_mbuf* mbuf = rte_pktmbuf_alloc(mempools_direct[0]);
+		struct rte_mbuf* mbuf = rte_pktmbuf_alloc(eal_mempool_direct[0]);
 		if(mbuf==NULL){
 			XDPD_ERR("Error prependig packet to mbuf\n");
 			return HAL_FAILURE;
