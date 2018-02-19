@@ -574,6 +574,7 @@ rofl_result_t processing_init_eventdev(void){
 
 			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, ev_queue_id: %2u, schedule-type: %u, priority: %u, nb-atomic-flows: %u, nb-atomic-order-sequences: %u\n",
 					ev_core_tasks[socket_id].name, queue_id, queue_conf.schedule_type, queue_conf.priority, queue_conf.nb_atomic_flows, queue_conf.nb_atomic_order_sequences);
+
 			if (rte_event_queue_setup(ev_core_tasks[socket_id].eventdev_id, queue_id, &queue_conf) < 0) {
 				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_queue_setup() on ev_queue_id: %u failed\n", ev_core_tasks[socket_id].name, queue_id);
 				return ROFL_FAILURE;
@@ -708,6 +709,7 @@ rofl_result_t processing_init_eventdev(void){
 			/* store event queues this worker task is listening to */
 			uint8_t queues[RTE_MAX_QUEUES_PER_PORT] = {0};
 			unsigned index = 0;
+			queues[index++] = 0;
 			std::stringstream ss;
 			for (auto wk_lcore_id : wk_lcores[socket_id]) {
 				queues[index++] = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
