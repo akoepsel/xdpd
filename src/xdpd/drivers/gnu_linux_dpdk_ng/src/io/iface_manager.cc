@@ -1737,8 +1737,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] mapping txqueue: %u to wk lcore: %u, configuring txqueue on physical port: %u, txqueue: %u on socket: %u, nb_tx_desc: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: 0x%x\n",
-					devname.c_str(), tx_queue_id, wk_lcore_id, port_id, tx_queue_id, socket_id, nb_tx_desc,
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] mapping txqueue: %u to wk lcore: %u on physical port: %u, socket: %u, nb_tx_desc: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: 0x%x\n",
+					devname.c_str(), tx_queue_id, wk_lcore_id, port_id, socket_id, nb_tx_desc,
 					eth_txconf.tx_thresh.pthresh,
 					eth_txconf.tx_thresh.hthresh,
 					eth_txconf.tx_thresh.wthresh,
@@ -1840,8 +1840,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] mapping rxqueue: %u to wk lcore: %u, mempool: 0x%x, configuring rxqueue on physical port: %u, rxqueue: %u on socket: %u, nb_rx_desc: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: 0x%x\n",
-					devname.c_str(), rx_queue_id, wk_lcore_id, mempool_per_task[wk_lcore_id].pool_direct, port_id, rx_queue_id, socket_id, nb_rx_desc,
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] mapping rxqueue: %u to wk lcore: %u (mempool: 0x%x) on physical port: %u, socket: %u, nb_rx_desc: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: 0x%x\n",
+					devname.c_str(), rx_queue_id, wk_lcore_id, mempool_per_task[wk_lcore_id].pool_direct, port_id, socket_id, nb_rx_desc,
 					eth_rxconf.rx_thresh.pthresh,
 					eth_rxconf.rx_thresh.hthresh,
 					eth_rxconf.rx_thresh.wthresh,
