@@ -630,7 +630,7 @@ rofl_result_t processing_init_eventdev(void){
 			port_conf.new_event_threshold = ev_core_tasks[socket_id].eventdev_conf.nb_events_limit;
 			port_conf.disable_implicit_release = 0;
 
-			if (rte_event_port_setup(ev_core_tasks[socket_id].eventdev_id, ev_port_id, &port_conf) < 0) {
+			if (rte_event_port_setup(ev_core_tasks[socket_id].eventdev_id, rx_core_tasks[rx_lcore_id].ev_port_id, &port_conf) < 0) {
 				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n",
 						ev_core_tasks[socket_id].name, rx_core_tasks[rx_lcore_id].ev_port_id);
 				return ROFL_FAILURE;
