@@ -717,7 +717,7 @@ rofl_result_t processing_init_eventdev(void){
 			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u => linked to WK event queues: %s\n",
 					ev_core_tasks[socket_id].name, tx_lcore_id, tx_core_tasks[tx_lcore_id].ev_port_id, ss.str().c_str());
 
-			if (rte_event_port_link(ev_core_tasks[socket_id].eventdev_id, ev_port_id, queues, NULL, wk_lcores[socket_id].size()) < 0) {
+			if (rte_event_port_link(ev_core_tasks[socket_id].eventdev_id, tx_core_tasks[tx_lcore_id].ev_port_id, queues, NULL, wk_lcores[socket_id].size()) < 0) {
 				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n",
 						ev_core_tasks[socket_id].name, tx_core_tasks[tx_lcore_id].ev_port_id);
 				return ROFL_FAILURE;
