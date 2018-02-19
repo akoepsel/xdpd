@@ -1135,8 +1135,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				rx_core_tasks[rx_lcore_id].rx_queues[index].ev_queue_id = wk_core_tasks[wk_lcore_id].rx_ev_queue_id;
 				rx_core_tasks[rx_lcore_id].nb_rx_queues++;
 
-				XDPD_INFO(DRIVER_NAME"[ifaces][%s] rx-task-%02u => assigning physical port: %u, rxqueue: %u, socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
-						devname.c_str(), rx_lcore_id, port_id, rx_queue_id, socket_id, rx_lcore_id, rte_lcore_to_socket_id(rx_lcore_id), rx_core_tasks[rx_lcore_id].nb_rx_queues);
+				XDPD_INFO(DRIVER_NAME"[ifaces][%s] rx-task-%02u => assigning physical port: %u, rxqueue: %u, socket: %u => wk-task-%02u, ev_queue_id: %u\n",
+						devname.c_str(), rx_lcore_id, port_id, rx_queue_id, socket_id, wk_lcore_id, rx_core_tasks[rx_lcore_id].rx_queues[index].ev_queue_id);
 
 				if (rx_queue_id >= (phyports[port_id].nb_rx_queues - 1)) {
 					break;
@@ -1159,9 +1159,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				tx_core_tasks[tx_lcore_id].tx_queues[index].queue_id = tx_queue_id;
 				tx_core_tasks[tx_lcore_id].tx_queues[index].ev_queue_id = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
 				tx_core_tasks[tx_lcore_id].nb_tx_queues++;
-
-				XDPD_INFO(DRIVER_NAME"[ifaces][%s] tx-task-%02u => assigning physical port: %u, txqueue: %u, socket: %u to lcore: %u on socket: %u, nb_tx_queues: %u\n",
-						devname.c_str(), tx_lcore_id, port_id, tx_queue_id, socket_id, tx_lcore_id, rte_lcore_to_socket_id(tx_lcore_id), tx_core_tasks[tx_lcore_id].nb_tx_queues);
 
 				/*
 				 * RTE tx ring for this port
@@ -1194,14 +1191,15 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					tx_core_tasks[tx_lcore_id].txring_drain_threshold[tx_queue_id] = PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT;
 				}
 
-				XDPD_INFO(DRIVER_NAME"[ifaces][%s] physical port: %u on socket: %u for tx-task-%02u, txring: %s, capacity: %u\n",
-						devname.c_str(), port_id, socket_id, tx_lcore_id, rgname.str().c_str(), tx_core_tasks[tx_lcore_id].txring_drain_queue_capacity[tx_queue_id]);
-
 				/* create RTE ring for queuing packets between workers and tx threads */
 				if ((tx_core_tasks[tx_lcore_id].txring[tx_queue_id] = rte_ring_create(rgname.str().c_str(), tx_core_tasks[tx_lcore_id].txring_drain_queue_capacity[tx_queue_id], socket_id, RING_F_SP_ENQ | RING_F_SC_DEQ)) == NULL) {
 					XDPD_DEBUG(DRIVER_NAME"[ifaces] unable to create tx-ring: %s for queue-id: %u\n", rgname.str().c_str(), tx_queue_id);
 					return ROFL_FAILURE;
 				}
+
+				XDPD_INFO(DRIVER_NAME"[ifaces][%s] tx-task-%02u => assigning physical port: %u, txqueue: %u, socket: %u => wk-task-%02u, ev_queue_id: %u (txring: %s, capacity: %u)\n",
+						devname.c_str(), tx_lcore_id, port_id, tx_queue_id, socket_id, wk_lcore_id, tx_core_tasks[tx_lcore_id].tx_queues[index].ev_queue_id,
+						rgname.str().c_str(), tx_core_tasks[tx_lcore_id].txring_drain_queue_capacity[tx_queue_id]);
 
 				if (tx_queue_id >= (phyports[port_id].nb_tx_queues - 1)) {
 					break;
