@@ -1197,9 +1197,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					return ROFL_FAILURE;
 				}
 
-				XDPD_INFO(DRIVER_NAME"[ifaces][%s] tx-task-%02u => assigning physical port: %u, txqueue: %u, socket: %u => wk-task-%02u, ev_queue_id: %u (txring: %s, capacity: %u)\n",
+				XDPD_INFO(DRIVER_NAME"[ifaces][%s] tx-task-%02u => assigning physical port: %u, txqueue: %u, socket: %u => wk-task-%02u, ev_queue_id: %u (txring: %s, capacity: %u, drain-interval: %u, drain-threshold: %u)\n",
 						devname.c_str(), tx_lcore_id, port_id, tx_queue_id, socket_id, wk_lcore_id, tx_core_tasks[tx_lcore_id].tx_queues[index].ev_queue_id,
-						rgname.str().c_str(), tx_core_tasks[tx_lcore_id].txring_drain_queue_capacity[tx_queue_id]);
+						rgname.str().c_str(), tx_core_tasks[tx_lcore_id].txring_drain_queue_capacity[tx_queue_id], tx_core_tasks[tx_lcore_id].txring_drain_interval[tx_queue_id], tx_core_tasks[tx_lcore_id].txring_drain_threshold[tx_queue_id]);
 
 				if (tx_queue_id >= (phyports[port_id].nb_tx_queues - 1)) {
 					break;
