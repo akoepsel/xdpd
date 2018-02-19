@@ -1135,8 +1135,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				rx_core_tasks[rx_lcore_id].rx_queues[index].ev_queue_id = wk_core_tasks[wk_lcore_id].rx_ev_queue_id;
 				rx_core_tasks[rx_lcore_id].nb_rx_queues++;
 
-				XDPD_INFO(DRIVER_NAME"[ifaces][%s] assigning physical port: %u, rxqueue: %u on socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
-						devname.c_str(), port_id, rx_queue_id, socket_id, rx_lcore_id, rte_lcore_to_socket_id(rx_lcore_id), rx_core_tasks[rx_lcore_id].nb_rx_queues);
+				XDPD_INFO(DRIVER_NAME"[ifaces][%s] rx-task-%02u => assigning physical port: %u, rxqueue: %u, socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
+						devname.c_str(), rx_lcore_id, port_id, rx_queue_id, socket_id, rx_lcore_id, rte_lcore_to_socket_id(rx_lcore_id), rx_core_tasks[rx_lcore_id].nb_rx_queues);
 
 				if (rx_queue_id >= (phyports[port_id].nb_rx_queues - 1)) {
 					break;
@@ -1160,8 +1160,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				tx_core_tasks[tx_lcore_id].tx_queues[index].ev_queue_id = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
 				tx_core_tasks[tx_lcore_id].nb_tx_queues++;
 
-				XDPD_INFO(DRIVER_NAME"[ifaces][%s] assigning physical port: %u, txqueue: %u on socket: %u to lcore: %u on socket: %u, nb_rx_queues: %u\n",
-						devname.c_str(), port_id, tx_queue_id, socket_id, tx_lcore_id, rte_lcore_to_socket_id(tx_lcore_id), tx_core_tasks[tx_lcore_id].nb_tx_queues);
+				XDPD_INFO(DRIVER_NAME"[ifaces][%s] tx-task-%02u => assigning physical port: %u, txqueue: %u, socket: %u to lcore: %u on socket: %u, nb_tx_queues: %u\n",
+						devname.c_str(), tx_lcore_id, port_id, tx_queue_id, socket_id, tx_lcore_id, rte_lcore_to_socket_id(tx_lcore_id), tx_core_tasks[tx_lcore_id].nb_tx_queues);
 
 				/*
 				 * RTE tx ring for this port
@@ -1209,8 +1209,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				tx_queue_id = (tx_queue_id < (phyports[port_id].nb_tx_queues - 1)) ? tx_queue_id + 1 : 0;
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] assigning physical port: %u, txqueue: %u on socket: %u to lcore: %u on socket: %u, nb_tx_queues: %u\n",
-					devname.c_str(), port_id, tx_queue_id, socket_id, tx_lcore_id, rte_lcore_to_socket_id(tx_lcore_id), tx_core_tasks[tx_lcore_id].nb_tx_queues);
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] tx-task-%02u => assigning physical port: %u, txqueue: %u on socket: %u to lcore: %u on socket: %u, nb_tx_queues: %u\n",
+					devname.c_str(), tx_lcore_id, port_id, tx_queue_id, socket_id, tx_lcore_id, rte_lcore_to_socket_id(tx_lcore_id), tx_core_tasks[tx_lcore_id].nb_tx_queues);
 		}
 
 
