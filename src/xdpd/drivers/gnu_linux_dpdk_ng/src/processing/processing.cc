@@ -668,7 +668,7 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			uint8_t queues[1] = {0};
-			queues[1] = wk_core_tasks[wk_lcore_id].rx_ev_queue_id;
+			queues[0] = wk_core_tasks[wk_lcore_id].rx_ev_queue_id;
 
 			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u, rx_ev_queue_id: %2u, tx_ev_queue_id: %2u\n",
 					ev_core_tasks[socket_id].name, wk_lcore_id, wk_core_tasks[wk_lcore_id].ev_port_id, wk_core_tasks[wk_lcore_id].rx_ev_queue_id, wk_core_tasks[wk_lcore_id].tx_ev_queue_id);
