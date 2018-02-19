@@ -1753,6 +1753,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 
 			tx_queue_id++;
+
+			if (tx_queue_id > nb_tx_queues) {
+				XDPD_INFO(DRIVER_NAME"[ifaces][%s] reached maximum number of available txqueues: %u, skipping remaining workers\n", devname.c_str(), nb_tx_queues);
+				break;
+			}
 		}
 
 
@@ -1855,6 +1860,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 
 			rx_queue_id++;
+			if (rx_queue_id > nb_rx_queues) {
+				XDPD_INFO(DRIVER_NAME"[ifaces][%s] reached maximum number of available rxqueues: %u, skipping remaining workers\n", devname.c_str(), nb_rx_queues);
+				break;
+			}
 		}
 	}
 
