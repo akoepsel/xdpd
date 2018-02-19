@@ -1674,7 +1674,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			tx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_free_threshold");
 		}
 
-		for (uint16_t tx_queue_id = 0; tx_queue_id < /*no typo!*/nb_tx_queues; tx_queue_id++) {
+		uint16_t tx_queue_id = 0;
+		for (auto wk_lcore_id : wk_lcores[socket_id]) {
+
 			struct rte_eth_txconf eth_txconf = dev_info.default_txconf;
 			XDPD_INFO(DRIVER_NAME"[ifaces][%s] default txconf on physical port: %u, txqueue: %u on socket: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: 0x%x\n",
 					devname.c_str(), port_id, tx_queue_id, socket_id,
@@ -1735,8 +1737,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] configuring txqueue on physical port: %u, txqueue: %u on socket: %u, nb_tx_desc: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: 0x%x\n",
-					devname.c_str(), port_id, tx_queue_id, socket_id, nb_tx_desc,
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] mapping txqueue: %u to wk lcore: %u, configuring txqueue on physical port: %u, txqueue: %u on socket: %u, nb_tx_desc: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: 0x%x\n",
+					devname.c_str(), tx_queue_id, wk_lcore_id, port_id, tx_queue_id, socket_id, nb_tx_desc,
 					eth_txconf.tx_thresh.pthresh,
 					eth_txconf.tx_thresh.hthresh,
 					eth_txconf.tx_thresh.wthresh,
@@ -1749,6 +1751,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				XDPD_ERR(DRIVER_NAME" Failed to configure port: %u tx-queue: %u, aborting\n", port_id, tx_queue_id);
 				return ROFL_FAILURE;
 			}
+
+			tx_queue_id++;
 		}
 
 
@@ -1778,7 +1782,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			rx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_free_threshold");
 		}
 
-		for (uint16_t rx_queue_id = 0; rx_queue_id < nb_rx_queues; rx_queue_id++) {
+
+		uint16_t rx_queue_id = 0;
+		for (auto wk_lcore_id : wk_lcores[socket_id]) {
+
 			struct rte_eth_rxconf eth_rxconf = dev_info.default_rxconf;
 			XDPD_INFO(DRIVER_NAME"[ifaces][%s] default rxconf on physical port: %u, rxqueue: %u on socket: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: 0x%x\n",
 					devname.c_str(), port_id, rx_queue_id, socket_id,
@@ -1833,8 +1840,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] configuring rxqueue on physical port: %u, rxqueue: %u on socket: %u, nb_rx_desc: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: 0x%x\n",
-					devname.c_str(), port_id, rx_queue_id, socket_id, nb_rx_desc,
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] mapping rxqueue: %u to wk lcore: %u, configuring rxqueue on physical port: %u, rxqueue: %u on socket: %u, nb_rx_desc: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: 0x%x\n",
+					devname.c_str(), rx_queue_id, wk_lcore_id, port_id, rx_queue_id, socket_id, nb_rx_desc,
 					eth_rxconf.rx_thresh.pthresh,
 					eth_rxconf.rx_thresh.hthresh,
 					eth_rxconf.rx_thresh.wthresh,
@@ -1842,10 +1849,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					eth_rxconf.offloads);
 
 			//configure rxqueue, here rx_queue_id also refers to a dedicated memory pool, which is served by a single worker lcore
-			if (rte_eth_rx_queue_setup(port_id, rx_queue_id, nb_rx_desc, socket_id, &eth_rxconf, mempool_per_task[rx_queue_id].pool_direct) < 0) {
+			if (rte_eth_rx_queue_setup(port_id, rx_queue_id, nb_rx_desc, socket_id, &eth_rxconf, mempool_per_task[wk_lcore_id].pool_direct) < 0) {
 				XDPD_ERR(DRIVER_NAME" failed to configure port: %u rx-queue: %u, aborting\n", port_id, rx_queue_id);
 				return ROFL_FAILURE;
 			}
+
+			rx_queue_id++;
 		}
 	}
 
