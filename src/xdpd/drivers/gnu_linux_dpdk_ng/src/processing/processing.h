@@ -171,6 +171,42 @@ typedef struct wk_core_task {
 	/* event queue-id for sending events to TX tasks */
 	uint8_t tx_ev_queue_id;
 
+	/* Idea:
+	 * We have a number of worker lcores on this NUMA socket. Each worker lcore has assigned
+	 * a port/queue pair on all ethernet devices with a dedicated mempool. We forward packets
+	 * received on this port/queue to a single worker lcore to avoid invalidation of memory
+	 * caches.
+	 */
+
+	/*
+	 * receiving from ethdevs
+	 */
+	rx_ethdev_port_queue_t rx_queues[RTE_MAX_QUEUES_PER_PORT];  // (port_id, queue_id) = rx_queues[i] for i in (0...RTE_MAX_ETHPORTS-1)
+	uint16_t nb_rx_queues; // number of valid fields in rx_queues (0, nb_rx_queues-1)
+
+	/*
+	 * transmitting to ethdevs
+	 */
+	/* queue-id to be used by this task for given port-id */
+	tx_ethdev_port_queue_t tx_queues[RTE_MAX_QUEUES_PER_PORT]; // tx_queues[ev_queue_id] => bound to event queues
+	uint16_t nb_tx_queues; // number of valid fields in tx_queues (0, nb_tx_queues-1)
+
+	/*
+	 * drain queues per port
+	 */
+	/* queues per port for storing packets before initiating tx-burst to eth-dev */
+	struct rte_ring *txring[RTE_MAX_ETHPORTS];
+
+	/* maximum number of packets allowed in queue before initiating tx-burst for port */
+	unsigned int txring_drain_threshold[RTE_MAX_ETHPORTS];
+	/* maximum packet capacity in drain queue */
+	unsigned int txring_drain_queue_capacity[RTE_MAX_ETHPORTS];
+
+	/* maximum time interval before initiating next tx-burst for port */
+	uint64_t txring_drain_interval[RTE_MAX_ETHPORTS];
+	/* timestamp of last tx-burst */
+	uint64_t txring_last_tx_time[RTE_MAX_ETHPORTS];
+
 } __rte_cache_aligned wk_core_task_t;
 
 
@@ -198,9 +234,9 @@ typedef struct ev_core_task {
 * Processing tasks: receive, transmit, worker
 */
 /* rx tasks */
-extern rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
+//extern rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
 /* tx tasks */
-extern tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
+//extern tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
 /* wk tasks */
 extern wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
 /* ev tasks */
@@ -319,6 +355,11 @@ int processing_packet_reception(void*);
  * TX packet transmission
  */
 int processing_packet_transmission(void*);
+
+/**
+* Packet processing routine for cores
+*/
+int processing_packet_pipeline_processing_v2(void*);
 
 /**
 * Dump core state
