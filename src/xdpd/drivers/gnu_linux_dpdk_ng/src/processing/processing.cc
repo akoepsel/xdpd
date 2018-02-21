@@ -54,6 +54,8 @@ bool rxtask_dropping = false;
 bool wktask_dropping = false;
 /* testing: drop all ethernet frames received in evt-burst */
 bool txtask_dropping = false;
+/* testing: lock port_list in wk task */
+bool port_list_rwlocking = true;
 
 /* rwlock for eventdev port used by control plane threads */
 rte_rwlock_t rwlock_eventdev_cp_port;
@@ -259,6 +261,12 @@ rofl_result_t processing_init_lcores(void){
 	}
 	XDPD_INFO(DRIVER_NAME"[processing][init][testing] wktask_dropping=%u\n", wktask_dropping);
 
+	/* enable rwlock on port_list */
+	YAML::Node port_list_rwlocking_node = y_config_dpdk_ng["dpdk"]["testing"]["port_list_rwlocking"];
+	if (port_list_rwlocking_node && port_list_rwlocking_node.IsScalar()) {
+		port_list_rwlocking = port_list_rwlocking_node.as<bool>();
+	}
+	XDPD_INFO(DRIVER_NAME"[processing][init][testing] port_list_rwlocking=%u\n", port_list_rwlocking);
 
 	/* detect all lcores and their state */
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
@@ -1683,14 +1691,24 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 					rte_prefetch0(&rx_pkts[i]->udata64);
 					in_port_id = (uint32_t)(rx_pkts[i]->udata64 & 0x00000000ffffffff);
 
-					rte_rwlock_read_lock(&port_list_rwlock);
-					if ((port = port_list[in_port_id]) == NULL) {
+					/* get incoming port_list structure */
+					if (port_list_rwlocking) {
+						rte_rwlock_read_lock(&port_list_rwlock);
+						if ((port = port_list[in_port_id]) == NULL) {
+							rte_rwlock_read_unlock(&port_list_rwlock);
+							rte_pktmbuf_free(rx_pkts[i]);
+							rx_pkts[i] = NULL;
+							continue;
+						}
 						rte_rwlock_read_unlock(&port_list_rwlock);
-						rte_pktmbuf_free(rx_pkts[i]);
-						rx_pkts[i] = NULL;
-						continue;
+					} else {
+						if ((port = port_list[in_port_id]) == NULL) {
+							rte_pktmbuf_free(rx_pkts[i]);
+							rx_pkts[i] = NULL;
+							continue;
+						}
 					}
-					rte_rwlock_read_unlock(&port_list_rwlock);
+
 					ps = (dpdk_port_state_t *)port->platform_port_state;
 
 					/* set outgoing port_id */
