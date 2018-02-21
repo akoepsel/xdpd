@@ -1675,18 +1675,23 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 					lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx, task->ev_port_id);
 #endif
 
+
+			/* testing */
+			if (rxtask_dropping) {
+				for (i = 0; i < nb_rx; i++) {
+					if (likely(rx_pkts[i] == NULL)) {
+						rte_pktmbuf_free(rx_pkts[i]);
+					}
+				}
+				continue;
+			}
+
 			if (pipeline_shortcut){
 
 				for (i = 0; i < nb_rx; i++) {
 
 					/* process mbuf */
 					if (unlikely(rx_pkts[i] == NULL)) {
-						continue;
-					}
-
-					/* testing */
-					if (rxtask_dropping) {
-						rte_pktmbuf_free(rx_pkts[i]);
 						continue;
 					}
 
@@ -1724,12 +1729,6 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 						RTE_LOG(WARNING, XDPD, "wk-task-%u.%02u: no txring allocated on port %u, dropping packet, internal error, task->stats.bugs_dropped=%" PRIu64 "\n",
 								socket_id, lcore_id, out_port_id, task->stats.bugs_dropped);
 #endif
-						rte_pktmbuf_free(rx_pkts[i]);
-						continue;
-					}
-
-					/* testing */
-					if (wktask_dropping) {
 						rte_pktmbuf_free(rx_pkts[i]);
 						continue;
 					}
