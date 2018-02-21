@@ -1679,7 +1679,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			/* testing */
 			if (rxtask_dropping) {
 				for (i = 0; i < nb_rx; i++) {
-					if (likely(rx_pkts[i] == NULL)) {
+					if (likely(rx_pkts[i] != NULL)) {
 						rte_pktmbuf_free(rx_pkts[i]);
 					}
 				}
