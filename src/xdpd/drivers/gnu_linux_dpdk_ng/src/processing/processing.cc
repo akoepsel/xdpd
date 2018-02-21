@@ -1612,19 +1612,19 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 
 	XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: started\n", socket_id, lcore_id);
 
-	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; port_id++) {
-		uint8_t queue_id = task->rx_queues[port_id].queue_id;
-		bool up = task->rx_queues[port_id].up;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: receiving from port: %u, queue: %u, up: %u\n", socket_id, lcore_id, port_id, queue_id, up);
+	for (unsigned int index = 0; index < task->nb_rx_queues; index++) {
+		uint8_t queue_id = task->rx_queues[index].queue_id;
+		bool up = task->rx_queues[index].up;
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: receiving from port: %u, queue: %u, up: %u\n", socket_id, lcore_id, index, queue_id, up);
 	}
 
-	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; port_id++) {
-		if (not task->tx_queues[port_id].enabled){
+	for (unsigned int index = 0; index < task->nb_tx_queues; index++) {
+		if (not task->tx_queues[index].enabled){
 			continue;
 		}
-		uint8_t queue_id = task->tx_queues[port_id].queue_id;
-		bool up = task->tx_queues[port_id].up;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: sending via port: %u, queue: %u, up: %u\n", socket_id, lcore_id, port_id, queue_id, up);
+		uint8_t queue_id = task->tx_queues[index].queue_id;
+		bool up = task->tx_queues[index].up;
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: sending via port: %u, queue: %u, up: %u\n", socket_id, lcore_id, index, queue_id, up);
 	}
 
 	/* initialize port related parameters */
