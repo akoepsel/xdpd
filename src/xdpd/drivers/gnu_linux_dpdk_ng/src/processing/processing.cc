@@ -1243,11 +1243,11 @@ int processing_packet_pipeline_processing(void* not_used){
 				rx_events[i].event_type = RTE_EVENT_TYPE_CPU;
 				rx_events[i].sub_event_type = 0;
 				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
-#endif
 				if (likely(rx_events[i].mbuf)) {
-					rte_pktmbuf_free(rx_events[i].mbuf);
-				}
+#endif
+				rte_pktmbuf_free(rx_events[i].mbuf);
 #if 0
+				}
 				rx_events[i].mbuf = NULL;
 #endif
 			}
@@ -1288,6 +1288,7 @@ int processing_packet_pipeline_processing(void* not_used){
 			}
 			nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
 			task->stats.tx_evts += nb_tx;
+
 		} else {
 			for (i = 0; i < nb_rx; i++) {
 
