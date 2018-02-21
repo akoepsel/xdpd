@@ -1613,6 +1613,12 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 	XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: started\n", socket_id, lcore_id);
 
 	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; port_id++) {
+		uint8_t queue_id = task->rx_queues[port_id].queue_id;
+		bool up = task->rx_queues[port_id].up;
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: receiving from port: %u, queue: %u, up: %u\n", socket_id, lcore_id, port_id, queue_id, up);
+	}
+
+	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; port_id++) {
 		if (not task->tx_queues[port_id].enabled){
 			continue;
 		}
@@ -1717,8 +1723,10 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 					/* FIFO queue for outgoing port must exist */
 					if (unlikely(task->txring[out_port_id] == NULL)) {
 						task->stats.bugs_dropped++;
+#if 0
 						RTE_LOG(WARNING, XDPD, "wk-task-%u.%02u: no txring allocated on port %u, dropping packet, internal error, task->stats.bugs_dropped=%" PRIu64 "\n",
 								socket_id, lcore_id, out_port_id, task->stats.bugs_dropped);
+#endif
 						rte_pktmbuf_free(rx_pkts[i]);
 						continue;
 					}
