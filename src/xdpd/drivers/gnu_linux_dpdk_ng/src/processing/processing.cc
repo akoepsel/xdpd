@@ -1619,9 +1619,6 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 	}
 
 	for (unsigned int index = 0; index < task->nb_tx_queues; index++) {
-		if (not task->tx_queues[index].enabled){
-			continue;
-		}
 		uint8_t queue_id = task->tx_queues[index].queue_id;
 		bool up = task->tx_queues[index].up;
 		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: sending via port: %u, queue: %u, up: %u\n", socket_id, lcore_id, index, queue_id, up);
