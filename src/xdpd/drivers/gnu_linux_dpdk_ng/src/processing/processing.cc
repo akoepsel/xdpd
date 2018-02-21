@@ -859,17 +859,19 @@ rofl_result_t processing_run(void){
 	for (auto socket_id : numa_nodes) {
 
 		/* start service cores */
-		for (auto lcore_id : ev_lcores[socket_id]) {
-			XDPD_INFO(DRIVER_NAME"[processing][run] starting  service lcore %2u  on socket %u\n", lcore_id, socket_id);
-			if ((ret = rte_service_lcore_start(lcore_id)) < 0) {
-				switch (ret) {
-				case -EALREADY: {
-					XDPD_ERR(DRIVER_NAME"[processing][run] start of service lcore %u on socket %u failed (EALREADY)\n", lcore_id, socket_id);
-					/* do nothing */
-				} break;
-				default: {
-					XDPD_ERR(DRIVER_NAME"[processing][run] start of service lcore %u on socket %u failed\n", lcore_id, socket_id);
-				} return ROFL_FAILURE;
+		if (eventdev_shortcut == false) {
+			for (auto lcore_id : ev_lcores[socket_id]) {
+				XDPD_INFO(DRIVER_NAME"[processing][run] starting  service lcore %2u  on socket %u\n", lcore_id, socket_id);
+				if ((ret = rte_service_lcore_start(lcore_id)) < 0) {
+					switch (ret) {
+					case -EALREADY: {
+						XDPD_ERR(DRIVER_NAME"[processing][run] start of service lcore %u on socket %u failed (EALREADY)\n", lcore_id, socket_id);
+						/* do nothing */
+					} break;
+					default: {
+						XDPD_ERR(DRIVER_NAME"[processing][run] start of service lcore %u on socket %u failed\n", lcore_id, socket_id);
+					} return ROFL_FAILURE;
+					}
 				}
 			}
 		}
@@ -1039,17 +1041,19 @@ rofl_result_t processing_shutdown(void){
 		}
 
 		/* stop service cores */
-		for (auto lcore_id : ev_lcores[socket_id]) {
-			XDPD_INFO(DRIVER_NAME"[processing][shutdown] shutting down service lcore %2u on socket %u\n", lcore_id, socket_id);
+		if (eventdev_shortcut == false) {
+			for (auto lcore_id : ev_lcores[socket_id]) {
+				XDPD_INFO(DRIVER_NAME"[processing][shutdown] shutting down service lcore %2u on socket %u\n", lcore_id, socket_id);
 
-			if ((ret = rte_service_lcore_stop(lcore_id)) < 0) {
-				switch (ret) {
-				case -EALREADY: {
-					/* do nothing */
-				} break;
-				default: {
-					XDPD_ERR(DRIVER_NAME"[processing] stop of service lcore %u failed\n", socket_id);
-				};
+				if ((ret = rte_service_lcore_stop(lcore_id)) < 0) {
+					switch (ret) {
+					case -EALREADY: {
+						/* do nothing */
+					} break;
+					default: {
+						XDPD_ERR(DRIVER_NAME"[processing] stop of service lcore %u failed\n", socket_id);
+					};
+					}
 				}
 			}
 		}
