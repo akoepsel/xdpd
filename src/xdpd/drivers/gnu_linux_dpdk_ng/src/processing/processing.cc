@@ -1409,6 +1409,7 @@ void processing_update_stats(void)
 }
 
 
+inline
 void l2fwd_swap_ether_addrs(struct rte_mbuf *m) {
 	struct ether_hdr *eth = rte_pktmbuf_mtod(m, struct ether_hdr *);
 	struct ether_addr tmp_addr;
