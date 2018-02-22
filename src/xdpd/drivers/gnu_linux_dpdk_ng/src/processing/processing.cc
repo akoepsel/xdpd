@@ -963,7 +963,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 				continue;
 			}
 
-			RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => port: %u, queue: %u => rcvd %u pkts\n", rte_lcore_to_socket_id(rte_lcore_id()), rte_lcore_id(), port_id, queue_id);
+			RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => port: %u, queue: %u => rcvd %u pkts\n", (unsigned int)rte_lcore_to_socket_id(rte_lcore_id()), rte_lcore_id(), port_id, queue_id);
 
 			in_port_id = port_id = task->rx_queues[index].port_id;
 
