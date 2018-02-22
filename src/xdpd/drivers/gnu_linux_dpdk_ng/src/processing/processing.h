@@ -50,6 +50,16 @@ typedef struct tx_ethdev_port_queue {
 	uint8_t queue_id;
 	/* associated worker lcore (=ev_queue_id) */
 	uint8_t ev_queue_id;
+	/* auxiliary structure to configure a tx_buffer in an ethdev queue */
+	struct rte_eth_dev_tx_buffer* tx_buffer;
+	/* maximum number of packets allowed in queue before initiating tx-burst for port */
+	unsigned int txring_drain_threshold;
+	/* maximum packet capacity in drain queue */
+	unsigned int txring_drain_queue_capacity;
+	/* maximum time interval before initiating next tx-burst for port */
+	uint64_t txring_drain_interval;
+	/* timestamp of last tx-burst */
+	uint64_t txring_last_tx_time;
 } __rte_cache_aligned tx_ethdev_port_queue_t;
 
 #if 0
@@ -188,24 +198,7 @@ typedef struct wk_core_task {
 	 * transmitting to ethdevs
 	 */
 	/* queue-id to be used by this task for given port-id */
-	tx_ethdev_port_queue_t tx_queues[RTE_MAX_QUEUES_PER_PORT]; // tx_queues[ev_queue_id] => bound to event queues
-	uint16_t nb_tx_queues; // number of valid fields in tx_queues (0, nb_tx_queues-1)
-
-	/*
-	 * drain queues per port
-	 */
-	/* queues per port for storing packets before initiating tx-burst to eth-dev */
-	struct rte_ring *txring[RTE_MAX_ETHPORTS];
-
-	/* maximum number of packets allowed in queue before initiating tx-burst for port */
-	unsigned int txring_drain_threshold[RTE_MAX_ETHPORTS];
-	/* maximum packet capacity in drain queue */
-	unsigned int txring_drain_queue_capacity[RTE_MAX_ETHPORTS];
-
-	/* maximum time interval before initiating next tx-burst for port */
-	uint64_t txring_drain_interval[RTE_MAX_ETHPORTS];
-	/* timestamp of last tx-burst */
-	uint64_t txring_last_tx_time[RTE_MAX_ETHPORTS];
+	tx_ethdev_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // tx_queues[ev_queue_id] => bound to event queues
 
 } __rte_cache_aligned wk_core_task_t;
 
@@ -279,6 +272,11 @@ extern unsigned int running_hash;
 
 //C++ extern C
 ROFL_BEGIN_DECLS
+
+/**
+ * tx_error callback for tx_buffer
+ */
+void processing_buffer_tx_error_cb(struct rte_mbuf **unsent, uint16_t count, void *userdata);
 
 /**
 * Initialize data structures for lcores

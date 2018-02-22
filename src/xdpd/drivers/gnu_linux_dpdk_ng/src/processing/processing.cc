@@ -109,6 +109,19 @@ static uint64_t tx_coremask = 0x0008; // lcore_id = 3
 static uint64_t wk_coremask = 0x000c; // lcore_id = 4
 
 
+
+/**
+ * tx_error callback for tx_buffer
+ */
+void processing_buffer_tx_error_cb(struct rte_mbuf **unsent, uint16_t count, void *userdata) {
+	wk_core_task_t* task = (wk_core_task_t*)(userdata);
+	RTE_SET_USED(task);
+	for (unsigned int i = 0; i < count; i++) {
+		rte_pktmbuf_free(unsent[i]);
+	}
+}
+
+
 /*
 * Initialize data structures for lcores
 */
@@ -1587,13 +1600,10 @@ int processing_packet_transmission(void* not_used){
  */
 int processing_packet_pipeline_processing_v2(void* not_used){
 
-	unsigned int i, index, lcore_id = rte_lcore_id();
-	unsigned int nb_elems, nb_elems_remaining;
+	unsigned int i, index = 0, lcore_id = rte_lcore_id();
 	int socket_id = rte_lcore_to_socket_id(lcore_id);
-	int ret;
 
 	struct rte_mbuf* rx_pkts[max_eth_rx_burst_size];
-	struct rte_mbuf* tx_pkts[max_eth_tx_burst_size];
 	uint16_t nb_rx, nb_tx;
 
 	wk_core_task_t* task = &wk_core_tasks[lcore_id];
@@ -1616,23 +1626,19 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 
 	XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: started\n", socket_id, lcore_id);
 
+	cur_tsc = rte_get_tsc_cycles();
+
 	for (unsigned int index = 0; index < task->nb_rx_queues; index++) {
 		uint8_t queue_id = task->rx_queues[index].queue_id;
 		bool up = task->rx_queues[index].up;
 		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: receiving from port: %u, queue: %u, up: %u\n", socket_id, lcore_id, index, queue_id, up);
 	}
 
-	for (unsigned int index = 0; index < task->nb_tx_queues; index++) {
-		uint8_t queue_id = task->tx_queues[index].queue_id;
-		bool up = task->tx_queues[index].up;
+	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; port_id++) {
+		uint8_t queue_id = task->tx_queues[port_id].queue_id;
+		bool up = task->tx_queues[port_id].up;
 		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u:    sending via port: %u, queue: %u, up: %u\n", socket_id, lcore_id, index, queue_id, up);
-	}
-
-	/* initialize port related parameters */
-	cur_tsc = rte_get_tsc_cycles();
-	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id){
-		/* set txring-last-tx-time for each port to current time */
-		task->txring_last_tx_time[port_id] = cur_tsc;
+		task->tx_queues[port_id].txring_last_tx_time = cur_tsc;
 	}
 
 	//Set flag to active
@@ -1726,36 +1732,17 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 					/* set outgoing port_id */
 					out_port_id = (uint64_t)(phyports[ps->port_id].shortcut_port_id);
 
-					/* FIFO queue for outgoing port must exist */
-					if (unlikely(task->txring[out_port_id] == NULL)) {
-						task->stats.bugs_dropped++;
-#if 0
-						RTE_LOG(WARNING, XDPD, "wk-task-%u.%02u: no txring allocated on port %u, dropping packet, internal error, task->stats.bugs_dropped=%" PRIu64 "\n",
-								socket_id, lcore_id, out_port_id, task->stats.bugs_dropped);
-#endif
+					if (not task->tx_queues[out_port_id].enabled || not task->tx_queues[out_port_id].up) {
 						rte_pktmbuf_free(rx_pkts[i]);
 						continue;
 					}
 
-					/* store mbuf in FIFO queue assigned to outgoing port */
-					if ((ret = rte_ring_enqueue(task->txring[out_port_id], rx_pkts[i])) < 0) {
-						switch (ret) {
-						case -ENOBUFS: {
-							task->stats.ring_dropped++;
-							RTE_LOG(WARNING, XDPD, "wk-task-%u.%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet, task->stats.ring_dropped=%" PRIu64 "\n",
-									socket_id, lcore_id, i, out_port_id, task->stats.ring_dropped);
-							rte_pktmbuf_free(rx_pkts[i]);
-							continue;
-						} break;
-						default: {
-							task->stats.ring_dropped++;
-							RTE_LOG(WARNING, XDPD, "wk-task-%u.%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet, task->stats.ring_dropped=%" PRIu64 "\n",
-									socket_id, lcore_id, i, out_port_id, task->stats.ring_dropped);
-							rte_pktmbuf_free(rx_pkts[i]);
-							continue;
-						};
-						}
-					}
+					/* returns number of flushed packets */
+					nb_tx = rte_eth_tx_buffer(out_port_id, task->tx_queues[out_port_id].queue_id, task->tx_queues[out_port_id].tx_buffer, rx_pkts[i]);
+
+					/* update statistics */
+					task->stats.tx_pkts+=nb_tx;
+
 #if 0
 					RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, port %u => txring size %u\n",
 							lcore_id, socket_id, out_port_id, rte_ring_count(task->txring[out_port_id]));
@@ -1805,65 +1792,38 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 				continue;
 			}
 
-			/* get number of packets stored in txring */
-			if (unlikely((nb_elems=rte_ring_count(task->txring[port_id]))==0)){
-				continue;
-			}
-
 			cur_tsc = rte_get_tsc_cycles();
 
 			/* if the number of pending packets is lower than txring_drain_threshold or
 			 * less time than txring_drain_interval cycles elapsed since
 			 * last transmission, skip the port for now and wait for more packets
 			 * to arrive in the port's txring queue */
-			if (/*(nb_elems < rte_ring_get_capacity(task->txring[port_id])) &&*/
-				(nb_elems < task->txring_drain_threshold[port_id]) &&
-				(cur_tsc < (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]))) {
+			if (cur_tsc < (task->tx_queues[port_id].txring_last_tx_time + task->tx_queues[port_id].txring_drain_interval)) {
 				continue;
 			}
 
 #ifdef DEBUG
-			if (nb_elems >= task->txring_drain_threshold[port_id]){
-				RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, draining port %u => txring size: %u exceeds txring-drain-threshold: %u, starting tx-eth-burst\n",
-						lcore_id, socket_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
-			}
-			if (cur_tsc >= (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id])){
+			if (cur_tsc >= (task->tx_queues[port_id].txring_last_tx_time + task->tx_queues[port_id].txring_drain_interval)){
 				RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, draining port %u => elapsed time %lfus exceeds txring-drain-interval: %lfms, starting tx-eth-burst\n",
 										lcore_id, socket_id, port_id,
-										((double)(cur_tsc - task->txring_last_tx_time[port_id]) / rte_get_timer_hz()) * 1e6,
-										((double)(task->txring_drain_interval[port_id]) / rte_get_timer_hz()) * 1e6);
+										((double)(cur_tsc - task->tx_queues[port_id].txring_last_tx_time) / rte_get_timer_hz()) * 1e6,
+										((double)(task->tx_queues[port_id].txring_drain_interval) / rte_get_timer_hz()) * 1e6);
 			}
 #endif
 
-			/* get mbufs from txring */
-			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)tx_pkts,
-								RTE_MIN(nb_elems, (unsigned int)max_eth_tx_burst_size), &nb_elems_remaining);
+			/* returns number of flushed packets */
+			nb_tx = rte_eth_tx_buffer_flush(port_id, task->tx_queues[port_id].queue_id, task->tx_queues[port_id].tx_buffer);
 
-			/* no elements in txring */
-			if (unlikely(nb_elems==0)) {
-				continue;
-			}
-
-			/* send tx-burst */
-			nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, tx_pkts, nb_elems);
-
+			/* update statistics */
 			task->stats.tx_pkts+=nb_tx;
 
-			/* adjust timestamp */
-			task->txring_last_tx_time[port_id] = cur_tsc;
-
-			/* if all packets have been sent, goto next port */
-			if (likely(nb_tx==nb_elems)) {
+			/* no packet was flushed */
+			if (unlikely(nb_tx==0)) {
 				continue;
 			}
 
-			/* otherwise, release any unsent packets */
-			task->stats.eths_dropped+=(nb_elems-nb_tx);
-			for(i = nb_tx; i < nb_elems; i++) {
-				rte_pktmbuf_free(tx_pkts[i]);
-			}
-			RTE_LOG(WARNING, XDPD, "wk-task-%02u: on socket %u, enqueued %u pkt(s) to eth_port_id=%u (tx-eth-burst), dropping %u pkt(s), remaining txring size: %u, task->stats.eths_dropped=%" PRIu64 "\n",
-					lcore_id, socket_id, nb_elems, port_id, nb_elems-nb_tx, rte_ring_count(task->txring[port_id]), task->stats.eths_dropped);
+			/* adjust timestamp */
+			task->tx_queues[port_id].txring_last_tx_time = cur_tsc;
 		}
 
 	}
