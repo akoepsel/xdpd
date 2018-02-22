@@ -58,7 +58,7 @@ bool txtask_dropping = false;
 bool port_list_rwlocking = true;
 
 /* rwlock for eventdev port used by control plane threads */
-rte_rwlock_t rwlock_eventdev_cp_port;
+rte_rwlock_t eventdev_port_ctrl_plane_rwlock;
 
 const std::string eventdev_args_default("sched_quanta=64,credit_quanta=32");
 
@@ -76,10 +76,7 @@ rte_rwlock_t port_list_rwlock;
 /*
  * lcore task structures
  */
-/* tasks running on RX lcores */
-rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
-/* tasks running on TX lcores */
-tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
+
 /* tasks running on worker lcores */
 wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
 /* tasks running on event lcores */
@@ -333,27 +330,15 @@ rofl_result_t processing_init_lcores(void){
 					}
 				}
 				lcores[lcore_id].is_ev_lcore = 1;
+				ev_core_tasks[lcore_id].available = true;
 				//Increase number of service lcores for this socket
 				ev_lcores[socket_id].insert(lcore_id);
 				s_task.assign("service lcore");
 			} else
-			//rx lcore (=packet receiving lcore)
-			if (rx_coremask & ((uint64_t)1 << lcore_id)) {
-				lcores[lcore_id].is_rx_lcore = 1;
-				//Increase number of RX lcores for this socket
-				rx_lcores[socket_id].insert(lcore_id);
-				s_task.assign("rx lcore");
-			} else
-			//tx lcore (=packet transmitting lcore)
-			if (tx_coremask & ((uint64_t)1 << lcore_id)) {
-				lcores[lcore_id].is_tx_lcore = 1;
-				//Increase number of TX lcores for this socket
-				tx_lcores[socket_id].insert(lcore_id);
-				s_task.assign("tx lcore");
-			} else
 			//wk lcore (=worker running openflow pipeline)
 			if (wk_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_wk_lcore = 1;
+				wk_core_tasks[lcore_id].available = true;
 				//Increase number of worker lcores for this socket
 				wk_lcores[socket_id].insert(lcore_id);
 				s_task.assign("wk lcore");
@@ -388,43 +373,6 @@ rofl_result_t processing_init_lcores(void){
 	return ROFL_SUCCESS;
 }
 
-/**
-* Allocate memory
-*/
-rofl_result_t processing_init_task_structures(void) {
-
-	//Define available cores
-	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
-		enum rte_lcore_role_t role = rte_eal_lcore_role(lcore_id);
-		if(role == ROLE_RTE){
-
-			if (lcores[lcore_id].is_master){
-				continue;
-			}
-			if (lcores[lcore_id].is_ev_lcore) {
-				ev_core_tasks[lcore_id].available = true;
-				continue;
-			}
-			if (lcores[lcore_id].is_wk_lcore) {
-				wk_core_tasks[lcore_id].available = true;
-				continue;
-			}
-			if (lcores[lcore_id].is_tx_lcore) {
-				tx_core_tasks[lcore_id].available = true;
-				continue;
-			}
-			if (lcores[lcore_id].is_rx_lcore) {
-				rx_core_tasks[lcore_id].available = true;
-				continue;
-			}
-
-			//XDPD_DEBUG(DRIVER_NAME"[processing][init] marking core %u as available\n", lcore_id);
-		}
-	}
-
-	return ROFL_SUCCESS;
-}
-
 /*
 * Initialize data structures for RTE event device
 */
@@ -432,7 +380,7 @@ rofl_result_t processing_init_eventdev(void){
 
 	int ret;
 
-	rte_rwlock_init(&rwlock_eventdev_cp_port);
+	rte_rwlock_init(&eventdev_port_ctrl_plane_rwlock);
 
 	for (auto socket_id : numa_nodes) {
 		/*
@@ -499,12 +447,9 @@ rofl_result_t processing_init_eventdev(void){
 		memset(&ev_core_tasks[socket_id].eventdev_conf, 0, sizeof(ev_core_tasks[socket_id].eventdev_conf));
 
 		//number of event queues: number of RX tasks + number of WK tasks + number of control plane tasks
-		ev_core_tasks[socket_id].eventdev_conf.nb_event_queues = 2 * wk_lcores[socket_id].size(); /* a pair of queues for each worker: RX => WK => TX */
-		ev_core_tasks[socket_id].eventdev_conf.nb_event_ports = 0
-										+ rx_lcores[socket_id].size() /* number of all RX lcores on NUMA node socket_id */
-										+ wk_lcores[socket_id].size() /* number of all WK lcores on NUMA node socket_id */
-										+ tx_lcores[socket_id].size() /* number of all TX lcores on NUMA node socket_id */
-										+ 1;/* port_id=0 is reserved for Packet-Out from control plane */
+		ev_core_tasks[socket_id].eventdev_conf.nb_event_queues = 1; /* a single event queue for sending packets from the control plane */
+		ev_core_tasks[socket_id].eventdev_conf.nb_event_ports  = 1  /* port_id=0 is reserved for Packet-Out from control plane */
+									 + wk_lcores[socket_id].size(); /* number of all WK lcores on NUMA node socket_id */
 
 		if (ev_core_tasks[socket_id].eventdev_conf.nb_event_ports > ev_core_tasks[socket_id].eventdev_info.max_event_ports) {
 			XDPD_ERR(DRIVER_NAME"[processing][init][evdev] initialization of eventdev %s failed, too many event ports required\n", ev_core_tasks[socket_id].name);
@@ -607,8 +552,8 @@ rofl_result_t processing_init_eventdev(void){
 
 
 		/* map event ports/queues for RX/WK lcores */
-		uint8_t ev_port_id = 0;
-		uint8_t ev_queue_id = 0;
+		uint8_t ev_port_id = 0;  // = EVENT_PORT_CTRL_PLANE
+		uint8_t ev_queue_id = 0; // = EVENT_QUEUE_CTRL_PLANE
 		{
 			/*
 			 * configure event port #0 and event queue #0 for control plane to send frames initiated by Packet-Out
@@ -634,36 +579,6 @@ rofl_result_t processing_init_eventdev(void){
 		}
 
 		/*
-		 * assign event ports to RX tasks
-		 */
-		for (auto rx_lcore_id : rx_lcores[socket_id]) {
-			if (not lcores[rx_lcore_id].is_rx_lcore) {
-				continue;
-			}
-
-			/* RX core(s) do not receive from an event queue */
-			rx_core_tasks[rx_lcore_id].socket_id = socket_id;
-			rx_core_tasks[rx_lcore_id].ev_port_id = ev_port_id++;
-
-			struct rte_event_port_conf port_conf;
-			memset(&port_conf, 0, sizeof(port_conf));
-			port_conf.dequeue_depth = ev_core_tasks[socket_id].eventdev_conf.nb_event_port_dequeue_depth;
-			port_conf.enqueue_depth = ev_core_tasks[socket_id].eventdev_conf.nb_event_port_enqueue_depth;
-			port_conf.new_event_threshold = ev_core_tasks[socket_id].eventdev_conf.nb_events_limit;
-			port_conf.disable_implicit_release = 0;
-
-			if (rte_event_port_setup(ev_core_tasks[socket_id].eventdev_id, rx_core_tasks[rx_lcore_id].ev_port_id, &port_conf) < 0) {
-				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n",
-						ev_core_tasks[socket_id].name, rx_core_tasks[rx_lcore_id].ev_port_id);
-				return ROFL_FAILURE;
-			}
-
-			/* no event queue/port linking for RX cores */
-			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, rx-task-%02u, ev_port_id: %2u\n",
-					ev_core_tasks[socket_id].name, rx_lcore_id, rx_core_tasks[rx_lcore_id].ev_port_id);
-		}
-
-		/*
 		 * assign event ports to WK tasks
 		 */
 		for (auto wk_lcore_id : wk_lcores[socket_id]) {
@@ -675,7 +590,6 @@ rofl_result_t processing_init_eventdev(void){
 			wk_core_tasks[wk_lcore_id].socket_id = socket_id;
 			wk_core_tasks[wk_lcore_id].ev_port_id = ev_port_id++;
 			wk_core_tasks[wk_lcore_id].rx_ev_queue_id = ev_queue_id++;
-			wk_core_tasks[wk_lcore_id].tx_ev_queue_id = ev_queue_id++;
 
 			struct rte_event_port_conf port_conf;
 			memset(&port_conf, 0, sizeof(port_conf));
@@ -692,57 +606,12 @@ rofl_result_t processing_init_eventdev(void){
 			uint8_t queues[1] = {0};
 			queues[0] = wk_core_tasks[wk_lcore_id].rx_ev_queue_id;
 
-			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u => linked to RX event queue: %u, sending to TX event queue: %u\n",
-					ev_core_tasks[socket_id].name, wk_lcore_id, wk_core_tasks[wk_lcore_id].ev_port_id, wk_core_tasks[wk_lcore_id].rx_ev_queue_id, wk_core_tasks[wk_lcore_id].tx_ev_queue_id);
+			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u => linked to RX event queue: %u\n",
+					ev_core_tasks[socket_id].name, wk_lcore_id, wk_core_tasks[wk_lcore_id].ev_port_id, wk_core_tasks[wk_lcore_id].rx_ev_queue_id);
 
 			if (rte_event_port_link(ev_core_tasks[socket_id].eventdev_id, wk_core_tasks[wk_lcore_id].ev_port_id, queues, NULL, 1) < 0) {
 				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n",
 						ev_core_tasks[socket_id].name, wk_core_tasks[wk_lcore_id].ev_port_id);
-				return ROFL_FAILURE;
-			}
-		}
-
-		/*
-		 * assign event ports to TX tasks
-		 */
-		for (auto tx_lcore_id : tx_lcores[socket_id]) {
-			if (not lcores[tx_lcore_id].is_tx_lcore) {
-				continue;
-			}
-			/* TX core(s) read from the associated event queue on their respective NUMA node */
-			tx_core_tasks[tx_lcore_id].socket_id = socket_id;
-			tx_core_tasks[tx_lcore_id].ev_port_id = ev_port_id++;
-
-			struct rte_event_port_conf port_conf;
-			memset(&port_conf, 0, sizeof(port_conf));
-			port_conf.dequeue_depth = ev_core_tasks[socket_id].eventdev_conf.nb_event_port_dequeue_depth;
-			port_conf.enqueue_depth = ev_core_tasks[socket_id].eventdev_conf.nb_event_port_enqueue_depth;
-			port_conf.new_event_threshold = ev_core_tasks[socket_id].eventdev_conf.nb_events_limit;
-
-			if (rte_event_port_setup(ev_core_tasks[socket_id].eventdev_id, tx_core_tasks[tx_lcore_id].ev_port_id, &port_conf) < 0) {
-				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_setup() on ev_port_id: %u failed\n",
-						ev_core_tasks[socket_id].name, tx_core_tasks[tx_lcore_id].ev_port_id);
-				return ROFL_FAILURE;
-			}
-
-			/* link up event TX core port and associated queue */
-
-			/* store event queues this worker task is listening to */
-			uint8_t queues[RTE_MAX_QUEUES_PER_PORT] = {0};
-			unsigned index = 0;
-			queues[index++] = 0;
-			std::stringstream ss;
-			for (auto wk_lcore_id : wk_lcores[socket_id]) {
-				queues[index++] = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
-				ss << (unsigned int)wk_core_tasks[wk_lcore_id].tx_ev_queue_id << " ";
-			}
-
-			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, tx-task-%02u, ev_port_id: %2u => linked to WK event queues: %s\n",
-					ev_core_tasks[socket_id].name, tx_lcore_id, tx_core_tasks[tx_lcore_id].ev_port_id, ss.str().c_str());
-
-			if (rte_event_port_link(ev_core_tasks[socket_id].eventdev_id, tx_core_tasks[tx_lcore_id].ev_port_id, queues, NULL, wk_lcores[socket_id].size()) < 0) {
-				XDPD_ERR(DRIVER_NAME"[processing][init][evdev] eventdev %s, rte_event_port_link() on ev_port_id: %u failed\n",
-						ev_core_tasks[socket_id].name, tx_core_tasks[tx_lcore_id].ev_port_id);
 				return ROFL_FAILURE;
 			}
 		}
@@ -812,8 +681,6 @@ rofl_result_t processing_init_eventdev(void){
 rofl_result_t processing_init(void){
 
 	//Cleanup
-	memset(rx_core_tasks, 0, sizeof(rx_core_tasks));
-	memset(tx_core_tasks, 0, sizeof(tx_core_tasks));
 	memset(wk_core_tasks, 0, sizeof(wk_core_tasks));
 	memset(ev_core_tasks, 0, sizeof(ev_core_tasks));
 	memset(port_list, 0, sizeof(port_list));
@@ -843,14 +710,6 @@ rofl_result_t processing_init(void){
 	}
 
 	/*
-	 * allocate memory
-	 */
-	if (ROFL_FAILURE == processing_init_task_structures()) {
-		XDPD_ERR(DRIVER_NAME"[processing][init] RTE memory allocation failed\n");
-		return ROFL_FAILURE;
-	}
-
-	/*
 	 * initialize RTE event device
 	 */
 	if (ROFL_FAILURE == processing_init_eventdev()) {
@@ -872,33 +731,29 @@ rofl_result_t processing_run(void){
 	for (auto socket_id : numa_nodes) {
 
 		/* start service cores */
-		if (eventdev_shortcut == false) {
-			for (auto lcore_id : ev_lcores[socket_id]) {
-				XDPD_INFO(DRIVER_NAME"[processing][run] starting  service lcore %2u  on socket %u\n", lcore_id, socket_id);
-				if ((ret = rte_service_lcore_start(lcore_id)) < 0) {
-					switch (ret) {
-					case -EALREADY: {
-						XDPD_ERR(DRIVER_NAME"[processing][run] start of service lcore %u on socket %u failed (EALREADY)\n", lcore_id, socket_id);
-						/* do nothing */
-					} break;
-					default: {
-						XDPD_ERR(DRIVER_NAME"[processing][run] start of service lcore %u on socket %u failed\n", lcore_id, socket_id);
-					} return ROFL_FAILURE;
-					}
+		for (auto lcore_id : ev_lcores[socket_id]) {
+			XDPD_INFO(DRIVER_NAME"[processing][run] starting  service lcore %2u  on socket %u\n", lcore_id, socket_id);
+			if ((ret = rte_service_lcore_start(lcore_id)) < 0) {
+				switch (ret) {
+				case -EALREADY: {
+					XDPD_ERR(DRIVER_NAME"[processing][run] start of service lcore %u on socket %u failed (EALREADY)\n", lcore_id, socket_id);
+					/* do nothing */
+				} break;
+				default: {
+					XDPD_ERR(DRIVER_NAME"[processing][run] start of service lcore %u on socket %u failed\n", lcore_id, socket_id);
+				} return ROFL_FAILURE;
 				}
 			}
 		}
 
 		/* start event device */
-		if (eventdev_shortcut == false) {
-			XDPD_INFO(DRIVER_NAME"[processing][run] starting eventdev %s on socket %u\n", ev_core_tasks[socket_id].name, socket_id);
-			if (rte_event_dev_start(ev_core_tasks[socket_id].eventdev_id) < 0) {
-				XDPD_ERR(DRIVER_NAME"[processing][run] initialization of eventdev %s, rte_event_dev_start() failed\n",
-						ev_core_tasks[socket_id].name);
-				return ROFL_FAILURE;
-			}
-			ev_core_tasks[socket_id].active = true;
+		XDPD_INFO(DRIVER_NAME"[processing][run] starting eventdev %s on socket %u\n", ev_core_tasks[socket_id].name, socket_id);
+		if (rte_event_dev_start(ev_core_tasks[socket_id].eventdev_id) < 0) {
+			XDPD_ERR(DRIVER_NAME"[processing][run] initialization of eventdev %s, rte_event_dev_start() failed\n",
+					ev_core_tasks[socket_id].name);
+			return ROFL_FAILURE;
 		}
+		ev_core_tasks[socket_id].active = true;
 	}
 
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
@@ -914,68 +769,6 @@ rofl_result_t processing_run(void){
 		/* event lcores */
 		if (lcores[lcore_id].is_ev_lcore) {
 			continue;
-		}
-
-		/* transmitting lcores */
-		if (lcores[lcore_id].is_tx_lcore) {
-
-			// DO NOT START tx-tasks when shortcutting eventdevs
-			if (eventdev_shortcut == true) {
-				continue;
-			}
-
-			// lcore already running?
-			if (tx_core_tasks[lcore_id].active == true) {
-				continue;
-			}
-
-			// lcore should be in state WAIT
-			if (rte_eal_get_lcore_state(lcore_id) != WAIT) {
-				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring core %u for launching, out of sync (task state != WAIT)\n", lcore_id);
-				continue;
-			}
-
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting transmit lcore %2u on socket %2u\n", lcore_id, tx_core_tasks[lcore_id].socket_id);
-
-			// launch processing task on lcore
-			if (rte_eal_remote_launch(&processing_packet_transmission, NULL, lcore_id)) {
-				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring lcore %u for starting, as it is not waiting for new task\n", lcore_id);
-				continue;
-			}
-
-			tx_core_tasks[lcore_id].active = true;
-			tx_core_tasks[lcore_id].stats.eths_dropped = 0;
-		}
-
-		/* receiving lcores */
-		if (lcores[lcore_id].is_rx_lcore) {
-
-			// DO NOT START rx-tasks when shortcutting eventdevs
-			if (eventdev_shortcut == true) {
-				continue;
-			}
-
-			// lcore already running?
-			if (rx_core_tasks[lcore_id].active == true) {
-				continue;
-			}
-
-			// lcore should be in state WAIT
-			if (rte_eal_get_lcore_state(lcore_id) != WAIT) {
-				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring core %u for launching, out of sync (task state != WAIT)\n", lcore_id);
-				continue;
-			}
-
-			XDPD_DEBUG(DRIVER_NAME "[processing][run] starting  receive lcore %2u on socket %2u\n", lcore_id, rx_core_tasks[lcore_id].socket_id);
-
-			// launch processing task on lcore
-			if (rte_eal_remote_launch(&processing_packet_reception, NULL, lcore_id)) {
-				XDPD_ERR(DRIVER_NAME "[processing][run] ignoring lcore %u for starting, as it is not waiting for new task\n", lcore_id);
-				continue;
-			}
-
-			rx_core_tasks[lcore_id].active = true;
-			tx_core_tasks[lcore_id].stats.eths_dropped = 0;
 		}
 
 		/* worker lcores */
@@ -1023,21 +816,9 @@ rofl_result_t processing_shutdown(void){
 
 	//Stop all cores and wait for them to complete execution tasks
 	for (unsigned int lcore_id = 0; lcore_id < rte_lcore_count(); lcore_id++) {
-		if(rx_core_tasks[lcore_id].available && rx_core_tasks[lcore_id].active && eventdev_shortcut == false){
-			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down active lcore %u\n", lcore_id);
-			rx_core_tasks[lcore_id].active = false;
-			//Join core
-			rte_eal_wait_lcore(lcore_id);
-		}
 		if(wk_core_tasks[lcore_id].available && wk_core_tasks[lcore_id].active){
 			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down active lcore %u\n", lcore_id);
 			wk_core_tasks[lcore_id].active = false;
-			//Join core
-			rte_eal_wait_lcore(lcore_id);
-		}
-		if(tx_core_tasks[lcore_id].available && tx_core_tasks[lcore_id].active && eventdev_shortcut == false){
-			XDPD_DEBUG(DRIVER_NAME"[processing][shutdown] Shutting down active lcore %u\n", lcore_id);
-			tx_core_tasks[lcore_id].active = false;
 			//Join core
 			rte_eal_wait_lcore(lcore_id);
 		}
@@ -1047,26 +828,22 @@ rofl_result_t processing_shutdown(void){
 	for (auto socket_id : numa_nodes) {
 
 		/* stop eventdev */
-		if (eventdev_shortcut == false) {
-			XDPD_INFO(DRIVER_NAME"[processing][run] shutting down eventdev %s on socket %u\n", ev_core_tasks[socket_id].name, socket_id);
-			rte_event_dev_stop(ev_core_tasks[socket_id].eventdev_id);
-			ev_core_tasks[socket_id].active = false;
-		}
+		XDPD_INFO(DRIVER_NAME"[processing][run] shutting down eventdev %s on socket %u\n", ev_core_tasks[socket_id].name, socket_id);
+		rte_event_dev_stop(ev_core_tasks[socket_id].eventdev_id);
+		ev_core_tasks[socket_id].active = false;
 
 		/* stop service cores */
-		if (eventdev_shortcut == false) {
-			for (auto lcore_id : ev_lcores[socket_id]) {
-				XDPD_INFO(DRIVER_NAME"[processing][shutdown] shutting down service lcore %2u on socket %u\n", lcore_id, socket_id);
+		for (auto lcore_id : ev_lcores[socket_id]) {
+			XDPD_INFO(DRIVER_NAME"[processing][shutdown] shutting down service lcore %2u on socket %u\n", lcore_id, socket_id);
 
-				if ((ret = rte_service_lcore_stop(lcore_id)) < 0) {
-					switch (ret) {
-					case -EALREADY: {
-						/* do nothing */
-					} break;
-					default: {
-						XDPD_ERR(DRIVER_NAME"[processing] stop of service lcore %u failed\n", socket_id);
-					};
-					}
+			if ((ret = rte_service_lcore_stop(lcore_id)) < 0) {
+				switch (ret) {
+				case -EALREADY: {
+					/* do nothing */
+				} break;
+				default: {
+					XDPD_ERR(DRIVER_NAME"[processing] stop of service lcore %u failed\n", socket_id);
+				};
 				}
 			}
 		}
@@ -1096,501 +873,6 @@ rofl_result_t processing_destroy(void){
 
 
 
-/**
- * RX packet reception
- */
-int processing_packet_reception(void* not_used){
-
-	unsigned int i, lcore_id = rte_lcore_id();
-	int socket_id = rte_lcore_to_socket_id(lcore_id);
-	uint16_t port_id;
-	uint16_t queue_id;
-	bool up;
-
-#if 0
-	switch_port_t* port;
-#endif
-	rx_core_task_t* task = &rx_core_tasks[lcore_id];
-	struct rte_mbuf* mbufs[max_eth_rx_burst_size];
-	struct rte_event event[max_eth_rx_burst_size];
-	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
-	const uint8_t ev_dev_id = ev_task->eventdev_id;
-	const uint8_t ev_port_id = task->ev_port_id;
-	uint8_t ev_queue_id;
-	unsigned int index;
-
-	XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: started\n", socket_id, lcore_id);
-
-	if (task->nb_rx_queues == 0) {
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: task has no rx-queues assigned, terminating\n", socket_id, lcore_id);
-		return ROFL_SUCCESS;
-	}
-
-	for (i = 0; i < task->nb_rx_queues; i++) {
-		port_id = task->rx_queues[i].port_id;
-		queue_id = task->rx_queues[i].queue_id;
-		up = task->rx_queues[i].up;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: receiving from port: %u, queue: %u, up: %u\n", socket_id, lcore_id, port_id, queue_id, up);
-	}
-
-	//Set flag to active
-	task->active = true;
-
-	while(likely(task->active)) {
-
-		for (index = 0; index < task->nb_rx_queues; ++index) {
-
-			if (unlikely(not task->rx_queues[index].up)) {
-				continue;
-			}
-
-			/* read from ethdev queue "queue-id" on port "port-id" */
-			port_id = task->rx_queues[index].port_id;
-			queue_id = task->rx_queues[index].queue_id;
-
-#if 0
-			rte_rwlock_read_lock(&port_list_rwlock);
-			if ((port = port_list[port_id]) == NULL) {
-				rte_rwlock_read_unlock(&port_list_rwlock);
-				continue;
-			}
-
-			if (unlikely(not port->up)) { // This CAN happen while deschedulings
-				rte_rwlock_read_unlock(&port_list_rwlock);
-				continue;
-			}
-			rte_rwlock_read_unlock(&port_list_rwlock);
-#endif
-			/* read burst from ethdev */
-			const uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, mbufs, max_eth_rx_burst_size);
-
-			/* no packets received => continue with next port */
-			if (unlikely(nb_rx==0)){
-				continue;
-			}
-
-			/* update statistics */
-			task->stats.rx_pkts+=nb_rx;
-
-			/* eventdev queue_id */
-			ev_queue_id = task->rx_queues[index].ev_queue_id;
-
-			/* map received mbufs to event structure */
-			for (i = 0; i < nb_rx; i++) {
-				event[i].flow_id = mbufs[i]->hash.rss;
-				event[i].op = RTE_EVENT_OP_NEW;
-				event[i].queue_id = ev_queue_id;
-				event[i].sched_type = RTE_SCHED_TYPE_PARALLEL;
-				event[i].event_type = RTE_EVENT_TYPE_ETHDEV;
-				event[i].sub_event_type = 0;
-				event[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
-				event[i].mbuf = mbufs[i];
-				rte_prefetch0(&mbufs[i]->udata64);
-				mbufs[i]->udata64 = (uint64_t)port_id;
-
-				if (mbufs[i]->port == MBUF_INVALID_PORT) {
-					mbufs[i]->port = port_id;
-				}
-			}
-
-			if (unlikely(rxtask_dropping)) {
-				for (i = 0; i < nb_rx; i++) {
-					if (mbufs[i]) {
-						rte_pktmbuf_free(mbufs[i]);
-					}
-				}
-				continue;
-			}
-
-			/* enqueue events to event device */
-			const int nb_tx = rte_event_enqueue_burst(ev_dev_id, ev_port_id, event, nb_rx);
-			task->stats.tx_evts+=nb_tx;
-#if 0
-			RTE_LOG(DEBUG, XDPD, "rx-task-%02u: on socket %u, dequeued %u pkt(s) from eth_port_id=%u and enqueued %u pkt(s) to ev_port_id=%u (rx-eth-burst)\n",
-					lcore_id, rte_lcore_to_socket_id(lcore_id), nb_rx, port_id, nb_tx, task->ev_port_id);
-#endif
-			/* release mbufs not queued in event device */
-			if (unlikely(nb_tx < nb_rx)) {
-				task->stats.evts_dropped+=(nb_rx-nb_tx);
-#if 0
-				RTE_LOG(WARNING, XDPD, "rx-task-%02u: dropping %u packets, worker event receive queue full on socket %u, task->stats.evts_dropped=%" PRIu64 "\n",
-						lcore_id, nb_rx - nb_tx, rte_lcore_to_socket_id(lcore_id), task->stats.evts_dropped);
-#endif
-				for(i = nb_tx; i < nb_rx; i++) {
-					rte_pktmbuf_free(mbufs[i]);
-				}
-			}
-
-		}
-	}
-
-	XDPD_INFO(DRIVER_NAME"[processing][tasks][rx] rx-task-%u.%02u: terminated\n", socket_id, lcore_id);
-
-	return (int)ROFL_SUCCESS;
-}
-
-
-
-
-/**
- * Packet pipeline processing
- */
-int processing_packet_pipeline_processing(void* not_used){
-
-	unsigned int i, lcore_id = rte_lcore_id();
-	int socket_id = rte_lcore_to_socket_id(lcore_id);
-	struct rte_event rx_events[max_evt_wk_burst_size];
-	wk_core_task_t* task = &wk_core_tasks[lcore_id];
-	switch_port_t* port;
-	of_switch_t* sw;
-	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
-	uint16_t nb_rx, nb_tx;
-	const uint64_t timeout = dequeue_timeout_ns;
-	const uint8_t ev_dev_id = ev_task->eventdev_id;
-	const uint8_t ev_port_id = task->ev_port_id;
-
-	//Parsing and pipeline extra state
-	datapacket_t pkt;
-	datapacket_dpdk_t* pkt_state = create_datapacket_dpdk(&pkt);
-
-	//Init values and assign
-	pkt.platform_state = (platform_datapacket_state_t*)pkt_state;
-	pkt_state->mbuf = NULL;
-
-	XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: started\n", socket_id, lcore_id);
-
-	//Set flag to active
-	task->active = true;
-
-	while(likely(task->active)) {
-
-		//nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
-		nb_rx = rte_event_dequeue_burst(ev_dev_id, ev_port_id, rx_events, max_evt_wk_burst_size, timeout);
-
-		if (likely(nb_rx == 0)) {
-			continue;
-		}
-#if 0
-		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, dequeued %u event(s) from ev_port_id=%u\n",
-				lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx, task->ev_port_id);
-#endif
-		/* update statistics */
-		task->stats.rx_evts+=nb_rx;
-
-		if (wktask_dropping) {
-			for (i = 0; i < nb_rx; i++) {
-#if 0
-				rx_events[i].op = RTE_EVENT_OP_FORWARD;
-				rx_events[i].event_type = RTE_EVENT_TYPE_CPU;
-				rx_events[i].sub_event_type = 0;
-				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
-				if (likely(rx_events[i].mbuf)) {
-#endif
-				rte_pktmbuf_free(rx_events[i].mbuf);
-#if 0
-				}
-				rx_events[i].mbuf = NULL;
-#endif
-			}
-#if 0
-			nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
-			task->stats.tx_evts += nb_tx;
-#endif
-			continue;
-		}
-
-		if (pipeline_shortcut){
-			dpdk_port_state_t *ps;
-			for (i = 0; i < nb_rx; i++) {
-
-				//rx_events[i].mbuf != NULL, as RX task has already validated mbuf
-				rte_prefetch0(&rx_events[i].mbuf->udata64);
-				uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
-
-				rte_rwlock_read_lock(&port_list_rwlock);
-				if ((port = port_list[in_port_id]) == NULL) {
-					rte_rwlock_read_unlock(&port_list_rwlock);
-					rte_pktmbuf_free(rx_events[i].mbuf);
-					rx_events[i].mbuf = NULL;
-					continue;
-				}
-				rte_rwlock_read_unlock(&port_list_rwlock);
-
-				ps = (dpdk_port_state_t *)port->platform_port_state;
-
-				rx_events[i].op = RTE_EVENT_OP_FORWARD;
-				rx_events[i].queue_id = task->tx_ev_queue_id;
-				rx_events[i].event_type = RTE_EVENT_TYPE_CPU;
-				rx_events[i].sub_event_type = 0;
-				rx_events[i].priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
-				rx_events[i].mbuf->udata64 = (uint64_t)(phyports[ps->port_id].shortcut_port_id);
-
-				//l2fwd_swap_ether_addrs(rx_events[i].mbuf);
-			}
-			nb_tx = rte_event_enqueue_burst(ev_task->eventdev_id, task->ev_port_id, rx_events, nb_rx);
-			task->stats.tx_evts += nb_tx;
-
-		} else {
-			for (i = 0; i < nb_rx; i++) {
-
-				if (unlikely(rx_events[i].mbuf == NULL)) {
-					continue;
-				}
-
-				rte_prefetch0(&rx_events[i].mbuf->udata64);
-				uint32_t in_port_id = (uint32_t)(rx_events[i].mbuf->udata64 & 0x00000000ffffffff);
-
-				rte_rwlock_read_lock(&port_list_rwlock);
-				if ((port = port_list[in_port_id]) == NULL) {
-					rte_rwlock_read_unlock(&port_list_rwlock);
-					rte_pktmbuf_free(rx_events[i].mbuf);
-					continue;
-				}
-
-				sw = port->attached_sw;
-				rte_rwlock_read_unlock(&port_list_rwlock);
-
-				/* inject packet into openflow pipeline */
-				rx_pkt(lcore_id, sw, rx_events[i].mbuf, &pkt, pkt_state);
-
-				/* see packet_inline.h and src/io/tx.h for transmission of packets */
-			}
-		}
-
-	}
-
-	destroy_datapacket_dpdk(pkt_state);
-
-	XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: terminated\n", socket_id, lcore_id);
-
-	return (int)ROFL_SUCCESS;
-}
-
-
-/**
- * TX packet transmission
- */
-int processing_packet_transmission(void* not_used){
-
-	unsigned int i, lcore_id = rte_lcore_id();
-	int socket_id = rte_lcore_to_socket_id(lcore_id);
-	tx_core_task_t* task = &tx_core_tasks[lcore_id];
-	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
-
-	uint32_t out_port_id;
-	struct rte_event tx_events[max_evt_tx_burst_size];
-	struct rte_mbuf* tx_pkts[max_eth_tx_burst_size];
-	uint64_t cur_tsc;
-
-	unsigned int ret;
-	unsigned int nb_elems, nb_elems_remaining;
-#if 0
-	switch_port_t* port;
-#endif
-
-	XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: started\n", socket_id, lcore_id);
-
-	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; port_id++) {
-		if (not task->tx_queues[port_id].enabled){
-			continue;
-		}
-		uint8_t queue_id = task->tx_queues[port_id].queue_id;
-		bool up = task->tx_queues[port_id].up;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: sending via port: %u, queue: %u, up: %u\n", socket_id, lcore_id, port_id, queue_id, up);
-	}
-
-	/* initialize port related parameters */
-	cur_tsc = rte_get_tsc_cycles();
-	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id){
-		/* set txring-last-tx-time for each port to current time */
-		task->txring_last_tx_time[port_id] = cur_tsc;
-	}
-
-	//Set flag to active
-	task->active = true;
-
-	while(likely(task->active)) {
-
-		/*
-		 * read events from event queue
-		 */
-		int timeout = 0;
-		uint16_t nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, tx_events, max_evt_tx_burst_size, timeout);
-
-		/* update statistics */
-		task->stats.rx_evts+=nb_rx;
-
-		if (unlikely(txtask_dropping)) {
-			for (i = 0; i < nb_rx; i++) {
-				if (tx_events[i].mbuf) {
-					rte_pktmbuf_free(tx_events[i].mbuf);
-				}
-			}
-			continue;
-		}
-
-#if 0
-		if (nb_rx>0){
-			RTE_LOG(DEBUG, XDPD, "tx-task-%02u: rcvd %u event(s) from ev_port_id %u on eventdev %s with max_evt_tx_burst_size %u\n",
-					lcore_id, nb_rx, task->ev_port_id, ev_task->name, max_evt_tx_burst_size);
-		}
-#endif
-
-		if (nb_rx>0) {
-#if 0
-		RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, dequeued %u event(s) from ev_port_id=%u\n",
-				lcore_id, socket_id, nb_rx, task->ev_port_id);
-#endif
-			/* interate over all received events */
-			for (i = 0; i < nb_rx; i++) {
-
-				 if (unlikely(tx_events[i].mbuf == NULL)){
-					 continue;
-				 }
-
-				/* process mbuf using events[i].queue_id as pipeline stage */
-				rte_prefetch0(&tx_events[i].mbuf->udata64);
-				out_port_id = (uint32_t)(tx_events[i].mbuf->udata64 & 0x00000000ffffffff);
-
-#if 0
-				rte_rwlock_read_lock(&port_list_rwlock);
-				if ((port = port_list[out_port_id]) == NULL) {
-					task->stats.bugs_dropped++;
-					RTE_LOG(WARNING, XDPD, "tx-task-%02u: outgoing port %u not found, dropping packet, internal error, task->stats.bugs_dropped=%" PRIu64 "\n",
-							lcore_id, out_port_id, task->stats.bugs_dropped);
-					rte_pktmbuf_free(tx_events[i].mbuf);
-					rte_rwlock_read_unlock(&port_list_rwlock);
-					continue;
-				}
-#endif
-
-#if 0
-				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u received %u events to be sent out on port %u\n",
-						lcore_id, socket_id, nb_rx, out_port_id);
-#ifdef DEBUG
-				{
-					dpdk_port_state_t *ps;
-					ps = (dpdk_port_state_t *)port->platform_port_state;
-					assert(out_port_id == ps->port_id);
-				}
-#endif
-
-				rte_rwlock_read_unlock(&port_list_rwlock);
-#endif
-
-				if (unlikely(task->txring[out_port_id] == NULL)) {
-					task->stats.bugs_dropped++;
-					RTE_LOG(WARNING, XDPD, "tx-task-%u.%02u: no txring allocated on port %u, dropping packet, internal error, task->stats.bugs_dropped=%" PRIu64 "\n",
-							socket_id, lcore_id, out_port_id, task->stats.bugs_dropped);
-					rte_pktmbuf_free(tx_events[i].mbuf);
-					continue;
-				}
-
-				/* store event.mbuf in txring assigned to outgoing port */
-				if ((ret = rte_ring_enqueue(task->txring[out_port_id], tx_events[i].mbuf)) < 0) {
-					switch (ret) {
-					case -ENOBUFS: {
-						task->stats.ring_dropped++;
-						RTE_LOG(WARNING, XDPD, "tx-task-%u.%02u: unable to enqueue mbuf from event[%u] to port-id: %u (ENOBUFS), dropping packet, task->stats.ring_dropped=%" PRIu64 "\n",
-								socket_id, lcore_id, i, out_port_id, task->stats.ring_dropped);
-						rte_pktmbuf_free(tx_events[i].mbuf);
-						continue;
-					} break;
-					default: {
-						task->stats.ring_dropped++;
-						RTE_LOG(WARNING, XDPD, "tx-task-%u.%02u: unable to enqueue mbuf from event[%u] to port-id: %u, dropping packet, task->stats.ring_dropped=%" PRIu64 "\n",
-								socket_id, lcore_id, i, out_port_id, task->stats.ring_dropped);
-						rte_pktmbuf_free(tx_events[i].mbuf);
-						continue;
-					};
-					}
-				}
-#if 0
-				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, port %u => txring size %u\n",
-						lcore_id, socket_id, out_port_id, rte_ring_count(task->txring[out_port_id]));
-#endif
-			}
-		}
-
-
-		/*
-		 * drain all outgoing ports
-		 */
-		for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id) {
-
-			/* port not enabled in this tx-task */
-			if (not task->tx_queues[port_id].enabled || not task->tx_queues[port_id].up) {
-				continue;
-			}
-
-			/* get number of packets stored in txring */
-			if (unlikely((nb_elems=rte_ring_count(task->txring[port_id]))==0)){
-				continue;
-			}
-
-			cur_tsc = rte_get_tsc_cycles();
-
-			/* if the number of pending packets is lower than txring_drain_threshold or
-			 * less time than txring_drain_interval cycles elapsed since
-			 * last transmission, skip the port for now and wait for more packets
-			 * to arrive in the port's txring queue */
-			if (/*(nb_elems < rte_ring_get_capacity(task->txring[port_id])) &&*/
-				(nb_elems < task->txring_drain_threshold[port_id]) &&
-				(cur_tsc < (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id]))) {
-				continue;
-			}
-
-#ifdef DEBUG
-			if (nb_elems >= task->txring_drain_threshold[port_id]){
-				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => txring size: %u exceeds txring-drain-threshold: %u, starting tx-eth-burst\n",
-						lcore_id, socket_id, port_id, nb_elems, task->txring_drain_threshold[port_id]);
-			}
-			if (cur_tsc >= (task->txring_last_tx_time[port_id] + task->txring_drain_interval[port_id])){
-				RTE_LOG(DEBUG, XDPD, "tx-task-%02u: on socket %u, draining port %u => elapsed time %lfus exceeds txring-drain-interval: %lfms, starting tx-eth-burst\n",
-										lcore_id, socket_id, port_id,
-										((double)(cur_tsc - task->txring_last_tx_time[port_id]) / rte_get_timer_hz()) * 1e6,
-										((double)(task->txring_drain_interval[port_id]) / rte_get_timer_hz()) * 1e6);
-			}
-#endif
-
-			/* get mbufs from txring */
-			nb_elems = rte_ring_dequeue_bulk(task->txring[port_id], (void**)tx_pkts,
-								RTE_MIN(nb_elems, (unsigned int)max_eth_tx_burst_size), &nb_elems_remaining);
-
-			/* no elements in txring */
-			if (unlikely(nb_elems==0)) {
-				continue;
-			}
-
-			/* send tx-burst */
-			uint16_t nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, tx_pkts, nb_elems);
-
-			task->stats.tx_pkts+=nb_tx;
-
-			/* adjust timestamp */
-			task->txring_last_tx_time[port_id] = cur_tsc;
-
-			/* if all packets have been sent, goto next port */
-			if (likely(nb_tx==nb_elems)) {
-				continue;
-			}
-
-			/* otherwise, release any unsent packets */
-			task->stats.eths_dropped+=(nb_elems-nb_tx);
-			for(i = nb_tx; i < nb_elems; i++) {
-				rte_pktmbuf_free(tx_pkts[i]);
-			}
-			RTE_LOG(WARNING, XDPD, "tx-task-%02u: on socket %u, enqueued %u pkt(s) to eth_port_id=%u (tx-eth-burst), dropping %u pkt(s), remaining txring size: %u, task->stats.eths_dropped=%" PRIu64 "\n",
-					lcore_id, socket_id, nb_elems, port_id, nb_elems-nb_tx, rte_ring_count(task->txring[port_id]), task->stats.eths_dropped);
-		}
-	}
-
-	XDPD_INFO(DRIVER_NAME"[processing][tasks][tx] tx-task-%u.%02u: terminated\n", socket_id, lcore_id);
-
-	return (int)ROFL_SUCCESS;
-}
-
-
 
 
 
@@ -1612,9 +894,11 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 	of_switch_t* sw;
 
 	uint8_t port_id;
-	uint8_t queue_id;
 	uint32_t in_port_id, out_port_id;
 	uint64_t cur_tsc;
+
+	ev_core_task_t* ev_task = &ev_core_tasks[socket_id];
+	struct rte_event tx_events[max_evt_tx_burst_size];
 
 	//Parsing and pipeline extra state
 	datapacket_t pkt;
@@ -1646,16 +930,16 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 
 	while(likely(task->active)) {
 
+
+		/*
+		 * receive from ethdevs
+		 */
 		for (index = 0; index < task->nb_rx_queues; ++index) {
 
 			/* port not enabled in this wk-task */
 			if (unlikely(not task->rx_queues[index].up)) {
 				continue;
 			}
-
-			/* read from ethdev queue "queue-id" on port "port-id" */
-			port_id = task->rx_queues[index].port_id;
-			queue_id = task->rx_queues[index].queue_id;
 
 #if 0
 			rte_rwlock_read_lock(&port_list_rwlock);
@@ -1671,23 +955,20 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			rte_rwlock_read_unlock(&port_list_rwlock);
 #endif
 			/* read burst from ethdev */
-			nb_rx = rte_eth_rx_burst(port_id, queue_id, rx_pkts, max_eth_rx_burst_size);
+			nb_rx = rte_eth_rx_burst(task->rx_queues[index].port_id, task->rx_queues[index].queue_id, rx_pkts, max_eth_rx_burst_size);
 
 			/* no packets received => continue with next port */
 			if (unlikely(nb_rx==0)){
 				continue;
 			}
 
+			in_port_id = port_id = task->rx_queues[index].port_id;
+
 			/* update statistics */
 			task->stats.rx_pkts+=nb_rx;
-#if 0
-			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, dequeued %u event(s) from ev_port_id=%u\n",
-					lcore_id, rte_lcore_to_socket_id(rte_lcore_id()), nb_rx, task->ev_port_id);
-#endif
-
 
 			/* testing */
-			if (rxtask_dropping) {
+			if (unlikely(rxtask_dropping)) {
 				for (i = 0; i < nb_rx; i++) {
 					if (likely(rx_pkts[i] != NULL)) {
 						rte_pktmbuf_free(rx_pkts[i]);
@@ -1697,17 +978,11 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			}
 
 			if (pipeline_shortcut){
-
 				for (i = 0; i < nb_rx; i++) {
-
 					/* process mbuf */
 					if (unlikely(rx_pkts[i] == NULL)) {
 						continue;
 					}
-
-					/* get incoming port_id */
-					rte_prefetch0(&rx_pkts[i]->udata64);
-					in_port_id = (uint32_t)(rx_pkts[i]->udata64 & 0x00000000ffffffff);
 
 					/* get incoming port_list structure */
 					if (port_list_rwlocking) {
@@ -1742,11 +1017,6 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 
 					/* update statistics */
 					task->stats.tx_pkts+=nb_tx;
-
-#if 0
-					RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, port %u => txring size %u\n",
-							lcore_id, socket_id, out_port_id, rte_ring_count(task->txring[out_port_id]));
-#endif
 				}
 
 			} else {
@@ -1756,18 +1026,23 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 						continue;
 					}
 
-					rte_prefetch0(&rx_pkts[i]->udata64);
-					uint32_t in_port_id = (uint32_t)(rx_pkts[i]->udata64 & 0x00000000ffffffff);
-
-					rte_rwlock_read_lock(&port_list_rwlock);
-					if ((port = port_list[in_port_id]) == NULL) {
+					/* get incoming port_list structure */
+					if (port_list_rwlocking) {
+						rte_rwlock_read_lock(&port_list_rwlock);
+						if ((port = port_list[in_port_id]) == NULL) {
+							rte_rwlock_read_unlock(&port_list_rwlock);
+							rte_pktmbuf_free(rx_pkts[i]);
+							continue;
+						}
+						sw = port->attached_sw;
 						rte_rwlock_read_unlock(&port_list_rwlock);
-						rte_pktmbuf_free(rx_pkts[i]);
-						continue;
+					} else {
+						if ((port = port_list[in_port_id]) == NULL) {
+							rte_pktmbuf_free(rx_pkts[i]);
+							continue;
+						}
+						sw = port->attached_sw;
 					}
-
-					sw = port->attached_sw;
-					rte_rwlock_read_unlock(&port_list_rwlock);
 
 					/* inject packet into openflow pipeline */
 					rx_pkt(lcore_id, sw, rx_pkts[i], &pkt, pkt_state);
@@ -1777,10 +1052,58 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			}
 		}
 
+
 		/* testing */
-		if (txtask_dropping) {
+		if (unlikely(wktask_dropping)) {
 			continue;
 		}
+
+
+		/*
+		 * drain event queue from control plane
+		 */
+		{
+			int timeout = 0;
+			nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, tx_events, max_evt_tx_burst_size, timeout);
+
+			for (i = 0; i < nb_rx; i++) {
+				if (unlikely(tx_events[i].mbuf == NULL)) {
+					continue;
+				}
+
+				rte_prefetch0(&tx_events[i].mbuf->udata64);
+				out_port_id = (uint32_t)(tx_events[i].mbuf->udata64 & 0x00000000ffffffff);
+
+				/* get incoming port_list structure */
+				if (port_list_rwlocking) {
+					rte_rwlock_read_lock(&port_list_rwlock);
+					if ((port = port_list[out_port_id]) == NULL) {
+						rte_rwlock_read_unlock(&port_list_rwlock);
+						rte_pktmbuf_free(tx_events[i].mbuf);
+						continue;
+					}
+					rte_rwlock_read_unlock(&port_list_rwlock);
+				} else {
+					if ((port = port_list[out_port_id]) == NULL) {
+						rte_pktmbuf_free(tx_events[i].mbuf);
+						continue;
+					}
+				}
+
+				/* returns number of flushed packets */
+				nb_tx = rte_eth_tx_buffer(out_port_id, task->tx_queues[out_port_id].queue_id, task->tx_queues[out_port_id].tx_buffer, tx_events[i].mbuf);
+
+				/* update statistics */
+				task->stats.tx_pkts+=nb_tx;
+			}
+		}
+
+
+		/* testing */
+		if (unlikely(txtask_dropping)) {
+			continue;
+		}
+
 
 		/*
 		 * drain all outgoing ports
@@ -1802,15 +1125,6 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 				continue;
 			}
 
-#ifdef DEBUG
-			if (cur_tsc >= (task->tx_queues[port_id].txring_last_tx_time + task->tx_queues[port_id].txring_drain_interval)){
-				RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, draining port %u => elapsed time %lfus exceeds txring-drain-interval: %lfms, starting tx-eth-burst\n",
-										lcore_id, socket_id, port_id,
-										((double)(cur_tsc - task->tx_queues[port_id].txring_last_tx_time) / rte_get_timer_hz()) * 1e6,
-										((double)(task->tx_queues[port_id].txring_drain_interval) / rte_get_timer_hz()) * 1e6);
-			}
-#endif
-
 			/* returns number of flushed packets */
 			nb_tx = rte_eth_tx_buffer_flush(port_id, task->tx_queues[port_id].queue_id, task->tx_queues[port_id].tx_buffer);
 
@@ -1825,7 +1139,6 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			/* adjust timestamp */
 			task->tx_queues[port_id].txring_last_tx_time = cur_tsc;
 		}
-
 	}
 
 	destroy_datapacket_dpdk(pkt_state);
@@ -2030,22 +1343,6 @@ void processing_update_stats(void)
 		uint64_t tx_evts_WK = 0;
 		uint64_t rx_evts_TX = 0;
 
-		for (auto lcore_id : rx_lcores[socket_id]) {
-			rx_core_task_t *task = &rx_core_tasks[lcore_id];
-			std::stringstream ss;
-			ss << "rx-task-" << std::setfill('0') << std::setw(2) << lcore_id << std::setfill(' ') << "(" << task->socket_id  << ")" << ": ";
-			ss << "rx-pkts=" << std::setw(16) << task->stats.rx_pkts << ", ";
-			ss << "tx-pkts=" << std::setw(16) << task->stats.tx_pkts << ", ";
-			ss << "rx-evts=" << std::setw(16) << task->stats.rx_evts << ", ";
-			ss << "tx-evts=" << std::setw(16) << task->stats.tx_evts << ", ";
-			ss << "evts-dropped=" << std::setw(16) << task->stats.evts_dropped << ", ";
-			ss << "bugs-dropped=" << std::setw(16) << task->stats.bugs_dropped << ", ";
-			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
-			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
-			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
-			rx_pkts_RX += task->stats.rx_pkts;
-			tx_evts_RX += task->stats.tx_evts;
-		}
 		for (auto lcore_id : wk_lcores[socket_id]) {
 			wk_core_task_t *task = &wk_core_tasks[lcore_id];
 			std::stringstream ss;
@@ -2061,22 +1358,6 @@ void processing_update_stats(void)
 			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 			rx_evts_WK += task->stats.rx_evts;
 			tx_evts_WK += task->stats.tx_evts;
-		}
-		for (auto lcore_id : tx_lcores[socket_id]) {
-			tx_core_task_t *task = &tx_core_tasks[lcore_id];
-			std::stringstream ss;
-			ss << "tx-task-" << std::setfill('0') << std::setw(2) << lcore_id << std::setfill(' ') << "(" << task->socket_id  << ")" << ": ";
-			ss << "rx-pkts=" << std::setw(16) << task->stats.rx_pkts << ", ";
-			ss << "tx-pkts=" << std::setw(16) << task->stats.tx_pkts << ", ";
-			ss << "rx-evts=" << std::setw(16) << task->stats.rx_evts << ", ";
-			ss << "tx-evts=" << std::setw(16) << task->stats.tx_evts << ", ";
-			ss << "evts-dropped=" << std::setw(16) << task->stats.evts_dropped << ", ";
-			ss << "bugs-dropped=" << std::setw(16) << task->stats.bugs_dropped << ", ";
-			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
-			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
-			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
-			rx_evts_TX += task->stats.rx_evts;
-			tx_pkts_TX += task->stats.tx_pkts;
 		}
 
 		std::stringstream ss;

@@ -1179,7 +1179,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			wk_core_tasks[wk_lcore_id].tx_queues[port_id].up = false;
 			wk_core_tasks[wk_lcore_id].tx_queues[port_id].port_id = port_id;
 			wk_core_tasks[wk_lcore_id].tx_queues[port_id].queue_id = tx_queue_id;
-			wk_core_tasks[wk_lcore_id].tx_queues[port_id].ev_queue_id = wk_core_tasks[wk_lcore_id].tx_ev_queue_id;
 			wk_core_tasks[wk_lcore_id].tx_queues[port_id].tx_buffer = (struct rte_eth_dev_tx_buffer*)rte_zmalloc_socket(rgname.str().c_str(),
 					RTE_ETH_TX_BUFFER_SIZE(wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_queue_capacity), 0, socket_id);
 

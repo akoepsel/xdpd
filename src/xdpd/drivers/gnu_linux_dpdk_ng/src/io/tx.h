@@ -38,8 +38,8 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 	struct rte_mbuf* mbuf;
 	dpdk_port_state_t* ps;
 	unsigned int port_id, lcore_id;
-	int socket_id;
-	struct rte_event tx_events[MAX_ETH_TX_BURST_SIZE_DEFAULT];
+	struct rte_event tx_event;
+	uint16_t nb_tx;
 
 	//Get mbuf pointer
 	mbuf = ((datapacket_dpdk_t*)pkt->platform_state)->mbuf;
@@ -50,9 +50,6 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 	if ((lcore_id == LCORE_ID_ANY) || (lcores[lcore_id].is_master)) {
 
-		uint16_t ev_port_id = 0; /* reserved port number for control plane */
-		uint8_t ev_queue_id = 0; /* reserved queue number for control plane */
-
 		/* use out_port_id from pipeline */
 		rte_rwlock_read_lock(&port_list_rwlock);
 		if ((port = port_list[port_id]) == NULL) {
@@ -63,51 +60,24 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 
 		ps = (dpdk_port_state_t *)port->platform_port_state;
 
-		/* control plane threads write to event queue EVENT_QUEUE_TO_TX in order to forward to TX tasks */
-		ev_queue_id = EVENT_QUEUE_TO_TX;
+		tx_event.flow_id = mbuf->hash.rss;
+		tx_event.op = RTE_EVENT_OP_NEW;
+		tx_event.sched_type = RTE_SCHED_TYPE_PARALLEL;
+		tx_event.queue_id = EVENT_QUEUE_CTRL_PLANE; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
+		tx_event.event_type = RTE_EVENT_TYPE_CPU;
+		tx_event.sub_event_type = 0;
+		tx_event.priority = RTE_EVENT_DEV_PRIORITY_NORMAL;
+		tx_event.mbuf = mbuf;
+		tx_event.mbuf->udata64 = (uint64_t)port_id;
 
-		//int socket_id = ps->socket_id;
+		/* acquire rwlock for writing to eventdev port_id assigned to control plane threads */
+		rte_rwlock_write_lock(&eventdev_port_ctrl_plane_rwlock);
+		nb_tx = rte_event_enqueue_new_burst(ev_core_tasks[ps->socket_id].eventdev_id, EVENT_PORT_CTRL_PLANE, &tx_event, 1);
+		rte_rwlock_write_unlock(&eventdev_port_ctrl_plane_rwlock);
 
-		tx_events[0].flow_id = mbuf->hash.rss;
-		tx_events[0].op = RTE_EVENT_OP_NEW;
-		tx_events[0].sched_type = RTE_SCHED_TYPE_ORDERED;
-		tx_events[0].queue_id = ev_queue_id; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
-		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
-		tx_events[0].sub_event_type = 0;
-		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
-		tx_events[0].mbuf = mbuf;
-
-		tx_events[0].mbuf->udata64 = (uint64_t)port_id;
-
-		//RTE_LOG(INFO, XDPD, "wk-task-%02u: => eth-port-id: %u => event-port-id: %u, event-queue-id: %u, event[%u]\n",
-		//		lcore_id, ps->port_id, ev_port_id, event_queues[ps->socket_id][EVENT_QUEUE_TXCORES], 0);
-
-		int i = 0, nb_rx = 1;
-		int nb_tx;
-		{
-			/* acquire rwlock for writing to eventdev port_id assigned to control plane threads */
-			rte_rwlock_write_lock(&rwlock_eventdev_cp_port);
-			nb_tx = rte_event_enqueue_burst(ev_core_tasks[ps->socket_id].eventdev_id, ev_port_id, tx_events, nb_rx);
-			/* release rwlock */
-			rte_rwlock_write_unlock(&rwlock_eventdev_cp_port);
-		}
-
-		if (lcore_id != LCORE_ID_ANY && lcores[lcore_id].is_master){
-			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket MASTER, enqueued %u event(s) via ev_port_id %u on eventdev %s\n",
-					lcore_id, nb_tx, ev_port_id, ev_core_tasks[ps->socket_id].name);
-		}
-		if (lcore_id == LCORE_ID_ANY){
-			RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket LCORE_ID_ANY, enqueued %u event(s) via ev_port_id %u on eventdev %s\n",
-					lcore_id, nb_tx, ev_port_id, ev_core_tasks[ps->socket_id].name);
-		}
-
-		/* release mbufs not queued in event device */
-		if (nb_tx != nb_rx) {
-			RTE_LOG(WARNING, XDPD, "wk-task-%02u: dropping %u packets, TX task event queue full on socket %u\n",
-					lcore_id, nb_rx - nb_tx, ps->socket_id);
-			for(i = nb_tx; i < nb_rx; i++) {
-				rte_pktmbuf_free(tx_events[i].mbuf);
-			}
+		/* release mbufs not enqueued to event device */
+		if (nb_tx < 1) {
+			rte_pktmbuf_free(tx_event.mbuf);
 		}
 
 	} else
@@ -116,14 +86,12 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		//Recover worker task
 		wk_core_task_t* task = &wk_core_tasks[lcore_id];
 
-		socket_id = rte_lcore_to_socket_id(lcore_id);
-
-		if (unlikely(not task->available) || unlikely(not task->active)) {
+		if (unlikely(not task->available || not task->active)) {
 			rte_pktmbuf_free(mbuf);
 			return;
 		}
 
-		/* use out_port_id from pipeline */
+		/* use outgoing port_id from pipeline */
 		rte_rwlock_read_lock(&port_list_rwlock);
 		if ((port = port_list[port_id]) == NULL) {
 			rte_rwlock_read_unlock(&port_list_rwlock);
@@ -131,42 +99,11 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 			return;
 		}
 
-		ps = (dpdk_port_state_t *)port->platform_port_state;
+		/* returns number of flushed packets */
+		nb_tx = rte_eth_tx_buffer(port_id, task->tx_queues[port_id].queue_id, task->tx_queues[port_id].tx_buffer, mbuf);
 
-		//int socket_id = rte_eth_dev_socket_id(ps->port_id);
-
-		tx_events[0].flow_id = mbuf->hash.rss;
-		tx_events[0].op = RTE_EVENT_OP_FORWARD;
-		tx_events[0].sched_type = RTE_SCHED_TYPE_ORDERED;
-		tx_events[0].queue_id = task->tx_ev_queue_id; /* use event queue leading to TX tasks on NUMA socket for outgoing port */
-		tx_events[0].event_type = RTE_EVENT_TYPE_CPU;
-		tx_events[0].sub_event_type = 0;
-		tx_events[0].priority = RTE_EVENT_DEV_PRIORITY_HIGHEST;
-		tx_events[0].mbuf = mbuf;
-
-		tx_events[0].mbuf->udata64 = (uint64_t)port_id;
-
-		//RTE_LOG(INFO, XDPD, "wk-task-%02u: => event-port-id: %u, event-queue-id: %u, event[%u] for eth-port: %u\n",
-		//		lcore_id, task->ev_port_id, task->tx_ev_queue_id[ps->socket_id], 0, port_id);
-
-		int i = 0, nb_rx = 1;
-		const int nb_tx = rte_event_enqueue_burst(ev_core_tasks[socket_id].eventdev_id, task->ev_port_id, tx_events, nb_rx);
-
-		task->stats.tx_evts+=nb_tx;
-
-		RTE_LOG(DEBUG, XDPD, "wk-task-%02u: on socket %u, enqueued %u event(s) via ev_port_id %u on eventdev %s\n",
-				lcore_id, rte_lcore_to_socket_id(lcore_id), nb_tx, task->ev_port_id, ev_core_tasks[socket_id].name);
-
-		/* release mbufs not queued in event device */
-		if (nb_rx > nb_tx) {
-			task->stats.evts_dropped+=(nb_rx-nb_tx);
-			RTE_LOG(WARNING, XDPD, "wk-task-%02u: dropping %u packets, TX task event queue full on socket %u, task->stats.evts_dropped=%" PRIu64 "\n",
-					lcore_id, nb_rx - nb_tx, ps->socket_id, task->stats.evts_dropped);
-			for(i = nb_tx; i < nb_rx; i++) {
-				rte_pktmbuf_free(tx_events[i].mbuf);
-			}
-		}
-
+		/* update statistics */
+		task->stats.tx_pkts+=nb_tx;
 	}
 
 	//XDPD_DEBUG_VERBOSE(DRIVER_NAME"[io] Adding packet %p to queue %p (id: %u)\n", pkt, pkt_burst, lcore_id);

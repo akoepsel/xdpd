@@ -91,78 +91,16 @@ typedef struct task_statistics {
 } __rte_cache_aligned task_statistics_t;
 
 /* rwlock for eventdev port used by control plane threads */
-extern rte_rwlock_t rwlock_eventdev_cp_port;
+extern rte_rwlock_t eventdev_port_ctrl_plane_rwlock;
 
-enum event_queue_t {
-	EVENT_QUEUE_TO_WK = 0,
-	EVENT_QUEUE_TO_TX = 1,
-	EVENT_QUEUE_MAX,
+enum event_port_t {
+	EVENT_PORT_CTRL_PLANE = 0,
 };
 
-/**
- * RX lcore task
- */
-typedef struct rx_core_task {
-	bool available; // task is runnable on lcore
-	bool active; // task is running
-	uint8_t ev_port_id; // eventdev port
-	unsigned int socket_id; // NUMA socket id
-	task_statistics_t stats;
-
-	/* Idea:
-	 * We have a number of worker lcores on this NUMA socket. Each worker lcore has assigned
-	 * a port/queue pair on all ethernet devices with a dedicated mempool. We forward packets
-	 * received on this port/queue to a single worker lcore to avoid invalidation of memory
-	 * caches.
-	 */
-	rx_ethdev_port_queue_t rx_queues[RTE_MAX_QUEUES_PER_PORT];  // (port_id, queue_id) = rx_queues[i] for i in (0...RTE_MAX_ETHPORTS-1)
-	uint16_t nb_rx_queues; // number of valid fields in rx_queues (0, nb_rx_queues-1)
-
-} __rte_cache_aligned rx_core_task_t;
-
-/**
- * TX lcore task
- */
-typedef struct tx_core_task {
-	bool available; // task is runnable on lcore
-	bool active; // task is running
-	uint8_t ev_port_id; // eventdev port
-	unsigned int socket_id; // NUMA socket id
-	task_statistics_t stats;
-
-	/*
-	 * transmitting to ethdevs
-	 */
-	/* queue-id to be used by this task for given port-id */
-	tx_ethdev_port_queue_t tx_queues[RTE_MAX_QUEUES_PER_PORT]; // tx_queues[ev_queue_id] => bound to event queues
-	uint16_t nb_tx_queues; // number of valid fields in tx_queues (0, nb_tx_queues-1)
-
-	/*
-	 * dequeuing from event device
-	 */
-
-	/* list of event queues this task is linked to for receiving events */
-	uint8_t rx_ev_queues[RTE_EVENT_MAX_QUEUES_PER_DEV];
-	/* number of event queues stored in ex_ev_queues */
-	unsigned int nb_rx_ev_queues;
-
-	/*
-	 * drain queues per port
-	 */
-	/* queues per port for storing packets before initiating tx-burst to eth-dev */
-	struct rte_ring *txring[RTE_MAX_ETHPORTS];
-
-	/* maximum number of packets allowed in queue before initiating tx-burst for port */
-	unsigned int txring_drain_threshold[RTE_MAX_ETHPORTS];
-	/* maximum packet capacity in drain queue */
-	unsigned int txring_drain_queue_capacity[RTE_MAX_ETHPORTS];
-
-	/* maximum time interval before initiating next tx-burst for port */
-	uint64_t txring_drain_interval[RTE_MAX_ETHPORTS];
-	/* timestamp of last tx-burst */
-	uint64_t txring_last_tx_time[RTE_MAX_ETHPORTS];
-
-} __rte_cache_aligned tx_core_task_t;
+enum event_queue_t {
+	EVENT_QUEUE_CTRL_PLANE = 0,
+	EVENT_QUEUE_MAX,
+};
 
 /**
  * worker lcore task
@@ -178,8 +116,6 @@ typedef struct wk_core_task {
 	uint8_t ev_port_id;
 	/* event queue-id for receiving events from RX tasks */
 	uint8_t rx_ev_queue_id;
-	/* event queue-id for sending events to TX tasks */
-	uint8_t tx_ev_queue_id;
 
 	/* Idea:
 	 * We have a number of worker lcores on this NUMA socket. Each worker lcore has assigned
@@ -226,10 +162,6 @@ typedef struct ev_core_task {
 /**
 * Processing tasks: receive, transmit, worker
 */
-/* rx tasks */
-//extern rx_core_task_t rx_core_tasks[RTE_MAX_LCORE];
-/* tx tasks */
-//extern tx_core_task_t tx_core_tasks[RTE_MAX_LCORE];
 /* wk tasks */
 extern wk_core_task_t wk_core_tasks[RTE_MAX_LCORE];
 /* ev tasks */
@@ -284,11 +216,6 @@ void processing_buffer_tx_error_cb(struct rte_mbuf **unsent, uint16_t count, voi
 rofl_result_t processing_init_lcores(void);
 
 /**
-* Allocate memory
-*/
-rofl_result_t processing_init_task_structures(void);
-
-/**
 * Initialize data structures for event device
 */
 rofl_result_t processing_init_eventdev(void);
@@ -338,21 +265,6 @@ rofl_result_t processing_deschedule_nf_port(switch_port_t* port);
 * Update processing task statistics
 */
 void processing_update_stats(void);
-
-/**
-* Packet processing routine for cores 
-*/
-int processing_packet_pipeline_processing(void*);
-
-/**
- * RX packet reception
- */
-int processing_packet_reception(void*);
-
-/**
- * TX packet transmission
- */
-int processing_packet_transmission(void*);
 
 /**
 * Packet processing routine for cores
