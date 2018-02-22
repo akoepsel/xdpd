@@ -965,12 +965,18 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 				continue;
 			}
 
-			RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => port: %u, queue: %u => rcvd %u pkts\n", (unsigned int)rte_lcore_to_socket_id(rte_lcore_id()), (unsigned int)rte_lcore_id(), port_id, queue_id, nb_rx);
+//			RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => port: %u, queue: %u => rcvd %u pkts\n", (unsigned int)rte_lcore_to_socket_id(rte_lcore_id()), (unsigned int)rte_lcore_id(), port_id, queue_id, nb_rx);
 
 			in_port_id = port_id = task->rx_queues[index].port_id;
 
 			/* update statistics */
 			task->stats.rx_pkts+=nb_rx;
+
+			out_port_id = (uint32_t)(phyports[port_id].shortcut_port_id);
+
+			rte_eth_tx_burst(out_port_id, task->tx_queues[out_port_id].queue_id, rx_pkts, nb_rx);
+
+			continue;
 
 			/* testing */
 			if (unlikely(rxtask_dropping)) {
