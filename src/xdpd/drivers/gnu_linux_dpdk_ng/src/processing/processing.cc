@@ -930,7 +930,8 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 
 	while(likely(task->active)) {
 
-
+		RTE_SET_USED(sw);
+		RTE_SET_USED(ps);
 		/*
 		 * receive from ethdevs
 		 */
