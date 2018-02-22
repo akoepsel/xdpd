@@ -1195,7 +1195,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				}
 			}
 
-			//wk_core_tasks[wk_lcore_id].nb_tx_queues++;
+			wk_core_tasks[wk_lcore_id].nb_tx_queues++;
 
 			XDPD_INFO(DRIVER_NAME"[ifaces][%s] wk-task-%02u => assigning physical port: %u, txqueue: %u, socket: %u => wk-task-%02u (txring: %s, capacity: %u, drain-interval: %u, drain-threshold: %u)\n",
 					devname.c_str(), wk_lcore_id, port_id, tx_queue_id, socket_id, wk_lcore_id,
@@ -1203,8 +1203,6 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_queue_capacity,
 					wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_interval,
 					wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_threshold);
-
-			wk_core_tasks[wk_lcore_id].nb_tx_queues++;
 
 			if (tx_queue_id >= (phyports[port_id].nb_tx_queues - 1)) {
 				break;

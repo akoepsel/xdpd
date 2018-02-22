@@ -1013,6 +1013,8 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 						continue;
 					}
 
+					l2fwd_swap_ether_addrs(rx_pkts[i]);
+
 					/* returns number of flushed packets */
 					nb_tx = rte_eth_tx_buffer(out_port_id, task->tx_queues[out_port_id].queue_id, task->tx_buffers[out_port_id].tx_buffer, rx_pkts[i]);
 
