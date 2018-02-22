@@ -1017,6 +1017,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 						continue;
 					}
 
+					rte_prefetch0(rte_pktmbuf_mtod(rx_pkts[i], void *));
 					l2fwd_swap_ether_addrs(rx_pkts[i]);
 
 					/* returns number of flushed packets */
