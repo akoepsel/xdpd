@@ -1623,6 +1623,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.rx_adv_conf.rss_conf.rss_key_len = 0;
 		eth_conf.rx_adv_conf.rss_conf.rss_hf = rss_hf;
 
+		RTE_SET_USED(sym_rss_hash_key);
+
 		//transmit side
 		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
 		eth_conf.txmode.offloads = tx_offloads;
