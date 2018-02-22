@@ -885,8 +885,8 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 	switch_port_t* port;
 	of_switch_t* sw;
 
-	uint16_t port_id;
-	uint16_t queue_id;
+	uint16_t port_id = 0;
+	uint16_t queue_id = 0;
 	uint32_t in_port_id, out_port_id;
 	uint64_t cur_tsc;
 
