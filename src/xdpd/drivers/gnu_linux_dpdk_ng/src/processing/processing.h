@@ -177,10 +177,6 @@ extern rte_spinlock_t spinlock_conf[RTE_MAX_ETHPORTS];
 extern std::set<int> numa_nodes;
 /* a map of available event logical cores per NUMA socket (set of lcore_id) */
 extern std::map<unsigned int, std::set<unsigned int> > ev_lcores;
-/* a map of available RX logical cores per NUMA socket (set of lcore_id) */
-extern std::map<unsigned int, std::set<unsigned int> > rx_lcores;
-/* a map of available TX logical cores per NUMA socket (set of lcore_id) */
-extern std::map<unsigned int, std::set<unsigned int> > tx_lcores;
 /* a map of available worker logical cores per NUMA socket (set of lcore_id) */
 extern std::map<unsigned int, std::set<unsigned int> > wk_lcores;
 

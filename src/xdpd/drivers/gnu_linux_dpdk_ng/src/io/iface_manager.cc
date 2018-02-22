@@ -67,14 +67,6 @@ switch_port_t* phy_port_mapping[PORT_MANAGER_MAX_PORTS] = {0};
 uint8_t nb_phy_ports = 0;
 pthread_rwlock_t iface_manager_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
-//a set of available NUMA sockets (socket_id)
-extern std::set<int> numa_nodes;
-
-/* a map of available RX logical cores per NUMA socket (set of lcore_id) */
-extern std::map<unsigned int, std::set<unsigned int> > rx_lcores;
-/* a map of available TX logical cores per NUMA socket (set of lcore_id) */
-extern std::map<unsigned int, std::set<unsigned int> > tx_lcores;
-
 
 /* Shinae Woo and KyoungSoo Park
  * "Scalable TCP Session Monitoring with Symmetric Receive-side Scaling"
@@ -1017,8 +1009,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		phyports[port_id].socket_id = socket_id;
 
-		unsigned int nb_rx_queues = RTE_MIN(rx_lcores[socket_id].size(), dev_info.max_rx_queues);
-		unsigned int nb_tx_queues = RTE_MIN(tx_lcores[socket_id].size(), dev_info.max_tx_queues);
+		unsigned int nb_rx_queues = RTE_MIN(wk_lcores[socket_id].size(), dev_info.max_rx_queues);
+		unsigned int nb_tx_queues = RTE_MIN(wk_lcores[socket_id].size(), dev_info.max_tx_queues);
 
 		// initialize nb_mbuf for socket_id
 		if (nb_mbuf.find(socket_id)==nb_mbuf.end()){
@@ -1650,7 +1642,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		// configure transmit queues
-		uint16_t nb_tx_desc = dev_info.tx_desc_lim.nb_max / tx_lcores[socket_id].size();
+		uint16_t nb_tx_desc = dev_info.tx_desc_lim.nb_max / wk_lcores[socket_id].size();
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_tx_desc")) {
 			nb_tx_desc = iface_manager_get_port_setting_as<uint16_t>(s_pci_addr, "nb_tx_desc");
 		}
@@ -1762,7 +1754,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 
 		// configure receive queues
-		uint16_t nb_rx_desc = dev_info.rx_desc_lim.nb_max / rx_lcores[socket_id].size();
+		uint16_t nb_rx_desc = dev_info.rx_desc_lim.nb_max / wk_lcores[socket_id].size();
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_rx_desc")) {
 			nb_rx_desc = iface_manager_get_port_setting_as<uint16_t>(s_pci_addr, "nb_rx_desc");
 		}

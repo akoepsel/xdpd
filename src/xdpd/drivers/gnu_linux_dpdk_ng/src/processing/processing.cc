@@ -89,10 +89,6 @@ ev_core_task_t ev_core_tasks[RTE_MAX_NUMA_NODES];
 std::set<int> numa_nodes;
 /* a map of available event logical cores per NUMA socket (set of lcore_id) */
 std::map<unsigned int, std::set<unsigned int> > ev_lcores;
-/* a map of available RX logical cores per NUMA socket (set of lcore_id) */
-std::map<unsigned int, std::set<unsigned int> > rx_lcores;
-/* a map of available TX logical cores per NUMA socket (set of lcore_id) */
-std::map<unsigned int, std::set<unsigned int> > tx_lcores;
 /* a map of available worker logical cores per NUMA socket (set of lcore_id) */
 std::map<unsigned int, std::set<unsigned int> > wk_lcores;
 
@@ -138,8 +134,6 @@ rofl_result_t processing_init_lcores(void){
 		lcores[j].is_ev_lcore = 0;
 	}
 	numa_nodes.clear();
-	rx_lcores.clear();
-	tx_lcores.clear();
 	wk_lcores.clear();
 	ev_lcores.clear();
 
