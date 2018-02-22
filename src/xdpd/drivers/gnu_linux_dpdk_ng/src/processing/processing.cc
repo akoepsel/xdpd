@@ -988,7 +988,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 					if (unlikely(rx_pkts[i] == NULL)) {
 						continue;
 					}
-
+#if 0
 					/* get incoming port_list structure */
 					if (port_list_rwlocking) {
 						rte_rwlock_read_lock(&port_list_rwlock);
@@ -1008,9 +1008,9 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 					}
 
 					ps = (dpdk_port_state_t *)port->platform_port_state;
-
+#endif
 					/* set outgoing port_id */
-					out_port_id = (uint64_t)(phyports[ps->port_id].shortcut_port_id);
+					out_port_id = (uint32_t)(phyports[port_id].shortcut_port_id);
 
 					if (not task->tx_queues[out_port_id].up) {
 						rte_pktmbuf_free(rx_pkts[i]);
@@ -1148,7 +1148,8 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			 * less time than txring_drain_interval cycles elapsed since
 			 * last transmission, skip the port for now and wait for more packets
 			 * to arrive in the port's txring queue */
-			if (cur_tsc < (task->tx_buffers[port_id].txring_last_tx_time + task->tx_buffers[port_id].txring_drain_interval)) {
+			if ((task->tx_buffers[port_id].tx_buffer->length < task->tx_buffers[port_id].txring_drain_threshold) &&
+					(cur_tsc < (task->tx_buffers[port_id].txring_last_tx_time + task->tx_buffers[port_id].txring_drain_interval))) {
 				continue;
 			}
 

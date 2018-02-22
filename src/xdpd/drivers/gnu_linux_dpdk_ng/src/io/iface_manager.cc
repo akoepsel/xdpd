@@ -1655,7 +1655,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 
 		// configure transmit queues
-		uint16_t nb_tx_desc = dev_info.tx_desc_lim.nb_max / wk_lcores[socket_id].size();
+		//uint16_t nb_tx_desc = dev_info.tx_desc_lim.nb_max / wk_lcores[socket_id].size();
+		uint16_t nb_tx_desc = dev_info.tx_desc_lim.nb_max;
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_tx_desc")) {
 			nb_tx_desc = iface_manager_get_port_setting_as<uint16_t>(s_pci_addr, "nb_tx_desc");
 		}
@@ -1767,7 +1768,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 
 		// configure receive queues
-		uint16_t nb_rx_desc = dev_info.rx_desc_lim.nb_max / wk_lcores[socket_id].size();
+		//uint16_t nb_rx_desc = dev_info.rx_desc_lim.nb_max / wk_lcores[socket_id].size();
+		uint16_t nb_rx_desc = dev_info.rx_desc_lim.nb_max;
 		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_rx_desc")) {
 			nb_rx_desc = iface_manager_get_port_setting_as<uint16_t>(s_pci_addr, "nb_rx_desc");
 		}
