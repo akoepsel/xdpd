@@ -109,6 +109,7 @@ static uint64_t wk_coremask = 0x000c; // lcore_id = 4
 void processing_buffer_tx_error_cb(struct rte_mbuf **unsent, uint16_t count, void *userdata) {
 	wk_core_task_t* task = (wk_core_task_t*)(userdata);
 	RTE_SET_USED(task);
+	RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => processing_buffer_tx_error_cb() count: %u\n", task->socket_id, task->lcore_id, count);
 	for (unsigned int i = 0; i < count; i++) {
 		rte_pktmbuf_free(unsent[i]);
 	}
@@ -333,6 +334,7 @@ rofl_result_t processing_init_lcores(void){
 			if (wk_coremask & ((uint64_t)1 << lcore_id)) {
 				lcores[lcore_id].is_wk_lcore = 1;
 				wk_core_tasks[lcore_id].available = true;
+				wk_core_tasks[lcore_id].lcore_id = lcore_id;
 				//Increase number of worker lcores for this socket
 				wk_lcores[socket_id].insert(lcore_id);
 				s_task.assign("wk lcore");

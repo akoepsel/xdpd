@@ -110,6 +110,8 @@ typedef struct wk_core_task {
 	bool active; // task is running
 	task_statistics_t stats;
 	
+	/* lcore id */
+	unsigned int lcore_id;
 	/* NUMA node socket-id */
 	unsigned int socket_id;
 	/* event port-id */
