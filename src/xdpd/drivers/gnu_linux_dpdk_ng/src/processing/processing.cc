@@ -1009,6 +1009,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 
 					ps = (dpdk_port_state_t *)port->platform_port_state;
 #endif
+					RTE_SET_USED(ps);
 					/* set outgoing port_id */
 					out_port_id = (uint32_t)(phyports[port_id].shortcut_port_id);
 
