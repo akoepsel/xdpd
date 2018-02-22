@@ -932,6 +932,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 
 		RTE_SET_USED(sw);
 		RTE_SET_USED(ps);
+		RTE_SET_USED(in_port_id);
 		/*
 		 * receive from ethdevs
 		 */
