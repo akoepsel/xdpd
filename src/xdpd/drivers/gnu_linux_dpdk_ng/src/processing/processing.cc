@@ -1112,13 +1112,13 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 		cur_tsc = rte_get_tsc_cycles();
 		for (index = 0; index < task->nb_tx_queues; ++index) {
 
+			port_id = task->tx_queues[index].port_id;
+			queue_id = task->tx_queues[index].queue_id;
+
 			/* port not enabled in this wk-task */
 			if (unlikely(not task->tx_queues[port_id].up)) {
 				continue;
 			}
-
-			port_id = task->tx_queues[index].port_id;
-			queue_id = task->tx_queues[index].queue_id;
 
 			/* if the number of pending packets is lower than txring_drain_threshold or
 			 * less time than txring_drain_interval cycles elapsed since
