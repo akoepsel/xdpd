@@ -977,8 +977,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 
 			rte_eth_tx_burst(out_port_id, task->tx_queues[out_port_id].queue_id, rx_pkts, nb_rx);
 
-			continue;
-
+#if 0
 			/* testing */
 			if (unlikely(rxtask_dropping)) {
 				for (i = 0; i < nb_rx; i++) {
@@ -1072,6 +1071,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 					/* see packet_inline.h and src/io/tx.h for transmission of packets */
 				}
 			}
+#endif
 		}
 		}
 
