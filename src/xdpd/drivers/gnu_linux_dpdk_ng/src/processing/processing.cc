@@ -910,7 +910,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: receiving from port: %u, queue: %u, up: %u\n", socket_id, lcore_id, port_id, queue_id, up);
 	}
 
-	for (unsigned int index = 0; index < task->nb_rx_queues; port_id++) {
+	for (unsigned int index = 0; index < task->nb_rx_queues; index++) {
 		uint8_t port_id = task->tx_queues[index].port_id;
 		uint8_t queue_id = task->tx_queues[index].queue_id;
 		bool up = task->tx_queues[index].up;
