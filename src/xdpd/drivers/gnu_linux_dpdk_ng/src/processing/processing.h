@@ -36,20 +36,18 @@ typedef struct rx_ethdev_port_queue {
 	uint8_t port_id;
 	/* ethdev queue */
 	uint8_t queue_id;
-	/* associated worker lcore (=ev_queue_id) */
-	uint8_t ev_queue_id;
 } __rte_cache_aligned rx_ethdev_port_queue_t;
 
 typedef struct tx_ethdev_port_queue {
-	uint8_t enabled;
 	/* all these elements in txqueues are enabled by default */
 	uint8_t up;
 	/* ethdev port */
 	uint8_t port_id;
 	/* ethdev queue */
 	uint8_t queue_id;
-	/* associated worker lcore (=ev_queue_id) */
-	uint8_t ev_queue_id;
+} __rte_cache_aligned tx_ethdev_port_queue_t;
+
+typedef struct tx_buffer_ethdev {
 	/* auxiliary structure to configure a tx_buffer in an ethdev queue */
 	struct rte_eth_dev_tx_buffer* tx_buffer;
 	/* maximum number of packets allowed in queue before initiating tx-burst for port */
@@ -60,7 +58,9 @@ typedef struct tx_ethdev_port_queue {
 	uint64_t txring_drain_interval;
 	/* timestamp of last tx-burst */
 	uint64_t txring_last_tx_time;
-} __rte_cache_aligned tx_ethdev_port_queue_t;
+	/* queue_id assigned to this tx_buffer on associated port */
+	uint16_t queue_id; // this is the same as tx_ethdev_port_queue.queue_id
+} __rte_cache_aligned tx_buffer_ethdev_t;
 
 #if 0
 // Burst definition(queue)
@@ -134,7 +134,13 @@ typedef struct wk_core_task {
 	 * transmitting to ethdevs
 	 */
 	/* queue-id to be used by this task for given port-id */
-	tx_ethdev_port_queue_t tx_queues[RTE_MAX_ETHPORTS]; // tx_queues[ev_queue_id] => bound to event queues
+	tx_ethdev_port_queue_t tx_queues[RTE_MAX_QUEUES_PER_PORT]; // tx_queues[ev_queue_id] => bound to event queues
+	uint16_t nb_tx_queues; // number of valid fields in tx_queues (0, nb_tx_queues-1)
+
+	/*
+	 * tx_buffers for all RTE_MAX_ETHPORTS
+	 */
+	tx_buffer_ethdev_t tx_buffers[RTE_MAX_ETHPORTS]; // tx_buffers
 
 } __rte_cache_aligned wk_core_task_t;
 

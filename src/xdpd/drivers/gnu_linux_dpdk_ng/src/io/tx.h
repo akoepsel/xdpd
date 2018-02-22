@@ -100,7 +100,7 @@ tx_pkt(switch_port_t* port, unsigned int queue_id, datapacket_t* pkt){
 		}
 
 		/* returns number of flushed packets */
-		nb_tx = rte_eth_tx_buffer(port_id, task->tx_queues[port_id].queue_id, task->tx_queues[port_id].tx_buffer, mbuf);
+		nb_tx = rte_eth_tx_buffer(port_id, task->tx_buffers[port_id].queue_id, task->tx_buffers[port_id].tx_buffer, mbuf);
 
 		/* update statistics */
 		task->stats.tx_pkts+=nb_tx;

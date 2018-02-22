@@ -885,7 +885,8 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 	switch_port_t* port;
 	of_switch_t* sw;
 
-	uint8_t port_id;
+	uint16_t port_id;
+	uint16_t queue_id;
 	uint32_t in_port_id, out_port_id;
 	uint64_t cur_tsc;
 
@@ -902,19 +903,24 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 
 	XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: started\n", socket_id, lcore_id);
 
-	cur_tsc = rte_get_tsc_cycles();
-
 	for (unsigned int index = 0; index < task->nb_rx_queues; index++) {
+		uint8_t port_id = task->rx_queues[index].port_id;
 		uint8_t queue_id = task->rx_queues[index].queue_id;
 		bool up = task->rx_queues[index].up;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: receiving from port: %u, queue: %u, up: %u\n", socket_id, lcore_id, index, queue_id, up);
+		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: receiving from port: %u, queue: %u, up: %u\n", socket_id, lcore_id, port_id, queue_id, up);
 	}
 
-	for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; port_id++) {
-		uint8_t queue_id = task->tx_queues[port_id].queue_id;
-		bool up = task->tx_queues[port_id].up;
+	for (unsigned int index = 0; index < task->nb_rx_queues; port_id++) {
+		uint8_t port_id = task->tx_queues[index].port_id;
+		uint8_t queue_id = task->tx_queues[index].queue_id;
+		bool up = task->tx_queues[index].up;
 		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u:    sending via port: %u, queue: %u, up: %u\n", socket_id, lcore_id, port_id, queue_id, up);
-		task->tx_queues[port_id].txring_last_tx_time = cur_tsc;
+	}
+
+	cur_tsc = rte_get_tsc_cycles();
+
+	for (unsigned int index = 0; index < RTE_MAX_ETHPORTS; index++) {
+		task->tx_buffers[index].txring_last_tx_time = cur_tsc;
 	}
 
 	//Set flag to active
@@ -933,6 +939,9 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 				continue;
 			}
 
+			port_id = task->rx_queues[index].port_id;
+			queue_id = task->rx_queues[index].queue_id;
+
 #if 0
 			rte_rwlock_read_lock(&port_list_rwlock);
 			if ((port = port_list[port_id]) == NULL) {
@@ -947,7 +956,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			rte_rwlock_read_unlock(&port_list_rwlock);
 #endif
 			/* read burst from ethdev */
-			nb_rx = rte_eth_rx_burst(task->rx_queues[index].port_id, task->rx_queues[index].queue_id, rx_pkts, max_eth_rx_burst_size);
+			nb_rx = rte_eth_rx_burst(port_id, queue_id, rx_pkts, max_eth_rx_burst_size);
 
 			/* no packets received => continue with next port */
 			if (unlikely(nb_rx==0)){
@@ -999,13 +1008,13 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 					/* set outgoing port_id */
 					out_port_id = (uint64_t)(phyports[ps->port_id].shortcut_port_id);
 
-					if (not task->tx_queues[out_port_id].enabled || not task->tx_queues[out_port_id].up) {
+					if (not task->tx_queues[out_port_id].up) {
 						rte_pktmbuf_free(rx_pkts[i]);
 						continue;
 					}
 
 					/* returns number of flushed packets */
-					nb_tx = rte_eth_tx_buffer(out_port_id, task->tx_queues[out_port_id].queue_id, task->tx_queues[out_port_id].tx_buffer, rx_pkts[i]);
+					nb_tx = rte_eth_tx_buffer(out_port_id, task->tx_queues[out_port_id].queue_id, task->tx_buffers[out_port_id].tx_buffer, rx_pkts[i]);
 
 					/* update statistics */
 					task->stats.tx_pkts+=nb_tx;
@@ -1083,7 +1092,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 				}
 
 				/* returns number of flushed packets */
-				nb_tx = rte_eth_tx_buffer(out_port_id, task->tx_queues[out_port_id].queue_id, task->tx_queues[out_port_id].tx_buffer, tx_events[i].mbuf);
+				nb_tx = rte_eth_tx_buffer(out_port_id, task->tx_queues[out_port_id].queue_id, task->tx_buffers[out_port_id].tx_buffer, tx_events[i].mbuf);
 
 				/* update statistics */
 				task->stats.tx_pkts+=nb_tx;
@@ -1100,25 +1109,27 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 		/*
 		 * drain all outgoing ports
 		 */
-		for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id) {
+		cur_tsc = rte_get_tsc_cycles();
+		for (index = 0; index < task->nb_tx_queues; ++index) {
 
 			/* port not enabled in this wk-task */
-			if (unlikely(not task->tx_queues[port_id].enabled || not task->tx_queues[port_id].up)) {
+			if (unlikely(not task->tx_queues[port_id].up)) {
 				continue;
 			}
 
-			cur_tsc = rte_get_tsc_cycles();
+			port_id = task->tx_queues[index].port_id;
+			queue_id = task->tx_queues[index].queue_id;
 
 			/* if the number of pending packets is lower than txring_drain_threshold or
 			 * less time than txring_drain_interval cycles elapsed since
 			 * last transmission, skip the port for now and wait for more packets
 			 * to arrive in the port's txring queue */
-			if (cur_tsc < (task->tx_queues[port_id].txring_last_tx_time + task->tx_queues[port_id].txring_drain_interval)) {
+			if (cur_tsc < (task->tx_buffers[port_id].txring_last_tx_time + task->tx_buffers[port_id].txring_drain_interval)) {
 				continue;
 			}
 
 			/* returns number of flushed packets */
-			nb_tx = rte_eth_tx_buffer_flush(port_id, task->tx_queues[port_id].queue_id, task->tx_queues[port_id].tx_buffer);
+			nb_tx = rte_eth_tx_buffer_flush(port_id, queue_id, task->tx_buffers[port_id].tx_buffer);
 
 			/* update statistics */
 			task->stats.tx_pkts+=nb_tx;
@@ -1129,7 +1140,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			}
 
 			/* adjust timestamp */
-			task->tx_queues[port_id].txring_last_tx_time = cur_tsc;
+			task->tx_buffers[port_id].txring_last_tx_time = cur_tsc;
 		}
 	}
 
@@ -1180,10 +1191,6 @@ rofl_result_t processing_schedule_port(switch_port_t* port){
 		rte_rwlock_write_unlock(&port_list_rwlock);
 	}
 
-	for (auto wk_lcore_id : wk_lcores[ps->socket_id]) {
-		wk_core_tasks[wk_lcore_id].tx_queues[ps->port_id].enabled = true;
-	}
-
 	//Print the status of the cores
 	processing_dump_core_states();
 
@@ -1200,10 +1207,6 @@ rofl_result_t processing_deschedule_port(switch_port_t* port){
 	}
 
 	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
-
-	for (auto wk_lcore_id : wk_lcores[ps->socket_id]) {
-		wk_core_tasks[wk_lcore_id].tx_queues[ps->port_id].enabled = false;
-	}
 
 	if (iface_manager_stop_port(port) != ROFL_SUCCESS) {
 		XDPD_DEBUG(DRIVER_NAME"[processing][port] Stopping port %u (%s) failed\n", ps->port_id, port->name);

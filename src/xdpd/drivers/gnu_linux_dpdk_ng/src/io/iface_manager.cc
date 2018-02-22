@@ -1121,11 +1121,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			wk_core_tasks[wk_lcore_id].rx_queues[index].up = false;
 			wk_core_tasks[wk_lcore_id].rx_queues[index].port_id = port_id;
 			wk_core_tasks[wk_lcore_id].rx_queues[index].queue_id = rx_queue_id;
-			wk_core_tasks[wk_lcore_id].rx_queues[index].ev_queue_id = wk_core_tasks[wk_lcore_id].rx_ev_queue_id;
 			wk_core_tasks[wk_lcore_id].nb_rx_queues++;
 
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] wk-task-%02u => assigning physical port: %u, rxqueue: %u, socket: %u => wk-task-%02u, ev_queue_id: %u\n",
-					devname.c_str(), wk_lcore_id, port_id, rx_queue_id, socket_id, wk_lcore_id, wk_core_tasks[wk_lcore_id].rx_queues[index].ev_queue_id);
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] wk-task-%02u => assigning physical port: %u, rxqueue: %u on socket: %u\n",
+					devname.c_str(), wk_lcore_id, port_id, rx_queue_id, socket_id);
 
 			if (rx_queue_id >= (phyports[port_id].nb_rx_queues - 1)) {
 				break;
@@ -1136,6 +1135,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		/* Assign each worker lcore a unique queue on active port with dedicated mempool */
 		uint16_t tx_queue_id = 0;
 		for (auto wk_lcore_id : wk_lcores[socket_id]) {
+
+			unsigned int index = wk_core_tasks[wk_lcore_id].nb_tx_queues;
 
 			/*
 			 * RTE tx ring for this port
@@ -1149,42 +1150,43 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			/* store txring-drain-max-queuesize parameter for this port */
 			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_queue_capacity")) {
-				wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_queue_capacity = pow(2, (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring_drain_queue_capacity"))));
+				wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_queue_capacity = pow(2, (unsigned int)ceil(log2(iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring_drain_queue_capacity"))));
 			} else {
-				wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_queue_capacity = pow(2, (unsigned int)ceil(log2((unsigned int)PROCESSING_TXRING_DRAIN_QUEUE_CAPACITY_DEFAULT)));
+				wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_queue_capacity = pow(2, (unsigned int)ceil(log2((unsigned int)PROCESSING_TXRING_DRAIN_QUEUE_CAPACITY_DEFAULT)));
 			}
 
 			/* store txring-drain-interval parameter for this port */
 			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_interval")) {
-				wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring_drain_interval") * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
+				wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring_drain_interval") * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
 			} else {
-				wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_interval = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
+				wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_interval = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
 			}
 
 			/* store txring-drain-threshold parameter for this port */
 			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_threshold")) {
-				wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_threshold = iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring_drain_threshold");
+				wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_threshold = iface_manager_get_port_setting_as<unsigned int>(s_pci_addr, "txring_drain_threshold");
 			} else {
-				wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_threshold = PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT;
+				wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_threshold = PROCESSING_TXRING_DRAIN_THRESHOLD_DEFAULT;
 			}
 
-			wk_core_tasks[wk_lcore_id].tx_queues[port_id].up = false;
-			wk_core_tasks[wk_lcore_id].tx_queues[port_id].port_id = port_id;
-			wk_core_tasks[wk_lcore_id].tx_queues[port_id].queue_id = tx_queue_id;
-			wk_core_tasks[wk_lcore_id].tx_queues[port_id].tx_buffer = (struct rte_eth_dev_tx_buffer*)rte_zmalloc_socket(rgname.str().c_str(),
-					RTE_ETH_TX_BUFFER_SIZE(wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_queue_capacity), 0, socket_id);
+			wk_core_tasks[wk_lcore_id].tx_queues[index].up = false;
+			wk_core_tasks[wk_lcore_id].tx_queues[index].port_id = port_id;
+			wk_core_tasks[wk_lcore_id].tx_queues[index].queue_id = tx_queue_id;
+			wk_core_tasks[wk_lcore_id].tx_buffers[port_id].tx_buffer = (struct rte_eth_dev_tx_buffer*)rte_zmalloc_socket(rgname.str().c_str(),
+					RTE_ETH_TX_BUFFER_SIZE(wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_queue_capacity), 0, socket_id);
+			wk_core_tasks[wk_lcore_id].tx_buffers[port_id].queue_id = tx_queue_id;
 
-            if (wk_core_tasks[wk_lcore_id].tx_queues[port_id].tx_buffer == NULL) {
+            if (wk_core_tasks[wk_lcore_id].tx_buffers[port_id].tx_buffer == NULL) {
 				XDPD_ERR(DRIVER_NAME"[ifaces][%s] wk-task-%02u => Failed to allocate memory for tx_buffer for port: %u, tx_queue: %u, aborting\n", devname.c_str(), wk_lcore_id, port_id, tx_queue_id);
 				return ROFL_FAILURE;
             }
 
             /* set error callback and associated userdata */
-            wk_core_tasks[wk_lcore_id].tx_queues[port_id].tx_buffer->error_callback = &processing_buffer_tx_error_cb;
-			wk_core_tasks[wk_lcore_id].tx_queues[port_id].tx_buffer->error_userdata = &wk_core_tasks[wk_lcore_id];
+            wk_core_tasks[wk_lcore_id].tx_buffers[port_id].tx_buffer->error_callback = &processing_buffer_tx_error_cb;
+			wk_core_tasks[wk_lcore_id].tx_buffers[port_id].tx_buffer->error_userdata = &wk_core_tasks[wk_lcore_id];
 
 			/* configure tx_buffer for tx_queue */
-			if ((ret=rte_eth_tx_buffer_init(wk_core_tasks[wk_lcore_id].tx_queues[port_id].tx_buffer, wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_queue_capacity)) < 0) {
+			if ((ret=rte_eth_tx_buffer_init(wk_core_tasks[wk_lcore_id].tx_buffers[port_id].tx_buffer, wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_queue_capacity)) < 0) {
 				switch (ret) {
 				case -EINVAL: {
 					XDPD_ERR(DRIVER_NAME"[ifaces][%s] wk-task-%02u => Failed to configure tx_buffer for port: %u, tx_queue: %u, aborting\n", devname.c_str(), wk_lcore_id, port_id, tx_queue_id);
@@ -1195,9 +1197,12 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			//wk_core_tasks[wk_lcore_id].nb_tx_queues++;
 
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] wk-task-%02u => assigning physical port: %u, txqueue: %u, socket: %u => wk-task-%02u, ev_queue_id: %u (txring: %s, capacity: %u, drain-interval: %u, drain-threshold: %u)\n",
-					devname.c_str(), wk_lcore_id, port_id, tx_queue_id, socket_id, wk_lcore_id, wk_core_tasks[wk_lcore_id].tx_queues[port_id].ev_queue_id,
-					rgname.str().c_str(), wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_queue_capacity, wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_interval, wk_core_tasks[wk_lcore_id].tx_queues[port_id].txring_drain_threshold);
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] wk-task-%02u => assigning physical port: %u, txqueue: %u, socket: %u => wk-task-%02u (txring: %s, capacity: %u, drain-interval: %u, drain-threshold: %u)\n",
+					devname.c_str(), wk_lcore_id, port_id, tx_queue_id, socket_id, wk_lcore_id,
+					rgname.str().c_str(),
+					wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_queue_capacity,
+					wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_interval,
+					wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_threshold);
 
 			if (tx_queue_id >= (phyports[port_id].nb_tx_queues - 1)) {
 				break;
