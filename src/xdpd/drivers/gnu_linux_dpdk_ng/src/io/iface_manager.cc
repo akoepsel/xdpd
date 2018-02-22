@@ -573,9 +573,13 @@ START_RETRY:
 
 	//Inform running wk tasks (txqueues)
 	for (auto lcore_id : wk_lcores[socket_id]) {
-		wk_core_tasks[lcore_id].tx_queues[ps->port_id].up = true;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: enabling port %u (%u)\n",
-				socket_id, lcore_id, ps->port_id, wk_core_tasks[lcore_id].tx_queues[ps->port_id].up);
+		for (unsigned int i = 0; i < wk_core_tasks[lcore_id].nb_tx_queues; i++) {
+			if (wk_core_tasks[lcore_id].tx_queues[i].port_id == ps->port_id) {
+				wk_core_tasks[lcore_id].tx_queues[i].up = true;
+				XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: enabling port %u (%u)\n",
+						socket_id, lcore_id, ps->port_id, wk_core_tasks[lcore_id].tx_queues[i].up);
+			}
+		}
 	}
 
 	XDPD_INFO(DRIVER_NAME"[iface_manager] port %u (%s) successfully started\n", ps->port_id, port->name);
@@ -608,9 +612,13 @@ rofl_result_t iface_manager_stop_port(switch_port_t *port)
 
 	//Inform running wk tasks (txqueues)
 	for (auto lcore_id : wk_lcores[socket_id]) {
-		wk_core_tasks[lcore_id].tx_queues[ps->port_id].up = false;
-		XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] tx-task-%u.%02u: disabling port %u (%u)\n",
-				socket_id, lcore_id, ps->port_id, wk_core_tasks[lcore_id].tx_queues[ps->port_id].up);
+		for (unsigned int i = 0; i < wk_core_tasks[lcore_id].nb_tx_queues; i++) {
+			if (wk_core_tasks[lcore_id].tx_queues[i].port_id == ps->port_id) {
+				wk_core_tasks[lcore_id].tx_queues[i].up = false;
+				XDPD_INFO(DRIVER_NAME"[processing][tasks][wk] wk-task-%u.%02u: disabling port %u (%u)\n",
+						socket_id, lcore_id, ps->port_id, wk_core_tasks[lcore_id].tx_queues[i].up);
+			}
+		}
 	}
 
 	//Make sure the link is down
