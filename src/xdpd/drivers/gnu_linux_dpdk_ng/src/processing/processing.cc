@@ -934,6 +934,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 		/*
 		 * receive from ethdevs
 		 */
+		while (true) {
 		for (index = 0; index < task->nb_rx_queues; ++index) {
 
 			/* port not enabled in this wk-task */
@@ -1071,6 +1072,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 					/* see packet_inline.h and src/io/tx.h for transmission of packets */
 				}
 			}
+		}
 		}
 
 
