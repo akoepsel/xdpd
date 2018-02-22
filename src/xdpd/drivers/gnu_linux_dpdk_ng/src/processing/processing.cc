@@ -598,7 +598,7 @@ rofl_result_t processing_init_eventdev(void){
 			uint8_t queues[1] = {0};
 			queues[0] = wk_core_tasks[wk_lcore_id].rx_ev_queue_id;
 
-			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u => linked to RX event queue: %u\n",
+			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, wk-task-%02u, ev_port_id: %2u => linked to event queue: %u\n",
 					ev_core_tasks[socket_id].name, wk_lcore_id, wk_core_tasks[wk_lcore_id].ev_port_id, wk_core_tasks[wk_lcore_id].rx_ev_queue_id);
 
 			if (rte_event_port_link(ev_core_tasks[socket_id].eventdev_id, wk_core_tasks[wk_lcore_id].ev_port_id, queues, NULL, 1) < 0) {
@@ -1103,7 +1103,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 		for (unsigned int port_id = 0; port_id < RTE_MAX_ETHPORTS; ++port_id) {
 
 			/* port not enabled in this wk-task */
-			if (not task->tx_queues[port_id].enabled || not task->tx_queues[port_id].up) {
+			if (unlikely(not task->tx_queues[port_id].enabled || not task->tx_queues[port_id].up)) {
 				continue;
 			}
 
@@ -1180,6 +1180,10 @@ rofl_result_t processing_schedule_port(switch_port_t* port){
 		rte_rwlock_write_unlock(&port_list_rwlock);
 	}
 
+	for (auto wk_lcore_id : wk_lcores[ps->socket_id]) {
+		wk_core_tasks[wk_lcore_id].tx_queues[ps->port_id].enabled = true;
+	}
+
 	//Print the status of the cores
 	processing_dump_core_states();
 
@@ -1196,6 +1200,10 @@ rofl_result_t processing_deschedule_port(switch_port_t* port){
 	}
 
 	dpdk_port_state_t *ps = (dpdk_port_state_t *)port->platform_port_state;
+
+	for (auto wk_lcore_id : wk_lcores[ps->socket_id]) {
+		wk_core_tasks[wk_lcore_id].tx_queues[ps->port_id].enabled = false;
+	}
 
 	if (iface_manager_stop_port(port) != ROFL_SUCCESS) {
 		XDPD_DEBUG(DRIVER_NAME"[processing][port] Stopping port %u (%s) failed\n", ps->port_id, port->name);

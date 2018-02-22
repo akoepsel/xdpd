@@ -1124,7 +1124,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			wk_core_tasks[wk_lcore_id].rx_queues[index].ev_queue_id = wk_core_tasks[wk_lcore_id].rx_ev_queue_id;
 			wk_core_tasks[wk_lcore_id].nb_rx_queues++;
 
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] rx-task-%02u => assigning physical port: %u, rxqueue: %u, socket: %u => wk-task-%02u, ev_queue_id: %u\n",
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] wk-task-%02u => assigning physical port: %u, rxqueue: %u, socket: %u => wk-task-%02u, ev_queue_id: %u\n",
 					devname.c_str(), wk_lcore_id, port_id, rx_queue_id, socket_id, wk_lcore_id, wk_core_tasks[wk_lcore_id].rx_queues[index].ev_queue_id);
 
 			if (rx_queue_id >= (phyports[port_id].nb_rx_queues - 1)) {
