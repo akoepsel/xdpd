@@ -547,7 +547,6 @@ rofl_result_t processing_init_eventdev(void){
 
 		/* map event ports/queues for RX/WK lcores */
 		uint8_t ev_port_id = 0;  // = EVENT_PORT_CTRL_PLANE
-		uint8_t ev_queue_id = 0; // = EVENT_QUEUE_CTRL_PLANE
 		{
 			/*
 			 * configure event port #0 and event queue #0 for control plane to send frames initiated by Packet-Out
@@ -569,7 +568,6 @@ rofl_result_t processing_init_eventdev(void){
 					ev_core_tasks[socket_id].name, ev_queue_id, ev_port_id);
 
 			ev_port_id++;
-			ev_queue_id++;
 		}
 
 		/*
@@ -583,7 +581,7 @@ rofl_result_t processing_init_eventdev(void){
 			/* worker core(s) read from the associated event queue on their respective NUMA node */
 			wk_core_tasks[wk_lcore_id].socket_id = socket_id;
 			wk_core_tasks[wk_lcore_id].ev_port_id = ev_port_id++;
-			wk_core_tasks[wk_lcore_id].rx_ev_queue_id = ev_queue_id++;
+			wk_core_tasks[wk_lcore_id].rx_ev_queue_id = EVENT_QUEUE_CTRL_PLANE;
 
 			struct rte_event_port_conf port_conf;
 			memset(&port_conf, 0, sizeof(port_conf));
