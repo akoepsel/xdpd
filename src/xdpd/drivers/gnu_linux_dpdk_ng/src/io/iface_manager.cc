@@ -1617,13 +1617,11 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.rxmode.split_hdr_size = 0;
 		eth_conf.rxmode.offloads = rx_offloads;
 		eth_conf.rxmode.ignore_offload_bitfield = 1;
-		//eth_conf.rx_adv_conf.rss_conf.rss_key = sym_rss_hash_key;
-		//eth_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(sym_rss_hash_key);
-		eth_conf.rx_adv_conf.rss_conf.rss_key = NULL;
-		eth_conf.rx_adv_conf.rss_conf.rss_key_len = 0;
+		eth_conf.rx_adv_conf.rss_conf.rss_key = sym_rss_hash_key;
+		eth_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(sym_rss_hash_key);
 		eth_conf.rx_adv_conf.rss_conf.rss_hf = rss_hf;
 
-		RTE_SET_USED(sym_rss_hash_key);
+
 
 		//transmit side
 		eth_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
