@@ -1152,6 +1152,10 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			/* returns number of flushed packets */
 			nb_tx = rte_eth_tx_buffer_flush(port_id, queue_id, task->tx_buffers[port_id].tx_buffer);
 
+			if (nb_tx > 0) {
+				RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => port: %u, queue: %u => sent %u pkts\n", (unsigned int)rte_lcore_to_socket_id(rte_lcore_id()), (unsigned int)rte_lcore_id(), port_id, queue_id, nb_tx);
+			}
+
 			/* update statistics */
 			task->stats.tx_pkts+=nb_tx;
 
