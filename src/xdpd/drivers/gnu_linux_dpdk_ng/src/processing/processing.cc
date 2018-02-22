@@ -963,6 +963,8 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 				continue;
 			}
 
+			RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => port: %u, queue: %u => rcvd %u pkts\n", rte_lcore_to_socket_id(rte_lcore_id()), rte_lcore_id(), port_id, queue_id);
+
 			in_port_id = port_id = task->rx_queues[index].port_id;
 
 			/* update statistics */
@@ -1072,6 +1074,10 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			/* update statistics */
 			task->stats.rx_evts+=nb_rx;
 
+			if (nb_rx > 0) {
+				RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => rcvd %u events\n", rte_lcore_to_socket_id(rte_lcore_id()), rte_lcore_id(), nb_rx);
+			}
+
 			for (i = 0; i < nb_rx; i++) {
 				if (unlikely(tx_events[i].mbuf == NULL)) {
 					continue;
@@ -1097,7 +1103,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 				}
 
 				/* returns number of flushed packets */
-				nb_tx = rte_eth_tx_buffer(out_port_id, task->tx_queues[out_port_id].queue_id, task->tx_buffers[out_port_id].tx_buffer, tx_events[i].mbuf);
+				nb_tx = rte_eth_tx_buffer(out_port_id, task->tx_buffers[out_port_id].queue_id, task->tx_buffers[out_port_id].tx_buffer, tx_events[i].mbuf);
 
 				/* update statistics */
 				task->stats.tx_pkts+=nb_tx;
