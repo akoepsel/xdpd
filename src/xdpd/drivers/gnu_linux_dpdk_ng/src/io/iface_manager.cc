@@ -1384,6 +1384,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		//activate all tx offload capabilities by default
 		uint64_t tx_offloads = dev_info.tx_offload_capa;
+		//tx_offloads |= DEV_TX_OFFLOAD_MBUF_FAST_FREE;
 
 		/*
 		 * deactivate certain offload features based on user configuration
@@ -1503,6 +1504,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		}
 		if (tx_offloads & DEV_TX_OFFLOAD_MACSEC_INSERT){
 			s_tx_offloads << "TX_MACSEC_INSERT, ";
+		}
+		if (tx_offloads & DEV_TX_OFFLOAD_MBUF_FAST_FREE){
+			s_tx_offloads << "DEV_TX_OFFLOAD_MBUF_FAST_FREE, ";
 		}
 
 		/*
