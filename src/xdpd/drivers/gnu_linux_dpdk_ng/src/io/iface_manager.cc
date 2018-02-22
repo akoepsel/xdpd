@@ -1384,7 +1384,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 		//activate all tx offload capabilities by default
 		uint64_t tx_offloads = dev_info.tx_offload_capa;
-		tx_offloads |= DEV_TX_OFFLOAD_MBUF_FAST_FREE;
+
+        if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MBUF_FAST_FREE) {
+        	tx_offloads |= DEV_TX_OFFLOAD_MBUF_FAST_FREE;
+        }
 
 		/*
 		 * deactivate certain offload features based on user configuration
@@ -1614,8 +1617,10 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 		eth_conf.rxmode.split_hdr_size = 0;
 		eth_conf.rxmode.offloads = rx_offloads;
 		eth_conf.rxmode.ignore_offload_bitfield = 1;
-		eth_conf.rx_adv_conf.rss_conf.rss_key = sym_rss_hash_key;
-		eth_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(sym_rss_hash_key);
+		//eth_conf.rx_adv_conf.rss_conf.rss_key = sym_rss_hash_key;
+		//eth_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(sym_rss_hash_key);
+		eth_conf.rx_adv_conf.rss_conf.rss_key = NULL;
+		eth_conf.rx_adv_conf.rss_conf.rss_key_len = 0;
 		eth_conf.rx_adv_conf.rss_conf.rss_hf = rss_hf;
 
 		//transmit side
@@ -1685,6 +1690,41 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			tx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "tx_free_threshold");
 		}
 
+
+		// configure receive queues
+		//uint16_t nb_rx_desc = dev_info.rx_desc_lim.nb_max / wk_lcores[socket_id].size();
+		uint16_t nb_rx_desc = dev_info.rx_desc_lim.nb_max;
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_rx_desc")) {
+			nb_rx_desc = iface_manager_get_port_setting_as<uint16_t>(s_pci_addr, "nb_rx_desc");
+		}
+
+		uint64_t rx_prefetch_threshold(RX_PREFETCH_THRESHOLD_DEFAULT);
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_prefetch_threshold")) {
+			rx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_prefetch_threshold");
+		}
+
+		uint64_t rx_host_threshold(RX_HOST_THRESHOLD_DEFAULT);
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_host_threshold")) {
+			rx_host_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_host_threshold");
+		}
+
+		uint64_t rx_writeback_threshold(RX_WRITEBACK_THRESHOLD_DEFAULT);
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_writeback_threshold")) {
+			rx_writeback_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_writeback_threshold");
+		}
+
+		uint64_t rx_free_threshold(RX_FREE_THRESHOLD_DEFAULT);
+		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_free_threshold")) {
+			rx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_free_threshold");
+		}
+
+		// adjust rx/tx descriptor numbers
+		if ((ret=rte_eth_dev_adjust_nb_rx_tx_desc(port_id, &nb_rx_desc, &nb_tx_desc)) < 0) {
+			XDPD_ERR(DRIVER_NAME" Failed to adjust port: %u nb_rx_desc and nb_tx_desc, aborting\n", port_id);
+			return ROFL_FAILURE;
+		}
+
+		// configure transmit queues
 		tx_queue_id = 0;
 		for (auto wk_lcore_id : wk_lcores[socket_id]) {
 
@@ -1770,35 +1810,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 			}
 		}
 
-
 		// configure receive queues
-		//uint16_t nb_rx_desc = dev_info.rx_desc_lim.nb_max / wk_lcores[socket_id].size();
-		uint16_t nb_rx_desc = dev_info.rx_desc_lim.nb_max;
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "nb_rx_desc")) {
-			nb_rx_desc = iface_manager_get_port_setting_as<uint16_t>(s_pci_addr, "nb_rx_desc");
-		}
-
-		uint64_t rx_prefetch_threshold(RX_PREFETCH_THRESHOLD_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_prefetch_threshold")) {
-			rx_prefetch_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_prefetch_threshold");
-		}
-
-		uint64_t rx_host_threshold(RX_HOST_THRESHOLD_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_host_threshold")) {
-			rx_host_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_host_threshold");
-		}
-
-		uint64_t rx_writeback_threshold(RX_WRITEBACK_THRESHOLD_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_writeback_threshold")) {
-			rx_writeback_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_writeback_threshold");
-		}
-
-		uint64_t rx_free_threshold(RX_FREE_THRESHOLD_DEFAULT);
-		if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "rx_free_threshold")) {
-			rx_free_threshold = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "rx_free_threshold");
-		}
-
-
 		rx_queue_id = 0;
 		for (auto wk_lcore_id : wk_lcores[socket_id]) {
 
