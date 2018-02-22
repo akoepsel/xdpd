@@ -1204,6 +1204,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 					wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_interval,
 					wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_threshold);
 
+			wk_core_tasks[wk_lcore_id].nb_tx_queues++;
+
 			if (tx_queue_id >= (phyports[port_id].nb_tx_queues - 1)) {
 				break;
 			}
