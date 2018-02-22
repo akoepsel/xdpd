@@ -564,8 +564,8 @@ rofl_result_t processing_init_eventdev(void){
 			}
 
 			/* ev_port_id = 0 assigned to LCORE_ID_ANY */
-			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, LCORE_ID_ANY, ev_queue_id: %2u, ev_port_id: %2u\n",
-					ev_core_tasks[socket_id].name, ev_queue_id, ev_port_id);
+			XDPD_INFO(DRIVER_NAME"[processing][init][evdev] eventdev %s, LCORE_ID_ANY, ev_port_id: %2u\n",
+					ev_core_tasks[socket_id].name, ev_port_id);
 
 			ev_port_id++;
 		}
