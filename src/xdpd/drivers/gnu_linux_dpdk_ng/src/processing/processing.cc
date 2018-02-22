@@ -1069,6 +1069,9 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			int timeout = 0;
 			nb_rx = rte_event_dequeue_burst(ev_task->eventdev_id, task->ev_port_id, tx_events, max_evt_tx_burst_size, timeout);
 
+			/* update statistics */
+			task->stats.rx_evts+=nb_rx;
+
 			for (i = 0; i < nb_rx; i++) {
 				if (unlikely(tx_events[i].mbuf == NULL)) {
 					continue;
@@ -1341,12 +1344,10 @@ void processing_update_stats(void)
 {
 	XDPD_INFO(DRIVER_NAME"[processing] task status:\n");
 	for (auto socket_id : numa_nodes) {
-		uint64_t rx_pkts_RX = 0;
-		uint64_t tx_pkts_TX = 0;
-		uint64_t tx_evts_RX = 0;
-		uint64_t rx_evts_WK = 0;
-		uint64_t tx_evts_WK = 0;
-		uint64_t rx_evts_TX = 0;
+		uint64_t rx_pkts = 0;
+		uint64_t tx_pkts = 0;
+		uint64_t rx_evts = 0;
+		uint64_t tx_evts = 0;
 
 		for (auto lcore_id : wk_lcores[socket_id]) {
 			wk_core_task_t *task = &wk_core_tasks[lcore_id];
@@ -1361,39 +1362,23 @@ void processing_update_stats(void)
 			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
 			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
 			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
-			rx_evts_WK += task->stats.rx_evts;
-			tx_evts_WK += task->stats.tx_evts;
+			rx_pkts += task->stats.rx_pkts;
+			tx_pkts += task->stats.tx_pkts;
+			rx_evts += task->stats.rx_evts;
+			tx_evts += task->stats.tx_evts;
 		}
 
 		std::stringstream ss;
-		ss << "Summary rx-tasks socket-" << socket_id  << ": ";
-					ss << "rx-pkts=" << std::setw(16) << rx_pkts_RX << ", ";
-					ss << "tx-evts=" << std::setw(16) << tx_evts_RX << ", ";
-		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
-		ss.str("");
 		ss << "Summary wk-tasks socket-" << socket_id  << ": ";
-					ss << "rx-evts=" << std::setw(16) << rx_evts_WK << ", ";
-					ss << "tx-evts=" << std::setw(16) << tx_evts_WK << ", ";
-		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
-		ss.str("");
-		ss << "Summary tx-tasks socket-" << socket_id  << ": ";
-					ss << "rx-evts=" << std::setw(16) << rx_evts_TX << ", ";
-					ss << "tx-pkts=" << std::setw(16) << tx_pkts_TX << ", ";
+					ss << "rx-pkts=" << std::setw(16) << rx_pkts << ", ";
+					ss << "tx-pkts=" << std::setw(16) << tx_pkts << ", ";
+					ss << "rx-evts=" << std::setw(16) << rx_evts << ", ";
+					ss << "tx-evts=" << std::setw(16) << tx_evts << ", ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 		ss.str("");
 		ss << "Summary socket-" << socket_id << ": ";
-		ss << "(RX)rx-pkts: " << (unsigned long long)rx_pkts_RX << ", ";
-		ss << "(RX)tx-evts: " << (unsigned long long)tx_evts_RX << ", ";
-		ss << "(WK)rx-evts: " << (unsigned long long)rx_evts_WK << ", ";
-		ss << "(WK)tx-evts: " << (unsigned long long)tx_evts_WK << ", ";
-		ss << "(TX)rx-evts: " << (unsigned long long)rx_evts_TX << ", ";
-		ss << "(TX)tx-pkts: " << (unsigned long long)tx_pkts_TX << ", ";
-		ss << "(RX=>TX)ratio: " << 100*((double)tx_pkts_TX)/((double)rx_pkts_RX) << "% ";
-		ss << "(RX=>RX)ratio: " << 100*((double)tx_evts_RX)/((double)rx_pkts_RX) << "% ";
-		ss << "(RX=>WK)ratio: " << 100*((double)rx_evts_WK)/((double)tx_evts_RX) << "% ";
-		ss << "(WK=>WK)ratio: " << 100*((double)tx_evts_WK)/((double)rx_evts_WK) << "% ";
-		ss << "(WK=>TX)ratio: " << 100*((double)rx_evts_TX)/((double)tx_evts_WK) << "% ";
-		ss << "(TX=>TX)ratio: " << 100*((double)tx_pkts_TX)/((double)rx_evts_TX) << "% ";
+		ss << "(tx_pkts/rx_pkts)ratio: " << 100*((double)tx_pkts)/((double)rx_pkts) << "% ";
+		ss << "(tx_pkts/(rx_pkts+rx_evts))ratio: " << 100*((double)tx_pkts)/((double)(rx_pkts + rx_evts)) << "% ";
 		XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 	}
 
