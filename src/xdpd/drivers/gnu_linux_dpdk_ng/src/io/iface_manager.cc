@@ -1165,9 +1165,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			/* store txring-drain-interval parameter for this port */
 			if (not phyports[port_id].is_virtual && iface_manager_port_setting_exists(s_pci_addr, "txring_drain_interval")) {
-				wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring_drain_interval") * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
+				wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_interval = iface_manager_get_port_setting_as<uint64_t>(s_pci_addr, "txring_drain_interval") * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / US_PER_S);
 			} else {
-				wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_interval = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / 1e6);
+				wk_core_tasks[wk_lcore_id].tx_buffers[port_id].txring_drain_interval = PROCESSING_TXRING_DRAIN_INTERVAL_DEFAULT * /*number of cycles in 1us for default timer=*/(rte_get_timer_hz() / US_PER_S);
 			}
 
 			/* store txring-drain-threshold parameter for this port */
@@ -1747,7 +1747,8 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_free_thresh = tx_free_threshold;
 				eth_txconf.tx_rs_thresh = 0; //use default, e.g., I40E_DEFAULT_TX_RSBIT_THRESH = 32
 				eth_txconf.tx_deferred_start = 0;
-				eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
+				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
+				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
 				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
 
 			} else
