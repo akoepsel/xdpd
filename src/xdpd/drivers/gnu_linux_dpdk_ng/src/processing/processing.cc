@@ -994,9 +994,9 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 				task->stats.tx_pkts+=nb_tx;
 
 				/* statistics */
-				if (unlikely((task->stats.rx_pkts % UINT64_C(1<<20)) == 0)) {
+				if (unlikely((task->stats.rx_pkts % uint64_t(1<<20)) == 0)) {
 					RTE_LOG(INFO, XDPD, "wk-task-%u.%02u => rcvd %" PRIu64" pkts, sent %" PRIu64" pkts, dropped %" PRIu64" pkts, threshold: %" PRIu64"\n",
-							socket_id, lcore_id, task->stats.rx_pkts, task->stats.tx_pkts, task->stats.pkts_dropped, UINT64_C(1<<20));
+							socket_id, lcore_id, task->stats.rx_pkts, task->stats.tx_pkts, task->stats.pkts_dropped, uint64_t(1<<20));
 				}
 			}
 
