@@ -1749,7 +1749,9 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_deferred_start = 0;
 				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
-				eth_txconf.offloads = tx_offloads; //dev_info.tx_queue_offload_capa;
+				if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MBUF_FAST_FREE)
+					eth_txconf.offloads |= DEV_TX_OFFLOAD_MBUF_FAST_FREE;
+				//eth_txconf.offloads = tx_offloads; //dev_info.tx_queue_offload_capa;
 
 			} else
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
