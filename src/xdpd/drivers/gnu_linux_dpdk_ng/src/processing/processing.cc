@@ -934,10 +934,14 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 		RTE_SET_USED(sw);
 		RTE_SET_USED(ps);
 		RTE_SET_USED(in_port_id);
+		RTE_SET_USED(out_port_id);
+		RTE_SET_USED(port);
+		RTE_SET_USED(ev_task);
+		RTE_SET_USED(tx_events);
+
 		/*
 		 * receive from ethdevs
 		 */
-		while (true) {
 		for (index = 0; index < task->nb_rx_queues; ++index) {
 
 			/* port not enabled in this wk-task */
@@ -981,20 +985,13 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			for (i = 0; i < nb_rx; i++) {
 				rte_prefetch0(rte_pktmbuf_mtod(rx_pkts[i], void *));
 				l2fwd_swap_ether_addrs(rx_pkts[i]);
+
+				/* returns number of flushed packets */
+				nb_tx = rte_eth_tx_buffer(port_id, task->tx_queues[port_id].queue_id, task->tx_buffers[port_id].tx_buffer, rx_pkts[i]);
+
+				/* update statistics */
+				task->stats.tx_pkts+=nb_tx;
 			}
-
-			//rte_eth_tx_burst(out_port_id, task->tx_queues[out_port_id].queue_id, rx_pkts, nb_rx);
-			nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, rx_pkts, nb_rx);
-
-			//RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => port: %u, queue: %u => sent %u pkts\n", (unsigned int)rte_lcore_to_socket_id(rte_lcore_id()), (unsigned int)rte_lcore_id(), port_id, queue_id, nb_tx);
-
-			if (nb_tx < nb_rx) {
-				for (i = nb_tx; i < nb_rx; i++) {
-					rte_pktmbuf_free(rx_pkts[i]);
-				}
-			}
-		}
-		}
 
 #if 0
 			/* testing */
@@ -1090,10 +1087,11 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 					/* see packet_inline.h and src/io/tx.h for transmission of packets */
 				}
 			}
-		}
-		}
 #endif
+		}
 
+
+#if 0
 		/* testing */
 		if (unlikely(wktask_dropping)) {
 			continue;
@@ -1155,6 +1153,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 		if (unlikely(txtask_dropping)) {
 			continue;
 		}
+#endif
 
 
 		/*
