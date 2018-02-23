@@ -1791,15 +1791,14 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] mapping txqueue: %u to wk lcore: %u on physical port: %u, socket: %u, nb_tx_desc: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: 0x%x [%s]\n",
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] mapping txqueue: %u to wk lcore: %u on physical port: %u, socket: %u, nb_tx_desc: %u, tx_prefetch_thresh: %u, tx_host_thresh: %u, tx_writeback_thresh: %u, tx_free_thresh: %u, txq_flags: %u, offloads: 0x%x\n",
 					devname.c_str(), tx_queue_id, wk_lcore_id, port_id, socket_id, nb_tx_desc,
 					eth_txconf.tx_thresh.pthresh,
 					eth_txconf.tx_thresh.hthresh,
 					eth_txconf.tx_thresh.wthresh,
 					eth_txconf.tx_free_thresh,
 					eth_txconf.txq_flags,
-					eth_txconf.offloads,
-					s_tx_offloads.str().c_str());
+					eth_txconf.offloads);
 
 			//configure txqueue
 			if (rte_eth_tx_queue_setup(port_id, tx_queue_id, nb_tx_desc, socket_id, &eth_txconf) < 0) {
@@ -1872,14 +1871,13 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 
 			}
 
-			XDPD_INFO(DRIVER_NAME"[ifaces][%s] mapping rxqueue: %u to wk lcore: %u (mempool: 0x%) on physical port: %u, socket: %u, nb_rx_desc: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: 0x%x [%s]\n",
+			XDPD_INFO(DRIVER_NAME"[ifaces][%s] mapping rxqueue: %u to wk lcore: %u (mempool: 0x%) on physical port: %u, socket: %u, nb_rx_desc: %u, rx_prefetch_thresh: %u, rx_host_thresh: %u, rx_writeback_thresh: %u, rx_free_thresh: %u, offloads: 0x%x\n",
 					devname.c_str(), rx_queue_id, wk_lcore_id, mempool_per_task[wk_lcore_id].pool_direct, port_id, socket_id, nb_rx_desc,
 					eth_rxconf.rx_thresh.pthresh,
 					eth_rxconf.rx_thresh.hthresh,
 					eth_rxconf.rx_thresh.wthresh,
 					eth_rxconf.rx_free_thresh,
-					eth_rxconf.offloads,
-					s_rx_offloads.str().c_str());
+					eth_rxconf.offloads);
 
 			//configure rxqueue, here rx_queue_id also refers to a dedicated memory pool, which is served by a single worker lcore
 			if (rte_eth_rx_queue_setup(port_id, rx_queue_id, nb_rx_desc, socket_id, &eth_rxconf, mempool_per_task[wk_lcore_id].pool_direct) < 0) {
