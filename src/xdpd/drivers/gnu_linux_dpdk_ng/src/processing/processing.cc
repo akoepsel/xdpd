@@ -1174,18 +1174,18 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			 * less time than txring_drain_interval cycles elapsed since
 			 * last transmission, skip the port for now and wait for more packets
 			 * to arrive in the port's txring queue */
-			if ((task->tx_buffers[port_id].tx_buffer->length < task->tx_buffers[port_id].txring_drain_threshold) &&
-					(cur_tsc < (task->tx_buffers[port_id].txring_last_tx_time + task->tx_buffers[port_id].txring_drain_interval))) {
+			if (likely((task->tx_buffers[port_id].tx_buffer->length < task->tx_buffers[port_id].txring_drain_threshold) &&
+					(cur_tsc < (task->tx_buffers[port_id].txring_last_tx_time + task->tx_buffers[port_id].txring_drain_interval)))) {
 				continue;
 			}
 
 			/* returns number of flushed packets */
 			nb_tx = rte_eth_tx_buffer_flush(port_id, queue_id, task->tx_buffers[port_id].tx_buffer);
-
+#if 0
 			if (nb_tx > 0) {
 				RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => port: %u, queue: %u => sent %u pkts\n", (unsigned int)rte_lcore_to_socket_id(rte_lcore_id()), (unsigned int)rte_lcore_id(), port_id, queue_id, nb_tx);
 			}
-
+#endif
 			/* update statistics */
 			task->stats.tx_pkts+=nb_tx;
 
