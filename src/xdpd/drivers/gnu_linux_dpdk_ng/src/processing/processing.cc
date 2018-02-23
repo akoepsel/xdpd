@@ -111,6 +111,7 @@ void processing_buffer_tx_error_cb(struct rte_mbuf **unsent, uint16_t count, voi
 	wk_core_task_t* task = (wk_core_task_t*)(userdata);
 	RTE_SET_USED(task);
 	RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => processing_buffer_tx_error_cb() count: %u\n", task->socket_id, task->lcore_id, count);
+	task->stats.pkts_dropped += count;
 	for (unsigned int i = 0; i < count; i++) {
 		rte_pktmbuf_free(unsent[i]);
 	}
@@ -789,7 +790,7 @@ rofl_result_t processing_run(void){
 			}
 
 			wk_core_tasks[lcore_id].active = true;
-			wk_core_tasks[lcore_id].stats.eths_dropped = 0;
+			wk_core_tasks[lcore_id].stats.pkts_dropped = 0;
 		}
 	}
 
@@ -1197,6 +1198,12 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			/* adjust timestamp */
 			task->tx_buffers[port_id].txring_last_tx_time = cur_tsc;
 		}
+
+		/* statistics */
+		if (unlikely((task->stats.tx_pkts % UINT64_C(1<<20)) == 0)) {
+			RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => rcvd %" PRIu64" pkts, sent %" PRIu64" pkts, dropped %" PRIu64" pkts\n",
+					socket_id, lcore_id, task->stats.rx_pkts, task->stats.tx_pkts, task->stats.pkts_dropped);
+		}
 	}
 
 	destroy_datapacket_dpdk(pkt_state);
@@ -1410,7 +1417,7 @@ void processing_update_stats(void)
 			ss << "evts-dropped=" << std::setw(16) << task->stats.evts_dropped << ", ";
 			ss << "bugs-dropped=" << std::setw(16) << task->stats.bugs_dropped << ", ";
 			ss << "ring-dropped=" << std::setw(16) << task->stats.ring_dropped << ", ";
-			ss << "eths-dropped=" << std::setw(16) << task->stats.eths_dropped << ", ";
+			ss << "eths-dropped=" << std::setw(16) << task->stats.pkts_dropped << ", ";
 			XDPD_INFO(DRIVER_NAME"\t%s\n", ss.str().c_str());
 			rx_pkts += task->stats.rx_pkts;
 			tx_pkts += task->stats.tx_pkts;
