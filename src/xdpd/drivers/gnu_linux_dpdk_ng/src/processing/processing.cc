@@ -1181,7 +1181,7 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 			 * less time than txring_drain_interval cycles elapsed since
 			 * last transmission, skip the port for now and wait for more packets
 			 * to arrive in the port's txring queue */
-			if (likely((task->tx_buffers[port_id].tx_buffer->length < task->tx_buffers[port_id].txring_drain_threshold) &&
+			if (likely((task->tx_buffers[port_id].tx_buffer->length < task->tx_buffers[port_id].txring_drain_threshold) ||
 					(cur_tsc < (task->tx_buffers[port_id].txring_last_tx_time + task->tx_buffers[port_id].txring_drain_interval)))) {
 				continue;
 			}
