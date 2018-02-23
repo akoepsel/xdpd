@@ -1200,10 +1200,10 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 		}
 
 		/* statistics */
-		if (unlikely((task->stats.rx_pkts % UINT64_C(1<<10)) == 0)) {
+		//if (unlikely((task->stats.rx_pkts % UINT64_C(1<<10)) == 0)) {
 			RTE_LOG(INFO, XDPD, "wk-task-%u.%02u => rcvd %" PRIu64" pkts, sent %" PRIu64" pkts, dropped %" PRIu64" pkts\n",
 					socket_id, lcore_id, task->stats.rx_pkts, task->stats.tx_pkts, task->stats.pkts_dropped);
-		}
+		//}
 	}
 
 	destroy_datapacket_dpdk(pkt_state);
