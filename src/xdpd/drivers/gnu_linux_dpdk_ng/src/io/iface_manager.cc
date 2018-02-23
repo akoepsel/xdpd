@@ -1749,7 +1749,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_txconf.tx_deferred_start = 0;
 				//eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS;
 				eth_txconf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
-				eth_txconf.offloads = dev_info.tx_queue_offload_capa;
+				eth_txconf.offloads = tx_offloads; //dev_info.tx_queue_offload_capa;
 
 			} else
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
@@ -1833,7 +1833,7 @@ rofl_result_t iface_manager_discover_physical_ports(void){
 				eth_rxconf.rx_drop_en = 1; //drop packets when descriptor space is exhausted
 				eth_rxconf.rx_free_thresh = rx_free_threshold;
 				eth_rxconf.rx_deferred_start = 0;
-				eth_rxconf.offloads = dev_info.rx_queue_offload_capa;
+				eth_rxconf.offloads = rx_offloads; //dev_info.rx_queue_offload_capa;
 
 			} else
 			if(strncmp(dev_info.driver_name, DPDK_DRIVER_NAME_I40E_VF, sizeof(DPDK_DRIVER_NAME_I40E_VF)) == 0){
