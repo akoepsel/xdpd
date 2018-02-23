@@ -8,6 +8,7 @@
 #include <rte_bus_vdev.h>
 #include <rte_service.h>
 #include <rte_log.h>
+#include <rte_byteorder.h>
 #include <math.h>
 #include <sstream>
 #include <iomanip>
@@ -970,14 +971,26 @@ int processing_packet_pipeline_processing_v2(void* not_used){
 
 //			RTE_LOG(DEBUG, XDPD, "wk-task-%u.%02u => port: %u, queue: %u => rcvd %u pkts\n", (unsigned int)rte_lcore_to_socket_id(rte_lcore_id()), (unsigned int)rte_lcore_id(), port_id, queue_id, nb_rx);
 
-			in_port_id = port_id = task->rx_queues[index].port_id;
+			//in_port_id = port_id = task->rx_queues[index].port_id;
 
 			/* update statistics */
 			task->stats.rx_pkts+=nb_rx;
 
-			out_port_id = (uint32_t)(phyports[port_id].shortcut_port_id);
+			//out_port_id = (uint32_t)(phyports[port_id].shortcut_port_id);
 
-			rte_eth_tx_burst(out_port_id, task->tx_queues[out_port_id].queue_id, rx_pkts, nb_rx);
+			for (i = 0; i < nb_rx; i++) {
+				rte_prefetch0(rte_pktmbuf_mtod(rx_pkts[i], void *));
+				l2fwd_swap_ether_addrs(rx_pkts[i]);
+			}
+
+			//rte_eth_tx_burst(out_port_id, task->tx_queues[out_port_id].queue_id, rx_pkts, nb_rx);
+			nb_tx = rte_eth_tx_burst(port_id, task->tx_queues[port_id].queue_id, rx_pkts, nb_rx);
+
+			if (nb_tx < nb_rx) {
+				for (i = nb_tx; i < nb_rx; i++) {
+					rte_pktmbuf_free(rx_pkts[i]);
+				}
+			}
 
 #if 0
 			/* testing */
@@ -1431,10 +1444,20 @@ void processing_update_stats(void)
 
 inline
 void l2fwd_swap_ether_addrs(struct rte_mbuf *m) {
-	struct ether_hdr *eth = rte_pktmbuf_mtod(m, struct ether_hdr *);
+	struct ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
 	struct ether_addr tmp_addr;
 
-	ether_addr_copy(&eth->d_addr, &tmp_addr);
-	ether_addr_copy(&eth->s_addr, &eth->d_addr);
-	ether_addr_copy(&tmp_addr, &eth->d_addr);
+	ether_addr_copy(&eth_hdr->d_addr, &tmp_addr);
+	ether_addr_copy(&eth_hdr->s_addr, &eth_hdr->d_addr);
+	ether_addr_copy(&tmp_addr, &eth_hdr->d_addr);
+
+	if (rte_cpu_to_be_16(ETHER_TYPE_VLAN) == eth_hdr->ether_type) {
+		struct vlan_hdr *vlan_hdr = (struct vlan_hdr *)(eth_hdr + 1);
+		if (rte_cpu_to_be_16(101 & 0x0fff) == (vlan_hdr->vlan_tci & 0x0fff)) {
+			vlan_hdr->vlan_tci = rte_cpu_to_be_16(101 & 0x0fff);
+		} else
+		if (rte_cpu_to_be_16(102 & 0x0fff) == (vlan_hdr->vlan_tci & 0x0fff)) {
+			vlan_hdr->vlan_tci = rte_cpu_to_be_16(102 & 0x0fff);
+		}
+	}
 }
